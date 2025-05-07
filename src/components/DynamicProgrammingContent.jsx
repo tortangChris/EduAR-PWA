@@ -1,13 +1,14 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
-// import content from "../../public/markdown/1.md?raw";
+import content from "../../public/markdown/7.md?raw";
+import remarkGfm from "remark-gfm";
 
 const DynamicProgrammingContent = () => {
   return (
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(86vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">
-      {/* <div className="markdown-body">
-        <ReactMarkdown>{content}</ReactMarkdown>
-      </div> */}
+      <div className="markdown-body">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      </div>
     </div>
   );
 };
