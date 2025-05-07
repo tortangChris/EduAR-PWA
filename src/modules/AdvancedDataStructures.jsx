@@ -8,11 +8,9 @@ const AdvancedDataStructures = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ Get current module index from route state
   const index = location.state?.index ?? 0;
 
   const handleFinishModule = () => {
-    // ✅ Return to /modules with the finished module index
     navigate("/modules", { state: { finishedModuleIndex: index } });
   };
 
