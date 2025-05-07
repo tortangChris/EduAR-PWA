@@ -11,72 +11,94 @@ const ModulesContent = () => {
       title: "Introduction to Algorithms",
       description:
         "Get started with algorithm basics and how they shape problem-solving.",
-      progress: 0,
       route: "/modules/intro-to-algorithms",
     },
     {
       title: "Searching Algorithms",
       description:
         "Explore various searching techniques including linear and binary search.",
-      progress: 0,
       route: "/modules/searching-algorithms",
     },
     {
       title: "Sorting Algorithms",
       description:
         "Understand sorting methods like bubble, selection, merge, and quick sort.",
-      progress: 0,
       route: "/modules/sorting-algorithms",
     },
     {
       title: "Introduction to Data Structures",
       description: "Learn the basics of arrays, linked lists, and stacks.",
-      progress: 0,
       route: "/modules/data-structures-intro",
     },
     {
       title: "Advanced Data Structures",
       description: "Dive deep into trees, heaps, and graphs.",
-      progress: 0,
       route: "/modules/advanced-data-structures",
     },
     {
       title: "Graph Algorithms",
       description:
         "Master algorithms like BFS, DFS, and Dijkstra’s for solving graph problems.",
-      progress: 0,
       route: "/modules/graph-algorithms",
     },
     {
       title: "Dynamic Programming",
       description: "Master the concepts of dynamic programming.",
-      progress: 0,
       route: "/modules/dynamic-programming",
     },
     {
       title: "Final Assessment",
       description:
         "Complete your final assessment on Data Structures and Algorithms.",
-      progress: 0,
       route: "/modules/final-assessment",
     },
   ];
 
-  const [modulesData, setModulesData] = useState(initialModules);
+  const [modulesData, setModulesData] = useState([]);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Load progress from localStorage or initialize
   useEffect(() => {
-    if (location.state && location.state.finishedModuleIndex !== undefined) {
-      const updatedModules = [...modulesData];
-      const index = location.state.finishedModuleIndex;
+    const storedProgress = JSON.parse(localStorage.getItem("moduleProgress"));
+    if (storedProgress) {
+      const mergedModules = initialModules.map((mod, index) => ({
+        ...mod,
+        progress: storedProgress[index] || 0,
+      }));
+      setModulesData(mergedModules);
+    } else {
+      const initialized = initialModules.map((mod) => ({
+        ...mod,
+        progress: 0,
+      }));
+      setModulesData(initialized);
+      localStorage.setItem(
+        "moduleProgress",
+        JSON.stringify(initialized.map(() => 0))
+      );
+    }
+  }, []);
 
-      if (updatedModules[index].progress < 100) {
+  // Update progress if coming back from finished module
+  useEffect(() => {
+    if (
+      location.state &&
+      location.state.finishedModuleIndex !== undefined &&
+      modulesData.length > 0
+    ) {
+      const index = location.state.finishedModuleIndex;
+      if (modulesData[index].progress < 100) {
+        const updatedModules = [...modulesData];
         updatedModules[index].progress = 100;
         setModulesData(updatedModules);
+        localStorage.setItem(
+          "moduleProgress",
+          JSON.stringify(updatedModules.map((m) => m.progress))
+        );
       }
     }
-  }, [location.state]);
+  }, [location.state, modulesData]);
 
   const handleClick = (module, index) => {
     const isUnlocked = index === 0 || modulesData[index - 1].progress === 100;
