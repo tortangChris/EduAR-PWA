@@ -1,14 +1,12 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { BookOpenCheck, ChevronRight, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const ModulesContent = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [showError, setShowError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-
-  const modules = [
+  const initialModules = [
     {
       title: "Introduction to Algorithms",
       description:
@@ -64,12 +62,30 @@ const ModulesContent = () => {
     },
   ];
 
+  const [modulesData, setModulesData] = useState(initialModules);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (location.state && location.state.finishedModuleIndex !== undefined) {
+      const updatedModules = [...modulesData];
+      const index = location.state.finishedModuleIndex;
+
+      if (updatedModules[index].progress < 100) {
+        updatedModules[index].progress = 100;
+        setModulesData(updatedModules);
+      }
+    }
+  }, [location.state]);
+
   const handleClick = (module, index) => {
-    if (index === 0 || modules[index - 1].progress === 100) {
-      navigate(module.route);
+    const isUnlocked = index === 0 || modulesData[index - 1].progress === 100;
+
+    if (isUnlocked) {
+      navigate(module.route, { state: { index } });
     } else {
       setErrorMessage(
-        `⚠️ You need to finish "${modules[index - 1].title}" first.`
+        `⚠️ You need to finish "${modulesData[index - 1].title}" first.`
       );
       setShowError(true);
       setTimeout(() => setShowError(false), 3000);
@@ -90,9 +106,9 @@ const ModulesContent = () => {
       )}
 
       <div className="bg-base-200 rounded-xl shadow-md h-[calc(100vh-6.5rem)] overflow-y-auto p-4 space-y-4">
-        {modules.map((module, index) => {
+        {modulesData.map((module, index) => {
           const isClickable =
-            index === 0 || modules[index - 1].progress === 100;
+            index === 0 || modulesData[index - 1].progress === 100;
 
           return (
             <button
@@ -108,9 +124,8 @@ const ModulesContent = () => {
               <div className="flex justify-between items-start gap-3">
                 <div className="flex gap-3 items-start">
                   <BookOpenCheck className="w-5 h-5 min-w-[1.25rem] min-h-[1.25rem] text-primary" />
-
                   <div>
-                    <span className="font-semibold text-m text-primary">
+                    <span className="font-semibold text-primary">
                       {module.title}
                     </span>
                     <p className="text-sm text-gray-700 dark:text-gray-300">
@@ -118,7 +133,7 @@ const ModulesContent = () => {
                     </p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 min-w-[1rem] min-h-[1rem] text-primary mt-1" />
+                <ChevronRight className="w-4 h-4 text-primary mt-1" />
               </div>
 
               <div className="mt-2">
@@ -129,8 +144,8 @@ const ModulesContent = () => {
                   max="100"
                 ></progress>
                 <div className="flex justify-between mt-1">
-                  <span className="text-xs font-semibold text-gray-500">
-                    {module.progress}% Complete
+                  <span className="text-xs font-semibold">
+                    {module.progress}%
                   </span>
                 </div>
               </div>
