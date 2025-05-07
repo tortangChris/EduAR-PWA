@@ -70,3 +70,26 @@
   border-top: 2px solid #e5e7eb; /* Tailwind's gray-200 */
   margin: 2rem 0;
 }
+
+.markdown-body table {
+  width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid #000000;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.markdown-body thead {
+  background-color: #000103;
+}
+
+.markdown-body tr:nth-child(even) {
+  background-color: #000000;
+}
