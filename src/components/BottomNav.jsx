@@ -3,7 +3,7 @@ import { Home, BookOpen, Camera, Bell, Settings } from "lucide-react"; // Import
 
 const BottomNav = () => {
   const navItems = [
-    { to: "/", label: "Home", icon: Home },
+    { to: "/home", label: "Home", icon: Home },
     { to: "/modules", label: "Modules", icon: BookOpen },
     { to: "/notification", label: "Notification", icon: Bell },
     { to: "/settings", label: "Settings", icon: Settings },
