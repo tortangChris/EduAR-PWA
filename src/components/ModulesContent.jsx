@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 
 const ModulesContent = () => {
   const navigate = useNavigate();
-  const activeModuleTitle = "Introduction to Algorithms";
 
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -65,13 +64,12 @@ const ModulesContent = () => {
     },
   ];
 
-  const handleClick = (module) => {
-    if (module.title === activeModuleTitle) {
+  const handleClick = (module, index) => {
+    if (index === 0 || modules[index - 1].progress === 100) {
       navigate(module.route);
     } else {
       setErrorMessage(
-        // `⚠️ You need to finish "${activeModuleTitle}" before opening "${module.title}".`
-        `⚠️ You need to finish "${activeModuleTitle}"".`
+        `⚠️ You need to finish "${modules[index - 1].title}" first.`
       );
       setShowError(true);
       setTimeout(() => setShowError(false), 3000);
@@ -93,12 +91,13 @@ const ModulesContent = () => {
 
       <div className="bg-base-200 rounded-xl shadow-md h-[calc(100vh-6.5rem)] overflow-y-auto p-4 space-y-4">
         {modules.map((module, index) => {
-          const isClickable = module.title === activeModuleTitle;
+          const isClickable =
+            index === 0 || modules[index - 1].progress === 100;
 
           return (
             <button
               key={index}
-              onClick={() => handleClick(module)}
+              onClick={() => handleClick(module, index)}
               className={`w-full text-left rounded-lg p-4 shadow flex flex-col gap-3 transition-all duration-150
                 ${
                   isClickable
