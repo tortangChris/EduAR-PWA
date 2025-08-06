@@ -8,19 +8,27 @@ const LogIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
   const handleLogin = (e) => {
     e.preventDefault();
 
     const storedUser = JSON.parse(localStorage.getItem("user"));
+    let hasError = false;
 
-    if (
-      !storedUser ||
-      storedUser.email !== email ||
-      storedUser.password !== password
-    ) {
-      alert("Invalid credentials or account not registered!");
-      return;
+    setEmailError("");
+    setPasswordError("");
+
+    if (!storedUser || storedUser.email !== email) {
+      setEmailError("This Gmail is not registered.");
+      hasError = true;
+    } else if (storedUser.password !== password) {
+      setPasswordError("Incorrect password.");
+      hasError = true;
     }
+
+    if (hasError) return;
 
     setLoading(true);
 
@@ -61,13 +69,18 @@ const LogIn = () => {
             </label>
             <input
               type="email"
-              placeholder="name@gmail.com"
-              className="input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50"
+              placeholder="username@gmail.com"
+              className={`input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50 ${
+                emailError ? "input-error" : ""
+              }`}
               required
               disabled={loading}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+            {emailError && (
+              <p className="text-red-500 text-xs mt-1">{emailError}</p>
+            )}
           </div>
 
           <div className="form-control">
@@ -77,12 +90,17 @@ const LogIn = () => {
             <input
               type="password"
               placeholder="••••••••"
-              className="input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50"
+              className={`input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50 ${
+                passwordError ? "input-error" : ""
+              }`}
               required
               disabled={loading}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            {passwordError && (
+              <p className="text-red-500 text-xs mt-1">{passwordError}</p>
+            )}
           </div>
 
           <div className="flex justify-end text-sm">
