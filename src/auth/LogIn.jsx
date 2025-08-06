@@ -13,21 +13,20 @@ const LogIn = () => {
     <div className="min-h-screen bg-gradient-to-br from-primary to-accent flex flex-col justify-between">
       {/* Logo and Title */}
       <div className="text-center pt-10 relative flex flex-col items-center">
-        {/* Circular rotating dotted border */}
         <div className="absolute w-30 h-30 rounded-full border-3 border-dotted border-white animate-spin-slow"></div>
 
-        {/* Logo */}
         <img
           src="/icons/eduar1.png"
           alt="EduAR Logo"
           className="mx-auto w-35 h-30 mb-3 ml-28 relative z-10"
         />
-        <h1 className="text-2xl font-bold text-white relative z-10">EduAR</h1>
+        <h1 className="text-2xl font-bold text-white relative z-10 ">EduAR</h1>
       </div>
 
-      {/* Full-width Bottom Container */}
       <div className="w-full bg-base-100 shadow-xl rounded-t-3xl px-6 py-8 h-[70vh]">
-        <h2 className="text-3xl font-bold text-center mb-6">Welcome Back</h2>
+        <h2 className="text-3xl font-bold text-center mt-3 mb-10 font-serif">
+          Welcome Back
+        </h2>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="form-control">
@@ -73,7 +72,6 @@ const LogIn = () => {
         </p>
       </div>
 
-      {/* Custom animation for slow spin */}
       <style>{`
         @keyframes spin-slow {
           0% { transform: rotate(0deg); }
