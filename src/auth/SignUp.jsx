@@ -1,22 +1,22 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const LogIn = () => {
+const SignUp = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleSignUp = (e) => {
     e.preventDefault();
     setLoading(true);
 
     setTimeout(() => {
       setLoading(false);
-      navigate("/home");
+      navigate("/auth/login");
     }, 3000);
   };
 
-  const goToSignUp = () => {
-    if (!loading) navigate("/auth/signup");
+  const goToLogin = () => {
+    navigate("/auth/login");
   };
 
   return (
@@ -35,10 +35,22 @@ const LogIn = () => {
 
       <div className="w-full bg-base-100 shadow-xl rounded-t-3xl px-6 py-8 h-[70vh]">
         <h2 className="text-3xl font-bold text-center mt-3 mb-10 font-serif">
-          Welcome Back
+          Create Account
         </h2>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleSignUp} className="space-y-4">
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text">Username</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Enter username"
+              className="input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50"
+              required
+            />
+          </div>
+
           <div className="form-control">
             <label className="label">
               <span className="label-text">Gmail</span>
@@ -48,7 +60,6 @@ const LogIn = () => {
               placeholder="name@gmail.com"
               className="input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50"
               required
-              disabled={loading}
             />
           </div>
 
@@ -61,14 +72,7 @@ const LogIn = () => {
               placeholder="••••••••"
               className="input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50"
               required
-              disabled={loading}
             />
-          </div>
-
-          <div className="flex justify-end text-sm">
-            <a href="#" className="link link-hover text-primary">
-              Forgot password?
-            </a>
           </div>
 
           <button
@@ -76,19 +80,18 @@ const LogIn = () => {
             className="btn btn-primary w-full mt-2"
             disabled={loading}
           >
-            {loading ? "Logging in..." : "Log In"}
+            {loading ? "Signing Up..." : "Sign Up"}
           </button>
         </form>
 
         <p className="text-sm text-center mt-6">
-          Don't have an account?{" "}
+          Already have an account?{" "}
           <button
             type="button"
-            onClick={goToSignUp}
+            onClick={goToLogin}
             className="link link-secondary"
-            disabled={loading}
           >
-            Sign up
+            Log In
           </button>
         </p>
       </div>
@@ -106,4 +109,4 @@ const LogIn = () => {
   );
 };
 
-export default LogIn;
+export default SignUp;

@@ -9,6 +9,7 @@ import GraphAlgorithms from "../modules/GraphAlgorithms";
 import DynamicProgramming from "../modules/DynamicProgramming";
 import FinalAssessment from "../modules/FinalAssessment";
 import LogIn from "../auth/LogIn";
+import SignUp from "../auth/SignUp";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Modules = React.lazy(() => import("../pages/Modules"));
@@ -21,6 +22,7 @@ const EduarRoutes = {
   children: [
     { index: true, element: <Navigate to="/auth/login" replace /> }, // <- Updated
     { path: "auth/login", element: <LogIn /> }, // <- Added
+    { path: "auth/signup", element: <SignUp /> },
     { path: "home", element: <Home /> },
     { path: "modules", element: <Modules /> },
     { path: "notification", element: <Notification /> },
