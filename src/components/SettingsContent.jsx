@@ -1,20 +1,43 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const SettingsContent = () => {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("isLoggedIn");
+    navigate("/auth/login");
+  };
 
   const handleResetClick = () => {
     setIsResetModalOpen(true);
   };
 
   const handleConfirmReset = () => {
-    localStorage.clear();
+    localStorage.removeItem("progress"); // Example: only reset module progress
     setIsResetModalOpen(false);
     console.log("Progress reset successfully.");
   };
 
   const handleCancelReset = () => {
     setIsResetModalOpen(false);
+  };
+
+  const handleDeleteClick = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    localStorage.clear();
+    setIsDeleteModalOpen(false);
+    console.log("Account deleted successfully.");
+    navigate("/auth/login");
+  };
+
+  const handleCancelDelete = () => {
+    setIsDeleteModalOpen(false);
   };
 
   return (
@@ -27,38 +50,13 @@ const SettingsContent = () => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-neutral rounded-lg p-4 shadow space-y-3">
-          <h2 className="text-lg font-semibold text-primary">Notifications</h2>
-          <div className="form-control space-y-4">
-            <label className="label cursor-pointer justify-between">
-              <span className="label-text">Enable Email Notifications</span>
-              <input type="checkbox" className="toggle toggle-primary" />
-            </label>
-            <br />
-            <label className="label cursor-pointer justify-between">
-              <span className="label-text">Enable Push Notifications</span>
-              <input type="checkbox" className="toggle toggle-primary" />
-            </label>
-          </div>
-        </div>
-
         <div className="bg-white dark:bg-neutral rounded-lg p-4 shadow space-y-2">
           <h2 className="text-lg font-semibold text-primary">
             Privacy & Security
           </h2>
           <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-300">
             <li>Change password</li>
-            <li>Two-factor authentication</li>
-            <li>Manage connected devices</li>
           </ul>
-        </div>
-
-        <div className="bg-white dark:bg-neutral rounded-lg p-4 shadow space-y-2">
-          <h2 className="text-lg font-semibold text-primary">Language</h2>
-          <select className="select select-bordered w-full max-w-xs">
-            <option>English</option>
-            <option>Filipino</option>
-          </select>
         </div>
 
         <div className="bg-white dark:bg-neutral rounded-lg p-4 shadow space-y-2">
@@ -82,14 +80,27 @@ const SettingsContent = () => {
           </ul>
         </div>
 
-        <div className="max-w-xs mx-auto mt-4">
-          <button onClick={handleResetClick} className="btn btn-error w-full">
+        {/* Buttons */}
+        <div className="max-w-xs mx-auto mt-4 space-y-2">
+          <button onClick={handleLogout} className="btn btn-error w-full">
+            Logout
+          </button>
+          <button
+            onClick={handleResetClick}
+            className="btn btn-outline  btn-error w-full"
+          >
             Reset Module Progress
+          </button>
+          <button
+            onClick={handleDeleteClick}
+            className="btn btn-outline btn-warning w-full"
+          >
+            Delete Account
           </button>
         </div>
       </div>
 
-      {/* Reset Confirmation Modal */}
+      {/* Reset Modal */}
       {isResetModalOpen && (
         <dialog id="reset_modal" className="modal modal-open">
           <div className="modal-box">
@@ -104,6 +115,27 @@ const SettingsContent = () => {
               </button>
               <button className="btn btn-error" onClick={handleConfirmReset}>
                 Confirm Reset
+              </button>
+            </div>
+          </div>
+        </dialog>
+      )}
+
+      {/* Delete Account Modal */}
+      {isDeleteModalOpen && (
+        <dialog id="delete_modal" className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg text-error">Delete Account</h3>
+            <p className="py-4">
+              Are you sure you want to permanently delete your account? This
+              will log you out immediately and cannot be undone.
+            </p>
+            <div className="modal-action">
+              <button className="btn btn-outline" onClick={handleCancelDelete}>
+                Cancel
+              </button>
+              <button className="btn btn-error" onClick={handleConfirmDelete}>
+                Delete Account
               </button>
             </div>
           </div>
