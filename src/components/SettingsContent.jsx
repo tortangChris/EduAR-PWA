@@ -2,27 +2,13 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const SettingsContent = () => {
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = () => {
     localStorage.removeItem("isLoggedIn");
     navigate("/auth/login");
-  };
-
-  const handleResetClick = () => {
-    setIsResetModalOpen(true);
-  };
-
-  const handleConfirmReset = () => {
-    localStorage.removeItem("progress"); // Example: only reset module progress
-    setIsResetModalOpen(false);
-    console.log("Progress reset successfully.");
-  };
-
-  const handleCancelReset = () => {
-    setIsResetModalOpen(false);
   };
 
   const handleDeleteClick = () => {
@@ -38,6 +24,19 @@ const SettingsContent = () => {
 
   const handleCancelDelete = () => {
     setIsDeleteModalOpen(false);
+  };
+
+  const handleLogoutClick = () => {
+    setIsLogoutModalOpen(true);
+  };
+
+  const handleCancelLogout = () => {
+    setIsLogoutModalOpen(false);
+  };
+
+  const handleConfirmLogout = () => {
+    setIsLogoutModalOpen(false);
+    handleLogout();
   };
 
   return (
@@ -82,14 +81,8 @@ const SettingsContent = () => {
 
         {/* Buttons */}
         <div className="max-w-xs mx-auto mt-4 space-y-2">
-          <button onClick={handleLogout} className="btn btn-error w-full">
+          <button onClick={handleLogoutClick} className="btn btn-error w-full">
             Logout
-          </button>
-          <button
-            onClick={handleResetClick}
-            className="btn btn-outline  btn-error w-full"
-          >
-            Reset Module Progress
           </button>
           <button
             onClick={handleDeleteClick}
@@ -100,21 +93,18 @@ const SettingsContent = () => {
         </div>
       </div>
 
-      {/* Reset Modal */}
-      {isResetModalOpen && (
-        <dialog id="reset_modal" className="modal modal-open">
+      {/* Logout Modal */}
+      {isLogoutModalOpen && (
+        <dialog id="logout_modal" className="modal modal-open">
           <div className="modal-box">
-            <h3 className="font-bold text-lg">Reset Module Progress</h3>
-            <p className="py-4">
-              Are you sure you want to reset your progress? This action cannot
-              be undone.
-            </p>
+            <h3 className="font-bold text-lg text-error">Logout</h3>
+            <p className="py-4">Are you sure you want to log out?</p>
             <div className="modal-action">
-              <button className="btn btn-outline" onClick={handleCancelReset}>
+              <button className="btn btn-outline" onClick={handleCancelLogout}>
                 Cancel
               </button>
-              <button className="btn btn-error" onClick={handleConfirmReset}>
-                Confirm Reset
+              <button className="btn btn-error" onClick={handleConfirmLogout}>
+                Logout
               </button>
             </div>
           </div>
@@ -125,7 +115,7 @@ const SettingsContent = () => {
       {isDeleteModalOpen && (
         <dialog id="delete_modal" className="modal modal-open">
           <div className="modal-box">
-            <h3 className="font-bold text-lg text-error">Delete Account</h3>
+            <h3 className="font-bold text-lg text-warning">Delete Account</h3>
             <p className="py-4">
               Are you sure you want to permanently delete your account? This
               will log you out immediately and cannot be undone.
@@ -134,7 +124,7 @@ const SettingsContent = () => {
               <button className="btn btn-outline" onClick={handleCancelDelete}>
                 Cancel
               </button>
-              <button className="btn btn-error" onClick={handleConfirmDelete}>
+              <button className="btn btn-warning" onClick={handleConfirmDelete}>
                 Delete Account
               </button>
             </div>
