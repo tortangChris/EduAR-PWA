@@ -13,7 +13,7 @@ import SignUp from "../auth/SignUp";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Modules = React.lazy(() => import("../pages/Modules"));
-const Notification = React.lazy(() => import("../pages/Notification"));
+const AR = React.lazy(() => import("../pages/AR"));
 const Personal = React.lazy(() => import("../pages/Personal"));
 const Settings = React.lazy(() => import("../pages/Settings"));
 
@@ -25,7 +25,7 @@ const EduarRoutes = {
     { path: "auth/signup", element: <SignUp /> },
     { path: "home", element: <Home /> },
     { path: "modules", element: <Modules /> },
-    { path: "notification", element: <Notification /> },
+    { path: "ar-assessment", element: <AR /> },
     { path: "personal", element: <Personal /> },
     { path: "settings", element: <Settings /> },
     {

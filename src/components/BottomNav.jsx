@@ -1,11 +1,11 @@
 import { NavLink } from "react-router-dom";
-import { Home, BookOpen, Camera, Bell, Settings } from "lucide-react"; // Imported Bell icon for notifications
+import { Home, BookOpen, Scan, Settings } from "lucide-react";
 
 const BottomNav = () => {
   const navItems = [
     { to: "/home", label: "Home", icon: Home },
     { to: "/modules", label: "Modules", icon: BookOpen },
-    { to: "/notification", label: "Notification", icon: Bell },
+    { to: "/ar-assessment", label: "AR", icon: Scan },
     { to: "/settings", label: "Settings", icon: Settings },
   ];
 
@@ -28,17 +28,6 @@ const BottomNav = () => {
           </NavLink>
         ))}
       </div>
-
-      {/* <NavLink
-        to="/armode"
-        className={({ isActive }) =>
-          `relative flex justify-center items-center w-12 h-12 rounded-full bg-primary text-white shadow-lg transition-all duration-300 ${
-            isActive ? "scale-110" : "scale-100"
-          }`
-        }
-      >
-        <Camera className="w-6 h-6" strokeWidth={2.5} />
-      </NavLink> */}
 
       <div className="flex-1 flex justify-around items-center">
         {navItems.slice(2).map(({ to, label, icon: Icon }, index) => (
