@@ -5,6 +5,10 @@ import { useNavigate } from "react-router-dom";
 const SettingsPersonalNav = () => {
   const navigate = useNavigate();
 
+  const user = JSON.parse(localStorage.getItem("user"));
+  const username = user?.username || "Guest";
+  const email = user?.email || "No email";
+
   const handleNavigate = () => {
     navigate("/personal");
   };
@@ -17,8 +21,8 @@ const SettingsPersonalNav = () => {
       <div className="flex items-start gap-4">
         <UserCircleIcon className="w-12 h-12 text-primary" />
         <div className="mt-1">
-          <h2 className="text-lg font-semibold">User's Name</h2>
-          <p className="text-sm text-gray-500">user@gmail.com</p>
+          <h2 className="text-lg font-semibold">{username}</h2>
+          <p className="text-sm text-gray-500">{email}</p>
         </div>
       </div>
       <ChevronRight className="w-6 h-6 text-gray-400" />

@@ -5,12 +5,28 @@ const LogIn = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const handleLogin = (e) => {
     e.preventDefault();
+
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+
+    if (
+      !storedUser ||
+      storedUser.email !== email ||
+      storedUser.password !== password
+    ) {
+      alert("Invalid credentials or account not registered!");
+      return;
+    }
+
     setLoading(true);
 
     setTimeout(() => {
       setLoading(false);
+      localStorage.setItem("isLoggedIn", true);
       navigate("/home");
     }, 3000);
   };
@@ -49,6 +65,8 @@ const LogIn = () => {
               className="input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50"
               required
               disabled={loading}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
@@ -62,6 +80,8 @@ const LogIn = () => {
               className="input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50"
               required
               disabled={loading}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 

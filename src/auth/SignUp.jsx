@@ -5,18 +5,26 @@ const SignUp = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const handleSignUp = (e) => {
     e.preventDefault();
     setLoading(true);
 
     setTimeout(() => {
+      const newUser = { username, email, password };
+      localStorage.setItem("user", JSON.stringify(newUser));
+
       setLoading(false);
+      alert("Account registered!");
       navigate("/auth/login");
     }, 3000);
   };
 
   const goToLogin = () => {
-    navigate("/auth/login");
+    if (!loading) navigate("/auth/login");
   };
 
   return (
@@ -46,8 +54,11 @@ const SignUp = () => {
             <input
               type="text"
               placeholder="Enter username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className="input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50"
               required
+              disabled={loading}
             />
           </div>
 
@@ -58,8 +69,11 @@ const SignUp = () => {
             <input
               type="email"
               placeholder="name@gmail.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50"
               required
+              disabled={loading}
             />
           </div>
 
@@ -70,8 +84,11 @@ const SignUp = () => {
             <input
               type="password"
               placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50"
               required
+              disabled={loading}
             />
           </div>
 
@@ -90,6 +107,7 @@ const SignUp = () => {
             type="button"
             onClick={goToLogin}
             className="link link-secondary"
+            disabled={loading}
           >
             Log In
           </button>

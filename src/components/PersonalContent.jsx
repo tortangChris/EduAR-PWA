@@ -1,15 +1,23 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Save } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const PersonalContent = () => {
-  const [name, setName] = useState("User's Name");
-  const [email, setEmail] = useState("user123@gmail.com");
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [showDiscardModal, setShowDiscardModal] = useState(false);
-  const [image, setImage] = useState(null);
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+
+  const storedUser = JSON.parse(localStorage.getItem("user")) || {
+    username: "User's Name",
+    email: "user123@gmail.com",
+    image: null,
+  };
+
+  const [name, setName] = useState(storedUser.username);
+  const [email, setEmail] = useState(storedUser.email);
+  const [image, setImage] = useState(storedUser.image || null);
+
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
 
   const handleSaveClick = () => {
     setShowSaveModal(true);
@@ -17,7 +25,18 @@ const PersonalContent = () => {
 
   const handleConfirmSave = () => {
     setShowSaveModal(false);
-    console.log("Information confirmed:", { name, email, image });
+
+    const updatedUser = {
+      ...storedUser,
+      username: name,
+      email: email,
+      image: image,
+    };
+
+    // Save to localStorage (para gumana sa login at settings)
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+
+    console.log("Information saved:", updatedUser);
     navigate("/settings");
   };
 
@@ -31,9 +50,10 @@ const PersonalContent = () => {
 
   const handleConfirmDiscard = () => {
     setShowDiscardModal(false);
-    setName("User's Name");
-    setEmail("user123@gmail.com");
-    setImage(null);
+    // Reset to last saved state
+    setName(storedUser.username);
+    setEmail(storedUser.email);
+    setImage(storedUser.image || null);
     console.log("Changes discarded.");
     navigate("/settings");
   };
@@ -79,7 +99,7 @@ const PersonalContent = () => {
 
         <div className="form-control w-full">
           <label className="label">
-            <span className="label-text font-semibold">Name</span>
+            <span className="label-text font-semibold">Username</span>
           </label>
           <input
             type="text"
@@ -95,9 +115,9 @@ const PersonalContent = () => {
           </label>
           <input
             type="email"
-            className="input input-bordered w-full"
+            className="input input-bordered w-full bg-gray-100 cursor-not-allowed"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            disabled
           />
         </div>
 
