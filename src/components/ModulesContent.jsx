@@ -8,48 +8,53 @@ const ModulesContent = () => {
 
   const initialModules = [
     {
-      title: "Introduction to Algorithms",
+      title: "Arrays",
       description:
-        "Get started with algorithm basics and how they shape problem-solving.",
+        "Stores elements of the same type in continuous memory, accessed by index.",
       route: "/modules/intro-to-algorithms",
     },
     {
-      title: "Searching Algorithms",
+      title: "Linked Lists",
       description:
-        "Explore various searching techniques including linear and binary search.",
+        "Stores elements in nodes connected by pointers, allowing dynamic memory.",
       route: "/modules/searching-algorithms",
     },
     {
-      title: "Sorting Algorithms",
-      description:
-        "Understand sorting methods like bubble, selection, merge, and quick sort.",
+      title: "Stack",
+      description: "Linear structure that follows LIFO (Last In, First Out).",
       route: "/modules/sorting-algorithms",
     },
     {
-      title: "Introduction to Data Structures",
-      description: "Learn the basics of arrays, linked lists, and stacks.",
+      title: "Queues",
+      description: "Linear structure that follows FIFO (First In, First Out).",
+      route: "/modules/sorting-algorithms",
+    },
+    {
+      title: "Trees",
+      description:
+        "Hierarchical data structure made of nodes connected by edges.",
       route: "/modules/data-structures-intro",
     },
     {
-      title: "Advanced Data Structures",
-      description: "Dive deep into trees, heaps, and graphs.",
+      title: "Set Data Structure and Operations",
+      description: "Stores unique elements without a defined order.",
       route: "/modules/advanced-data-structures",
     },
     {
-      title: "Graph Algorithms",
+      title: "Graph Data Structure and Operations",
       description:
-        "Master algorithms like BFS, DFS, and Dijkstra’s for solving graph problems.",
+        "Represents networks using vertices (nodes) and edges (connections).",
       route: "/modules/graph-algorithms",
     },
     {
-      title: "Dynamic Programming",
-      description: "Master the concepts of dynamic programming.",
+      title: "Map Data Structure and Operations",
+      description: "Stores key-value pairs for fast data retrieval.",
       route: "/modules/dynamic-programming",
     },
     {
-      title: "Final Assessment",
+      title: "Hash Tables",
       description:
-        "Complete your final assessment on Data Structures and Algorithms.",
+        "Stores key-value pairs using a hash function for fast access.",
       route: "/modules/final-assessment",
     },
   ];
