@@ -14,7 +14,7 @@ const IntroductionToDataStructuresHeader = () => {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-m font-bold">Introduction To Data Structure</h2>
+        <h2 className="text-m font-bold">Queues</h2>
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ const SearchingAlgorithmsHeader = () => {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-m font-bold">Searching Algorithms</h2>
+        <h2 className="text-m font-bold">Linked List</h2>
       </div>
     </div>
   );

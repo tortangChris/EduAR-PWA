@@ -14,7 +14,7 @@ const SortingAlgorithmsHeader = () => {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-m font-bold">Sorting Algorithms</h2>
+        <h2 className="text-m font-bold">Stack</h2>
       </div>
     </div>
   );

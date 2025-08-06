@@ -35,6 +35,10 @@ const EduarRoutes = {
     { path: "/modules/searching-algorithms", element: <SearchingAlgorithms /> },
     { path: "/modules/sorting-algorithms", element: <SortingAlgorithms /> },
     {
+      path: "/modules/introduction-to-datastructure",
+      element: <IntroductionToDataStructures />,
+    },
+    {
       path: "/modules/data-structures-intro",
       element: <IntroductionToDataStructures />,
     },

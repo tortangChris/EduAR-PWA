@@ -14,7 +14,7 @@ const FinalAssessmentHeader = () => {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-m font-bold">Final Assessment</h2>
+        <h2 className="text-m font-bold">Map Data Structure and Operations</h2>
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ const AdvancedDataStructuresHeader = () => {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-m font-bold">Advanced Data Structures</h2>
+        <h2 className="text-m font-bold">Trees</h2>
       </div>
     </div>
   );

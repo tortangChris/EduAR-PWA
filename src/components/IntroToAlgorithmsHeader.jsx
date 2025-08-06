@@ -14,7 +14,7 @@ const IntroToAlgorithmsHeader = () => {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-m font-bold">Introduction To Algorithms</h2>
+        <h2 className="text-m font-bold">Arrays</h2>
       </div>
     </div>
   );

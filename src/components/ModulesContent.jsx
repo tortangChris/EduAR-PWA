@@ -14,7 +14,7 @@ const ModulesContent = () => {
       route: "/modules/intro-to-algorithms",
     },
     {
-      title: "Linked Lists",
+      title: "Linked List",
       description:
         "Stores elements in nodes connected by pointers, allowing dynamic memory.",
       route: "/modules/searching-algorithms",
@@ -27,7 +27,7 @@ const ModulesContent = () => {
     {
       title: "Queues",
       description: "Linear structure that follows FIFO (First In, First Out).",
-      route: "/modules/sorting-algorithms",
+      route: "/modules/introduction-to-datastructure",
     },
     {
       title: "Trees",
