@@ -45,7 +45,7 @@ const SettingsContent = () => {
         <div className="bg-white dark:bg-neutral rounded-lg p-4 shadow space-y-2">
           <h2 className="text-lg font-semibold text-primary">Theme</h2>
           <div className="flex gap-4">
-            <button className="btn btn-outline btn-sm">System</button>
+            <button className="btn btn-sm w-full">System</button>
           </div>
         </div>
 
@@ -53,30 +53,14 @@ const SettingsContent = () => {
           <h2 className="text-lg font-semibold text-primary">
             Privacy & Security
           </h2>
-          <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-300">
-            <li>Change password</li>
-          </ul>
+          <button className="btn btn-sm w-full">Change Password</button>
         </div>
 
         <div className="bg-white dark:bg-neutral rounded-lg p-4 shadow space-y-2">
           <h2 className="text-lg font-semibold text-primary">Help & Support</h2>
-          <ul className="text-sm space-y-1 text-gray-600 dark:text-gray-300">
-            <li>
-              <a href="#" className="link link-hover">
-                FAQs
-              </a>
-            </li>
-            <li>
-              <a href="#" className="link link-hover">
-                Contact Support
-              </a>
-            </li>
-            <li>
-              <a href="#" className="link link-hover">
-                Send Feedback
-              </a>
-            </li>
-          </ul>
+          <button className="btn btn-sm w-full">FAQs</button>
+          <button className="btn btn-sm w-full">Contact Support</button>
+          <button className="btn btn-sm w-full">Send Feedback</button>
         </div>
 
         {/* Buttons */}
