@@ -38,7 +38,7 @@ const ModulesContent = () => {
     {
       title: "Set Data Structure and Operations",
       description: "Stores unique elements without a defined order.",
-      route: "/modules/set-data-structures",
+      route: "/modules/set-data-structure",
     },
     {
       title: "Graph Data Structure and Operations",
