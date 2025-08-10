@@ -11,7 +11,7 @@ const ModulesContent = () => {
       title: "Arrays",
       description:
         "Stores elements of the same type in continuous memory, accessed by index.",
-      route: "/modules/intro-to-algorithms",
+      route: "/modules/arrays",
     },
     {
       title: "Linked List",

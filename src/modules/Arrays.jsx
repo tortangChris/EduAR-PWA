@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from "react";
-import IntroToAlgorithmsHeader from "../components/IntroToAlgorithmsHeader";
-
 import { CheckCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Week1 from "../components/Arrays/Week1";
 import Week2 from "../components/Arrays/Week2";
 import Week3 from "../components/Arrays/Week3";
 import Week4 from "../components/Arrays/Week4";
+import ArraysHeader from "../components/ArraysHeader";
 
-const IntroductionToAlgorithms = () => {
+const Arrays = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const index = location.state?.index ?? 0;
@@ -95,7 +94,7 @@ const IntroductionToAlgorithms = () => {
 
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
-      <IntroToAlgorithmsHeader />
+      <ArraysHeader />
 
       {pages[currentPage]}
 
@@ -141,4 +140,4 @@ const IntroductionToAlgorithms = () => {
   );
 };
 
-export default IntroductionToAlgorithms;
+export default Arrays;

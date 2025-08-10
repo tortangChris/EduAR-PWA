@@ -2,7 +2,7 @@ import React from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const SortingAlgorithmsHeader = () => {
+const MapHeader = () => {
   const navigate = useNavigate();
 
   return (
@@ -14,10 +14,10 @@ const SortingAlgorithmsHeader = () => {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-m font-bold">Stack</h2>
+        <h2 className="text-m font-bold">Map Data Structure</h2>
       </div>
     </div>
   );
 };
 
-export default SortingAlgorithmsHeader;
+export default MapHeader;

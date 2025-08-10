@@ -1,8 +1,8 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
-import content from "../../public/markdown/4.md?raw";
+import content from "../../../public/markdown/6.md?raw";
 
-const IntroductionToDataStructuresContent = () => {
+const Week6 = () => {
   return (
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(86vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">
       <div className="markdown-body">
@@ -12,4 +12,4 @@ const IntroductionToDataStructuresContent = () => {
   );
 };
 
-export default IntroductionToDataStructuresContent;
+export default Week6;

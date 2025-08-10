@@ -2,7 +2,7 @@ import React from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const SearchingAlgorithmsHeader = () => {
+const LinkedHeader = () => {
   const navigate = useNavigate();
 
   return (
@@ -20,4 +20,4 @@ const SearchingAlgorithmsHeader = () => {
   );
 };
 
-export default SearchingAlgorithmsHeader;
+export default LinkedHeader;

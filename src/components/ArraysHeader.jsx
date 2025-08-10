@@ -2,7 +2,7 @@ import React from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const GraphAlgorithmsHeader = () => {
+const ArraysHeader = () => {
   const navigate = useNavigate();
 
   return (
@@ -14,10 +14,10 @@ const GraphAlgorithmsHeader = () => {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-m font-bold">Set Data Structure and Operations</h2>
+        <h2 className="text-m font-bold">Arrays</h2>
       </div>
     </div>
   );
 };
 
-export default GraphAlgorithmsHeader;
+export default ArraysHeader;

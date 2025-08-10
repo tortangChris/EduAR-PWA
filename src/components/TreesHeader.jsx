@@ -2,7 +2,7 @@ import React from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const IntroductionToDataStructuresHeader = () => {
+const TreesHeader = () => {
   const navigate = useNavigate();
 
   return (
@@ -14,10 +14,10 @@ const IntroductionToDataStructuresHeader = () => {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-m font-bold">Queues</h2>
+        <h2 className="text-m font-bold">Tree Data Structure</h2>
       </div>
     </div>
   );
 };
 
-export default IntroductionToDataStructuresHeader;
+export default TreesHeader;
