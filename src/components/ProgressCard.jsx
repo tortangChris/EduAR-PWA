@@ -1,7 +1,30 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { CircleCheck, BookOpen, PlaySquare } from "lucide-react";
 
-const ProgressCard = ({ progress }) => {
+const ProgressCard = () => {
+  const [progress, setProgress] = useState(0);
+  const [completedModules, setCompletedModules] = useState(0);
+
+  const totalModules = 9; // fixed 9 modules
+
+  useEffect(() => {
+    const storedProgress =
+      JSON.parse(localStorage.getItem("moduleProgress")) || [];
+
+    // compute total progress
+    const totalProgress = storedProgress.reduce(
+      (sum, val) => sum + (val || 0),
+      0
+    );
+    const averageProgress = totalProgress / totalModules; // percent overall
+
+    // compute completed modules
+    const finishedCount = storedProgress.filter((val) => val === 100).length;
+
+    setProgress(Math.round(averageProgress));
+    setCompletedModules(finishedCount);
+  }, []);
+
   return (
     <div className="bg-base-200 p-4 rounded-xl shadow-md">
       <div className="flex items-center gap-4">
@@ -28,18 +51,22 @@ const ProgressCard = ({ progress }) => {
           <BookOpen className="w-6 h-6 text-primary mb-1" />
           <span>Lessons</span>
           <span className="text-xs text-gray-500">0 / 50</span>
+          {/* Placeholder pa to, depende sa logic mo */}
         </div>
 
         <div className="flex flex-col items-center">
           <PlaySquare className="w-6 h-6 text-primary mb-1" />
           <span>Modules</span>
-          <span className="text-xs text-gray-500">0 / 5</span>
+          <span className="text-xs text-gray-500">
+            {completedModules} / {totalModules}
+          </span>
         </div>
 
         <div className="flex flex-col items-center">
           <CircleCheck className="w-6 h-6 text-primary mb-1" />
           <span>Assessment</span>
           <span className="text-xs text-gray-500">0 / 25</span>
+          {/* Placeholder pa to */}
         </div>
       </div>
     </div>
