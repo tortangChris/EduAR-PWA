@@ -52,7 +52,7 @@ const LogIn = () => {
         <img
           src="/icons/eduar1.png"
           alt="EduAR Logo"
-          className="mx-auto w-35 h-30 mb-3 ml-28 relative z-10"
+          className="mx-auto w-35 h-30 mb-3 relative z-10"
         />
         <h1 className="text-2xl font-bold text-white relative z-10">EduAR</h1>
       </div>
