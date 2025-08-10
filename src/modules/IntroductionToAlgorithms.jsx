@@ -3,13 +3,17 @@ import IntroToAlgorithmsHeader from "../components/IntroToAlgorithmsHeader";
 
 import { CheckCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import Week1 from "../components/Arrays/Week1";
+import Week2 from "../components/Arrays/Week2";
+import Week3 from "../components/Arrays/Week3";
+import Week4 from "../components/Arrays/Week4";
 
 const IntroductionToAlgorithms = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const index = location.state?.index ?? 0;
 
-  const pages = [<Page1 />, <Page2 />, <Page3 />];
+  const pages = [<Week1 />, <Week2 />, <Week3 />, <Week4 />];
   const totalPages = pages.length;
 
   const [currentPage, setCurrentPage] = useState(0);
@@ -93,11 +97,9 @@ const IntroductionToAlgorithms = () => {
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
       <IntroToAlgorithmsHeader />
 
-      <div className="p-4 bg-white dark:bg-neutral rounded-lg shadow">
-        {pages[currentPage]}
-      </div>
+      {pages[currentPage]}
 
-      <div>
+      {/* <div>
         <span className="text-xs text-gray-500">Progress</span>
         <progress
           className="progress w-full progress-primary mt-2"
@@ -110,7 +112,7 @@ const IntroductionToAlgorithms = () => {
             Page {currentPage + 1} / {totalPages}
           </span>
         </div>
-      </div>
+      </div> */}
 
       <div className="flex justify-between">
         <button
