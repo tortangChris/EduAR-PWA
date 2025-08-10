@@ -34,13 +34,36 @@ const MapDataStructure = () => {
     } else {
       setCurrentPage(savedPage);
     }
+
+    const todayKey = new Date().toISOString().split("T")[0];
+    const storedActivities =
+      JSON.parse(localStorage.getItem("recentActivities")) || [];
+
+    const alreadyLogged = storedActivities.some(
+      (a) => a.date === todayKey && a.moduleTitle === "Map Data Structure"
+    );
+
+    if (!alreadyLogged) {
+      storedActivities.push({
+        moduleTitle: "Map Data Structure",
+        date: todayKey,
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
+
+      localStorage.setItem(
+        "recentActivities",
+        JSON.stringify(storedActivities)
+      );
+    }
   }, [index]);
 
   // Compute progress (first page = 0%)
   const progress =
     totalPages <= 1 ? 100 : Math.round((currentPage / (totalPages - 1)) * 100);
 
-  // Save progress & page position
   useEffect(() => {
     const storedProgress =
       JSON.parse(localStorage.getItem("moduleProgress")) || [];
@@ -53,7 +76,6 @@ const MapDataStructure = () => {
       JSON.stringify(storedPositions)
     );
 
-    // FIX: Kapag finished na dati, huwag na i-update progress pababa
     if (storedProgress[index] === 100) {
       return;
     }
@@ -97,21 +119,6 @@ const MapDataStructure = () => {
       <ArraysHeader />
 
       {pages[currentPage]}
-
-      {/* <div>
-        <span className="text-xs text-gray-500">Progress</span>
-        <progress
-          className="progress w-full progress-primary mt-2"
-          value={isFinished ? 100 : progress}
-          max="100"
-        />
-        <div className="flex justify-between mt-1 text-sm">
-          <span className="font-semibold">{isFinished ? 100 : progress}%</span>
-          <span>
-            Page {currentPage + 1} / {totalPages}
-          </span>
-        </div>
-      </div> */}
 
       <div className="flex justify-between">
         <button

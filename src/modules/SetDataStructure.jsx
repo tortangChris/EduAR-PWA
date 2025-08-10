@@ -34,6 +34,32 @@ const SetDataStructure = () => {
     } else {
       setCurrentPage(savedPage);
     }
+
+    // ✅ Auto-add to Recent Activity when module is opened
+    const todayKey = new Date().toISOString().split("T")[0];
+    const storedActivities =
+      JSON.parse(localStorage.getItem("recentActivities")) || [];
+
+    // Check kung wala pa sa list ngayong araw para maiwasan duplicate
+    const alreadyLogged = storedActivities.some(
+      (a) => a.date === todayKey && a.moduleTitle === "Set Data Structure"
+    );
+
+    if (!alreadyLogged) {
+      storedActivities.push({
+        moduleTitle: "Set Data Structure",
+        date: todayKey,
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
+
+      localStorage.setItem(
+        "recentActivities",
+        JSON.stringify(storedActivities)
+      );
+    }
   }, [index]);
 
   // Compute progress (first page = 0%)
@@ -97,21 +123,6 @@ const SetDataStructure = () => {
       <ArraysHeader />
 
       {pages[currentPage]}
-
-      {/* <div>
-        <span className="text-xs text-gray-500">Progress</span>
-        <progress
-          className="progress w-full progress-primary mt-2"
-          value={isFinished ? 100 : progress}
-          max="100"
-        />
-        <div className="flex justify-between mt-1 text-sm">
-          <span className="font-semibold">{isFinished ? 100 : progress}%</span>
-          <span>
-            Page {currentPage + 1} / {totalPages}
-          </span>
-        </div>
-      </div> */}
 
       <div className="flex justify-between">
         <button

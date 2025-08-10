@@ -18,7 +18,6 @@ const Arrays = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
 
-  // Load saved progress and position
   useEffect(() => {
     const storedProgress =
       JSON.parse(localStorage.getItem("moduleProgress")) || [];
@@ -34,13 +33,36 @@ const Arrays = () => {
     } else {
       setCurrentPage(savedPage);
     }
+
+    const todayKey = new Date().toISOString().split("T")[0];
+    const storedActivities =
+      JSON.parse(localStorage.getItem("recentActivities")) || [];
+
+    const alreadyLogged = storedActivities.some(
+      (a) => a.date === todayKey && a.moduleTitle === "Arrays"
+    );
+
+    if (!alreadyLogged) {
+      storedActivities.push({
+        moduleTitle: "Arrays",
+        date: todayKey,
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
+
+      localStorage.setItem(
+        "recentActivities",
+        JSON.stringify(storedActivities)
+      );
+    }
   }, [index]);
 
   // Compute progress (first page = 0%)
   const progress =
     totalPages <= 1 ? 100 : Math.round((currentPage / (totalPages - 1)) * 100);
 
-  // Save progress & page position
   useEffect(() => {
     const storedProgress =
       JSON.parse(localStorage.getItem("moduleProgress")) || [];
