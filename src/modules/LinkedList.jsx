@@ -44,7 +44,7 @@ const LinkedList = () => {
 
     if (!alreadyLogged) {
       storedActivities.push({
-        moduleTitle: "Linked List (Completed)",
+        moduleTitle: "Linked List",
         date: todayKey,
         time: new Date().toLocaleTimeString([], {
           hour: "2-digit",
