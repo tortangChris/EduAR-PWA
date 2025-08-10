@@ -17,45 +17,45 @@ const ModulesContent = () => {
       title: "Linked List",
       description:
         "Stores elements in nodes connected by pointers, allowing dynamic memory.",
-      route: "/modules/searching-algorithms",
+      route: "/modules/linked-list",
     },
     {
       title: "Stack",
       description: "Linear structure that follows LIFO (Last In, First Out).",
-      route: "/modules/sorting-algorithms",
+      route: "/modules/stack",
     },
     {
       title: "Queues",
       description: "Linear structure that follows FIFO (First In, First Out).",
-      route: "/modules/introduction-to-datastructure",
+      route: "/modules/queue",
     },
     {
       title: "Trees",
       description:
         "Hierarchical data structure made of nodes connected by edges.",
-      route: "/modules/data-structures-intro",
+      route: "/modules/trees",
     },
     {
       title: "Set Data Structure and Operations",
       description: "Stores unique elements without a defined order.",
-      route: "/modules/advanced-data-structures",
+      route: "/modules/set-data-structures",
     },
     {
       title: "Graph Data Structure and Operations",
       description:
         "Represents networks using vertices (nodes) and edges (connections).",
-      route: "/modules/graph-algorithms",
+      route: "/modules/graph-data-structure",
     },
     {
       title: "Map Data Structure and Operations",
       description: "Stores key-value pairs for fast data retrieval.",
-      route: "/modules/dynamic-programming",
+      route: "/modules/map-data-structure",
     },
     {
       title: "Hash Tables",
       description:
         "Stores key-value pairs using a hash function for fast access.",
-      route: "/modules/final-assessment",
+      route: "/modules/hash-table",
     },
   ];
 

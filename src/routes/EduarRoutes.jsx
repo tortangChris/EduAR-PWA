@@ -3,6 +3,14 @@ import { Navigate } from "react-router-dom";
 import LogIn from "../auth/LogIn";
 import SignUp from "../auth/SignUp";
 import Arrays from "../modules/Arrays";
+import LinkedList from "../modules/LinkedList";
+import Queue from "../modules/Queue";
+import Trees from "../modules/Trees";
+import SetDataStructure from "../modules/SetDataStructure";
+import GraphDataStructure from "../modules/GraphDataStructure";
+import MapDataStructure from "../modules/MapDataStructure";
+import HashTable from "../modules/HashTable";
+import Stack from "../modules/Stack";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Modules = React.lazy(() => import("../pages/Modules"));
@@ -25,6 +33,38 @@ const EduarRoutes = {
     {
       path: "modules/arrays",
       element: <Arrays />,
+    },
+    {
+      path: "modules/linked-list",
+      element: <LinkedList />,
+    },
+    {
+      path: "modules/stack",
+      element: <Stack />,
+    },
+    {
+      path: "modules/queue",
+      element: <Queue />,
+    },
+    {
+      path: "modules/trees",
+      element: <Trees />,
+    },
+    {
+      path: "modules/set-data-structure",
+      element: <SetDataStructure />,
+    },
+    {
+      path: "modules/graph-data-structure",
+      element: <GraphDataStructure />,
+    },
+    {
+      path: "modules/map-data-structure",
+      element: <MapDataStructure />,
+    },
+    {
+      path: "modules/hash-table",
+      element: <HashTable />,
     },
   ],
 };
