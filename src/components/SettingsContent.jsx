@@ -47,16 +47,16 @@ const SettingsContent = () => {
           <div className="flex gap-4">
             <button className="btn btn-sm w-full">System</button>
           </div>
-        </div>
 
-        <div className="bg-white dark:bg-neutral rounded-lg p-4 shadow space-y-2">
+          <div className="divider"></div>
+
           <h2 className="text-lg font-semibold text-primary">
             Privacy & Security
           </h2>
           <button className="btn btn-sm w-full">Change Password</button>
-        </div>
 
-        <div className="bg-white dark:bg-neutral rounded-lg p-4 shadow space-y-2">
+          <div className="divider"></div>
+
           <h2 className="text-lg font-semibold text-primary">Help & Support</h2>
           <button className="btn btn-sm w-full">FAQs</button>
           <button className="btn btn-sm w-full">Contact Support</button>
