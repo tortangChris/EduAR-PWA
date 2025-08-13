@@ -42,6 +42,7 @@ const Weeks4 = () => {
     scene.add(light);
     scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
+    // Create placeholders
     for (let i = 0; i < totalSlots; i++) {
       const placeholder = createEmptyBox();
       placeholder.position.x = i * spacing;
@@ -53,6 +54,7 @@ const Weeks4 = () => {
       scene.add(indexLabel);
     }
 
+    // Initial boxes
     let values = [1, 3, 5];
     values.forEach((val, i) => {
       const box = createBox(val);
@@ -61,15 +63,32 @@ const Weeks4 = () => {
       boxes.current.push(box);
     });
 
+    let reqId;
     const animate = () => {
-      requestAnimationFrame(animate);
+      reqId = requestAnimationFrame(animate);
       controls.update();
       renderer.render(scene, camera);
     };
     animate();
 
+    // Cleanup
     return () => {
-      mountRef.current.removeChild(renderer.domElement);
+      cancelAnimationFrame(reqId);
+      scene.traverse((child) => {
+        if (child.isMesh) {
+          child.geometry.dispose();
+          if (Array.isArray(child.material)) {
+            child.material.forEach((m) => m.dispose());
+          } else {
+            child.material.dispose();
+          }
+          if (child.material.map) child.material.map.dispose();
+        }
+      });
+      renderer.dispose();
+      if (mountRef.current && renderer.domElement) {
+        mountRef.current.removeChild(renderer.domElement);
+      }
     };
   }, []);
 
@@ -144,6 +163,7 @@ const Weeks4 = () => {
     const scene = sceneRef.current;
     if (boxes.current.length >= totalSlots) return;
     if (index < 0 || index > boxes.current.length) return;
+
     for (let i = index; i < boxes.current.length; i++) {
       gsap.to(boxes.current[i].position, { x: (i + 1) * spacing, duration: 1 });
     }
@@ -157,17 +177,26 @@ const Weeks4 = () => {
   const removeValue = (index) => {
     const scene = sceneRef.current;
     if (index < 0 || index >= boxes.current.length) return;
+
     const removedBox = boxes.current[index];
     gsap.to(removedBox.position, {
       y: -3,
       duration: 1,
       onComplete: () => {
         scene.remove(removedBox);
+        removedBox.geometry.dispose();
+        if (Array.isArray(removedBox.material)) {
+          removedBox.material.forEach((m) => m.dispose());
+        } else {
+          removedBox.material.dispose();
+        }
       },
     });
+
     for (let i = index + 1; i < boxes.current.length; i++) {
       gsap.to(boxes.current[i].position, { x: (i - 1) * spacing, duration: 1 });
     }
+
     boxes.current.splice(index, 1);
   };
 
