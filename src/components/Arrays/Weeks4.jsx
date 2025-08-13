@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import gsap from "gsap";
 
-const Home = () => {
+const Weeks4 = () => {
   const mountRef = useRef(null);
   const boxes = useRef([]);
   const placeholders = useRef([]);
@@ -245,4 +245,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+export default Weeks4;
