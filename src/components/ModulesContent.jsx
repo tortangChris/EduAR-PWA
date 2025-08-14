@@ -8,16 +8,25 @@ const ModulesContent = () => {
 
   const initialModules = [
     {
-      title: "Arrays",
+      title: "Array",
       route: "/modules/arrays",
       image: "/images/arraylogo.jpg",
+    },
+    {
+      title: "Sorting",
+      route: "/modules/linked-list",
+      image: "/images/sortlogo.jpg",
     },
     {
       title: "Linked List",
       route: "/modules/linked-list",
       image: "/images/linkedlistlogo.jpg",
     },
-    { title: "Stack", route: "/modules/stack", image: "/images/arraylogo.jpg" },
+    {
+      title: "Stack",
+      route: "/modules/linked-list",
+      image: "/images/arraylogo.jpg",
+    },
     {
       title: "Queues",
       route: "/modules/queue",
