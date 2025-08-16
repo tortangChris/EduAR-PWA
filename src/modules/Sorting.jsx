@@ -5,7 +5,6 @@ import Week1 from "../components/Arrays/Week1";
 import Week2 from "../components/Arrays/Week2";
 import Week3 from "../components/Arrays/Week3";
 import Week4 from "../components/Arrays/Week4";
-import ArraysHeader from "../components/ArraysHeader";
 import ModuleHeader from "../components/ModuleHeader";
 
 const Sorting = () => {

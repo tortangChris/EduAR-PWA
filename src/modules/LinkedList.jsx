@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import ArraysHeader from "../components/ArraysHeader";
 import Week5 from "../components/Linked List/Week5";
 import Week6 from "../components/Linked List/Week6";
 import Week7 from "../components/Linked List/Week7";
