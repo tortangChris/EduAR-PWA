@@ -10,29 +10,29 @@ const ModulesContent = () => {
     {
       title: "Array",
       route: "/modules/arrays",
-      image: "/images/arraylogo.jpg",
+      image: "/images/Array.png",
     },
     {
       title: "Sorting",
       route: "/modules/linked-list",
-      image: "/images/sortlogo.jpg",
+      image: "/images/Sorting Algorith.png",
     },
     {
       title: "Linked List",
       route: "/modules/linked-list",
-      image: "/images/linkedlistlogo.jpg",
+      image: "/images/Linked List.png",
     },
     {
       title: "Stack",
       route: "/modules/linked-list",
-      image: "/images/arraylogo.jpg",
+      image: "/images/Stack.png",
     },
     {
       title: "Queues",
       route: "/modules/queue",
       image: "/images/arraylogo.jpg",
     },
-    { title: "Trees", route: "/modules/trees", image: "/images/treelogo.jpg" },
+    { title: "Trees", route: "/modules/trees", image: "/images/Trees.png" },
     {
       title: "Set Data Structure and Operations",
       route: "/modules/set.jpg",

@@ -307,7 +307,7 @@ const WeeksArray = () => {
                   <span className="text-green-600 font-mono text-lg font-bold">
                     i=
                   </span>
-                  <span>Index 1</span>
+                  <span>Index</span>
                 </label>
                 <input
                   type="number"
@@ -327,7 +327,7 @@ const WeeksArray = () => {
                   <span className="text-purple-600 font-mono text-lg font-bold">
                     i=
                   </span>
-                  <span>Index 2</span>
+                  <span>Index</span>
                 </label>
                 <input
                   type="number"
