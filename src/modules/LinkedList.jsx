@@ -6,6 +6,7 @@ import Week5 from "../components/Linked List/Week5";
 import Week6 from "../components/Linked List/Week6";
 import Week7 from "../components/Linked List/Week7";
 import Week8 from "../components/Linked List/Week8";
+import ModuleHeader from "../components/ModuleHeader";
 
 const LinkedList = () => {
   const navigate = useNavigate();
@@ -117,7 +118,7 @@ const LinkedList = () => {
 
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
-      <ArraysHeader />
+      <ModuleHeader />
 
       {pages[currentPage]}
 

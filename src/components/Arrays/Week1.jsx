@@ -1,6 +1,6 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
-import content from "../../../public/markdown/1.md?raw";
+import content from "./1.md?raw";
 
 const Week1 = () => {
   return (

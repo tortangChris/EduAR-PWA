@@ -1,22 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import Week1 from "../components/Arrays/Week1";
+import Week2 from "../components/Arrays/Week2";
+import Week3 from "../components/Arrays/Week3";
+import Week4 from "../components/Arrays/Week4";
 import ArraysHeader from "../components/ArraysHeader";
-import Week12 from "../components/Set/Week12";
 import ModuleHeader from "../components/ModuleHeader";
 
-const SetDataStructure = () => {
+const Sorting = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const index = location.state?.index ?? 0;
 
-  const pages = [<Week12 />];
+  const pages = [<Week1 />, <Week2 />, <Week3 />, <Week4 />];
   const totalPages = pages.length;
 
   const [currentPage, setCurrentPage] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
 
-  // Load saved progress and position
   useEffect(() => {
     const storedProgress =
       JSON.parse(localStorage.getItem("moduleProgress")) || [];
@@ -33,19 +35,17 @@ const SetDataStructure = () => {
       setCurrentPage(savedPage);
     }
 
-    // ✅ Auto-add to Recent Activity when module is opened
     const todayKey = new Date().toISOString().split("T")[0];
     const storedActivities =
       JSON.parse(localStorage.getItem("recentActivities")) || [];
 
-    // Check kung wala pa sa list ngayong araw para maiwasan duplicate
     const alreadyLogged = storedActivities.some(
-      (a) => a.date === todayKey && a.moduleTitle === "Set Data Structure"
+      (a) => a.date === todayKey && a.moduleTitle === "Arrays"
     );
 
     if (!alreadyLogged) {
       storedActivities.push({
-        moduleTitle: "Set Data Structure",
+        moduleTitle: "Arrays",
         date: todayKey,
         time: new Date().toLocaleTimeString([], {
           hour: "2-digit",
@@ -64,7 +64,6 @@ const SetDataStructure = () => {
   const progress =
     totalPages <= 1 ? 100 : Math.round((currentPage / (totalPages - 1)) * 100);
 
-  // Save progress & page position
   useEffect(() => {
     const storedProgress =
       JSON.parse(localStorage.getItem("moduleProgress")) || [];
@@ -122,6 +121,21 @@ const SetDataStructure = () => {
 
       {pages[currentPage]}
 
+      {/* <div>
+        <span className="text-xs text-gray-500">Progress</span>
+        <progress
+          className="progress w-full progress-primary mt-2"
+          value={isFinished ? 100 : progress}
+          max="100"
+        />
+        <div className="flex justify-between mt-1 text-sm">
+          <span className="font-semibold">{isFinished ? 100 : progress}%</span>
+          <span>
+            Page {currentPage + 1} / {totalPages}
+          </span>
+        </div>
+      </div> */}
+
       <div className="flex justify-between">
         <button
           onClick={goPrev}
@@ -149,4 +163,4 @@ const SetDataStructure = () => {
   );
 };
 
-export default SetDataStructure;
+export default Sorting;

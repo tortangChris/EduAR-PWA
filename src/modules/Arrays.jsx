@@ -6,6 +6,7 @@ import Week2 from "../components/Arrays/Week2";
 import Week3 from "../components/Arrays/Week3";
 import Week4 from "../components/Arrays/Week4";
 import ArraysHeader from "../components/ArraysHeader";
+import ModuleHeader from "../components/ModuleHeader";
 
 const Arrays = () => {
   const navigate = useNavigate();
@@ -116,7 +117,7 @@ const Arrays = () => {
 
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
-      <ArraysHeader />
+      <ModuleHeader />
 
       {pages[currentPage]}
 

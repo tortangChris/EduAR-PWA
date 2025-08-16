@@ -12,6 +12,7 @@ import MapDataStructure from "../modules/MapDataStructure";
 import HashTable from "../modules/HashTable";
 import Stack from "../modules/Stack";
 import WeekArray from "../components/Arrays/WeekArray";
+import Sorting from "../modules/Sorting";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Modules = React.lazy(() => import("../pages/Modules"));
@@ -38,6 +39,10 @@ const EduarRoutes = {
     {
       path: "modules/arrays/3dMode",
       element: <WeekArray />,
+    },
+    {
+      path: "modules/sorting",
+      element: <Sorting />,
     },
     {
       path: "modules/linked-list",

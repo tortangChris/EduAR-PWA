@@ -3,6 +3,7 @@ import { CheckCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ArraysHeader from "../components/ArraysHeader";
 import Week9 from "../components/Stack/Week9";
+import ModuleHeader from "../components/ModuleHeader";
 
 const Stack = () => {
   const navigate = useNavigate();
@@ -114,7 +115,7 @@ const Stack = () => {
 
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
-      <ArraysHeader />
+      <ModuleHeader />
 
       {pages[currentPage]}
 

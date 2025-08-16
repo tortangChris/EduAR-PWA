@@ -14,7 +14,7 @@ const ModulesContent = () => {
     },
     {
       title: "Sorting",
-      route: "/modules/linked-list",
+      route: "/modules/sorting",
       image: "/images/Sorting Algorith.png",
     },
     {
@@ -24,19 +24,19 @@ const ModulesContent = () => {
     },
     {
       title: "Stack",
-      route: "/modules/linked-list",
+      route: "/modules/stack",
       image: "/images/Stack.png",
     },
     {
-      title: "Queues",
+      title: "Queue",
       route: "/modules/queue",
       image: "/images/arraylogo.jpg",
     },
     { title: "Trees", route: "/modules/trees", image: "/images/Trees.png" },
     {
       title: "Set Data Structure and Operations",
-      route: "/modules/set.jpg",
-      image: "/images/setlogo.jpg",
+      route: "/modules/set-data-structure",
+      image: "/images/set.jpg",
     },
     {
       title: "Graph Data Structure and Operations",
