@@ -244,19 +244,9 @@ const WeeksArray = () => {
   };
 
   return (
-    <div style={{ width: "100%", height: "100vh" }}>
+    <div className="w-full h-screen relative">
       {/* Buttons */}
-      <div
-        style={{
-          position: "absolute",
-          top: 20,
-          left: 20,
-          zIndex: 10,
-          display: "flex",
-          flexDirection: "column",
-          gap: "5px",
-        }}
-      >
+      <div className="absolute top-5 left-1/2 -translate-x-1/2 z-10 flex flex-row gap-3">
         {["append", "insert", "delete", "swap"].map((type) => (
           <button
             key={type}
@@ -264,6 +254,14 @@ const WeeksArray = () => {
               setModalType(type);
               setModalOpen(true);
             }}
+            className="
+            px-4 py-2 rounded-lg border 
+            bg-transparent 
+            text-gray-800 border-gray-800 
+            hover:bg-gray-100 
+            dark:text-white dark:border-white dark:hover:bg-white/10 
+            transition font-medium
+          "
           >
             {type.charAt(0).toUpperCase() + type.slice(1)}
           </button>
@@ -271,70 +269,91 @@ const WeeksArray = () => {
       </div>
 
       {/* Three.js Mount */}
-      <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
+      <div ref={mountRef} className="w-full h-full" />
 
       {/* Modal */}
       {modalOpen && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 20,
-          }}
-        >
-          <div
-            style={{
-              background: "#fff",
-              padding: 20,
-              borderRadius: 8,
-              minWidth: 300,
-            }}
-          >
-            <h3>{modalType.charAt(0).toUpperCase() + modalType.slice(1)}</h3>
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 w-80 shadow-xl">
+            <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
+              {modalType.charAt(0).toUpperCase() + modalType.slice(1)}
+            </h3>
+
             {(modalType === "append" || modalType === "insert") && (
-              <input
-                type="number"
-                placeholder="Value"
-                value={inputValues.value}
-                onChange={(e) =>
-                  setInputValues({ ...inputValues, value: e.target.value })
-                }
-                style={{ width: "100%", marginBottom: 10 }}
-              />
+              <div className="mb-3">
+                <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-1">
+                  <span className="text-blue-600 font-mono text-lg font-bold">
+                    v=
+                  </span>
+                  <span>Value</span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="Enter value"
+                  value={inputValues.value}
+                  onChange={(e) =>
+                    setInputValues({ ...inputValues, value: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border-2 border-blue-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                />
+              </div>
             )}
+
             {(modalType === "insert" ||
               modalType === "delete" ||
               modalType === "swap") && (
-              <input
-                type="number"
-                placeholder="Index 1"
-                value={inputValues.index1}
-                onChange={(e) =>
-                  setInputValues({ ...inputValues, index1: e.target.value })
-                }
-                style={{ width: "100%", marginBottom: 10 }}
-              />
+              <div className="mb-3">
+                <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-1">
+                  <span className="text-green-600 font-mono text-lg font-bold">
+                    i=
+                  </span>
+                  <span>Index 1</span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="Enter index"
+                  value={inputValues.index1}
+                  onChange={(e) =>
+                    setInputValues({ ...inputValues, index1: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border-2 border-green-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:text-white"
+                />
+              </div>
             )}
+
             {modalType === "swap" && (
-              <input
-                type="number"
-                placeholder="Index 2"
-                value={inputValues.index2}
-                onChange={(e) =>
-                  setInputValues({ ...inputValues, index2: e.target.value })
-                }
-                style={{ width: "100%", marginBottom: 10 }}
-              />
+              <div className="mb-3">
+                <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-1">
+                  <span className="text-purple-600 font-mono text-lg font-bold">
+                    i=
+                  </span>
+                  <span>Index 2</span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="Enter index"
+                  value={inputValues.index2}
+                  onChange={(e) =>
+                    setInputValues({ ...inputValues, index2: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border-2 border-purple-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-800 dark:text-white"
+                />
+              </div>
             )}
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button onClick={handleDone}>Done</button>
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setModalOpen(false)}
+                className="px-4 py-2 rounded-lg bg-gray-300 text-gray-800 hover:bg-gray-400 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDone}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow-md transition"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>
