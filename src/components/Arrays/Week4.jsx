@@ -15,7 +15,7 @@ const Week4 = () => {
   };
 
   return (
-    <div className="bg-base-200 dark:bg-gray-900 rounded-xl shadow-md h-[calc(86vh-6.5rem)] overflow-y-auto p-6 flex flex-col items-center justify-center gap-6">
+    <div className="bg-base-200 rounded-xl shadow-md h-[calc(86vh-6.5rem)] overflow-y-auto p-6 flex flex-col items-center justify-center gap-6">
       <div className="flex flex-col sm:flex-row gap-6">
         {/* 3D Mode Button */}
         <button

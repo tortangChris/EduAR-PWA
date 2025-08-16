@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import Week13 from "../components/Graph/Week13";
 import ModuleHeader from "../components/ModuleHeader";
+import Empty from "../components/Empty";
 
 const GraphDataStructure = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const index = location.state?.index ?? 0;
 
-  const pages = [<Week13 />];
+  const pages = [<Empty />];
   const totalPages = pages.length;
 
   const [currentPage, setCurrentPage] = useState(0);

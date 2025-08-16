@@ -1,18 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import Week1 from "../components/Arrays/Week1";
-import Week2 from "../components/Arrays/Week2";
-import Week3 from "../components/Arrays/Week3";
-import Week4 from "../components/Arrays/Week4";
 import ModuleHeader from "../components/ModuleHeader";
+import Empty from "../components/Empty";
 
 const Sorting = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const index = location.state?.index ?? 0;
 
-  const pages = [<Week1 />, <Week2 />, <Week3 />, <Week4 />];
+  const pages = [<Empty />];
   const totalPages = pages.length;
 
   const [currentPage, setCurrentPage] = useState(0);

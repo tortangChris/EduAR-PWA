@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import Week15 from "../components/Hash/Week15";
 import ModuleHeader from "../components/ModuleHeader";
+import Empty from "../components/Empty";
 
 const HashTable = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const index = location.state?.index ?? 0;
 
-  const pages = [<Week15 />];
+  const pages = [<Empty />];
   const totalPages = pages.length;
 
   const [currentPage, setCurrentPage] = useState(0);
