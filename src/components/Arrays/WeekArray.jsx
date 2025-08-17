@@ -18,8 +18,21 @@ const WeeksArray = () => {
     index1: "",
     index2: "",
   });
+  const [isPortrait, setIsPortrait] = useState(
+    window.innerHeight > window.innerWidth
+  );
 
   useEffect(() => {
+    const handleResize = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (isPortrait) return; // Do not render Three.js if portrait
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x202020);
     sceneRef.current = scene;
@@ -93,7 +106,15 @@ const WeeksArray = () => {
       if (mountRef.current && renderer.domElement)
         mountRef.current.removeChild(renderer.domElement);
     };
-  }, []);
+  }, [isPortrait]);
+
+  if (isPortrait) {
+    return (
+      <div className="flex justify-center items-center h-screen text-center p-5 text-xl">
+        Rotate your mobile device to landscape to view the visualizer.
+      </div>
+    );
+  }
 
   const createBox = (value) => {
     const geometry = new THREE.BoxGeometry(1, 1, 1);
