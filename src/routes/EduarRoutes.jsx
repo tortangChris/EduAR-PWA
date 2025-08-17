@@ -13,6 +13,7 @@ import HashTable from "../modules/HashTable";
 import Stack from "../modules/Stack";
 import WeekArray from "../components/Arrays/WeekArray";
 import Sorting from "../modules/Sorting";
+import Visualize3d from "../components/Sorting/Visualize3d";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Modules = React.lazy(() => import("../pages/Modules"));
@@ -39,6 +40,10 @@ const EduarRoutes = {
     {
       path: "modules/arrays/3dMode",
       element: <WeekArray />,
+    },
+    {
+      path: "modules/sorting/3dVisualSorting",
+      element: <Visualize3d />,
     },
     {
       path: "modules/sorting",
