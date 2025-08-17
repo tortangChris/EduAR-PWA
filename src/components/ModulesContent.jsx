@@ -143,7 +143,7 @@ const ModulesContent = () => {
                       : "cursor-not-allowed bg-gray-100 dark:bg-base-300 opacity-70"
                   }`}
               >
-                <div className="w-full aspect-square flex items-center justify-center bg-gray-200 rounded-md overflow-hidden relative">
+                <div className="w-full h-23.5 aspect-square flex items-center justify-center bg-gray-200 rounded-md overflow-hidden relative">
                   <img
                     src={module.image}
                     alt={module.title}
