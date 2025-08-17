@@ -1,4 +1,4 @@
-## 4. Looping Through Arrays
+## Looping Through Arrays
 
 Since arrays contain multiple elements, we often use **loops** to access them efficiently.
 

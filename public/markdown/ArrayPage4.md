@@ -1,4 +1,4 @@
-## 3. Accessing Array Elements
+## Accessing Array Elements
 
 Array elements are accessed using an **index**, starting at **0**.
 

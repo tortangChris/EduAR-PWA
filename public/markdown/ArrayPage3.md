@@ -1,4 +1,4 @@
-## 2. Creating Arrays
+## Creating Arrays
 
 After declaring an array, we need to create it using the `new` keyword. This step allocates memory and specifies the size of the array.
 

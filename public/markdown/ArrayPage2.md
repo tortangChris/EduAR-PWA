@@ -1,4 +1,4 @@
-## 1. Declaring Arrays
+## Declaring Arrays
 
 To use an array, we must first declare it.  
 Declaration tells the program what type of values the array will hold.
