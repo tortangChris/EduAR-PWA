@@ -6,13 +6,22 @@ import Page1 from "../components/Linked List/Page1";
 import Page2 from "../components/Linked List/Page2";
 import Page3 from "../components/Linked List/Page3";
 import Page4 from "../components/Linked List/Page4";
+import PageVisualize from "../components/Linked List/PageVisualize";
+import PageAssessment from "../components/Linked List/PageAssessment";
 
 const LinkedList = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const index = location.state?.index ?? 0;
 
-  const pages = [<Page1 />, <Page2 />, <Page3 />, <Page4 />];
+  const pages = [
+    <Page1 />,
+    <Page2 />,
+    <Page3 />,
+    <Page4 />,
+    <PageVisualize />,
+    <PageAssessment />,
+  ];
   const totalPages = pages.length;
 
   const [currentPage, setCurrentPage] = useState(0);
