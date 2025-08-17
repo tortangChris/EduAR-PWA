@@ -3,13 +3,17 @@ import { CheckCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ModuleHeader from "../components/ModuleHeader";
 import Empty from "../components/Empty";
+import Page1 from "../components/Sorting/Page1";
+import Page2 from "../components/Sorting/Page2";
+import Page3 from "../components/Sorting/Page3";
+import Page4 from "../components/Sorting/Page4";
 
 const Sorting = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const index = location.state?.index ?? 0;
 
-  const pages = [<Empty />];
+  const pages = [<Page1 />, <Page2 />, <Page3 />, <Page4 />];
   const totalPages = pages.length;
 
   const [currentPage, setCurrentPage] = useState(0);
