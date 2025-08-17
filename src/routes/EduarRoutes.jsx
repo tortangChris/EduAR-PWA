@@ -47,7 +47,7 @@ const EduarRoutes = {
       element: <Visualize3d />,
     },
     {
-      path: "modules/sorting/3dVisualLinkedList",
+      path: "modules/linked-list/3dVisualLinkedList",
       element: <VisualLinkList />,
     },
     {
