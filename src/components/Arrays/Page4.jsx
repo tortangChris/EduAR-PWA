@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
-const Week4 = () => {
+const Page4 = () => {
   const navigate = useNavigate();
 
   const handle3DModeClick = () => {
@@ -15,8 +15,9 @@ const Week4 = () => {
   return (
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(86vh-6.5rem)] overflow-y-auto p-6 flex flex-col items-center justify-center gap-6">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 text-center">
-        Assessment
+        Array Visualization
       </h2>
+
       <div className="flex flex-col sm:flex-row gap-6">
         {/* 3D Mode Button */}
         <button
@@ -56,4 +57,4 @@ const Week4 = () => {
   );
 };
 
-export default Week4;
+export default Page4;
