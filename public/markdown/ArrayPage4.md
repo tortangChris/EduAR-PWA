@@ -1,25 +1,18 @@
-## 4. Looping Through Arrays
+## 3. Accessing Array Elements
 
-Since arrays contain multiple elements, we often use **loops** to access them efficiently.
+Array elements are accessed using an **index**, starting at **0**.
 
-### For Loop
-
-```java
-for(int i = 0; i < numbers.length; i++) {
-    System.out.println(numbers[i]);
-}
-```
-
-- `numbers.length` → returns the size of the array.
-- The loop runs from `i = 0` up to `i < numbers.length`.
-
-### Enhanced For Loop (For-Each)
+**Example in Java:**
 
 ```java
-for(int num : numbers) {
-    System.out.println(num);
-}
+numbers[0] = 10;   // assigns 10 to the first element
+numbers[1] = 20;   // assigns 20 to the second element
+
+System.out.println(numbers[0]); // prints 10
 ```
 
-- Automatically goes through each element of the array.
-- Easier to use when you just want to read values.
+- `numbers[0]` → first element
+- `numbers[1]` → second element
+- `numbers[n-1]` → last element (where n is the size of the array)
+
+Accessing outside the array’s range will cause an **ArrayIndexOutOfBoundsException**.

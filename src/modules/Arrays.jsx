@@ -8,6 +8,7 @@ import Page2 from "../components/Arrays/Page2";
 import Page3 from "../components/Arrays/Page3";
 import Page4 from "../components/Arrays/Page4";
 import Page5 from "../components/Arrays/Page5";
+import Visualize from "../components/Arrays/Visualize";
 
 const Arrays = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ const Arrays = () => {
     <Page3 />,
     <Page4 />,
     <Page5 />,
+    <Visualize />,
     <Week4 />,
   ];
   const totalPages = pages.length;
