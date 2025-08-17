@@ -7,13 +7,21 @@ import Page1 from "../components/Arrays/Page1";
 import Page2 from "../components/Arrays/Page2";
 import Page3 from "../components/Arrays/Page3";
 import Page4 from "../components/Arrays/Page4";
+import Page5 from "../components/Arrays/Page5";
 
 const Arrays = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const index = location.state?.index ?? 0;
 
-  const pages = [<Page1 />, <Page2 />, <Page3 />, <Page4 />, <Week4 />];
+  const pages = [
+    <Page1 />,
+    <Page2 />,
+    <Page3 />,
+    <Page4 />,
+    <Page5 />,
+    <Week4 />,
+  ];
   const totalPages = pages.length;
 
   const [currentPage, setCurrentPage] = useState(0);

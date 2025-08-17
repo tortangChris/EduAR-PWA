@@ -23,3 +23,14 @@ for(int num : numbers) {
 
 - Automatically goes through each element of the array.
 - Easier to use when you just want to read values.
+
+---
+
+## Summary
+
+- **Declaring** → defines the type of array.
+- **Creating** → allocates memory and sets size.
+- **Accessing** → retrieves or assigns values using index.
+- **Looping** → allows us to process all elements efficiently.
+
+Arrays are powerful tools that help organize and manage collections of data in programming.

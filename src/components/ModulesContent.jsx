@@ -8,7 +8,7 @@ const ModulesContent = () => {
 
   const initialModules = [
     {
-      title: "Array",
+      title: "Arrays",
       route: "/modules/arrays",
       image: "/images/Array.png",
     },
