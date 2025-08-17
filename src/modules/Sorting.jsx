@@ -5,7 +5,6 @@ import ModuleHeader from "../components/ModuleHeader";
 import Page1 from "../components/Sorting/Page1";
 import Page2 from "../components/Sorting/Page2";
 import Page3 from "../components/Sorting/Page3";
-import Page4 from "../components/Sorting/Page4";
 import PageVisualize from "../components/Sorting/PageVisualize";
 import PageAssessment from "../components/Sorting/PageAssessment";
 
@@ -18,7 +17,6 @@ const Sorting = () => {
     <Page1 />,
     <Page2 />,
     <Page3 />,
-    <Page4 />,
     <PageVisualize />,
     <PageAssessment />,
   ];
