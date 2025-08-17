@@ -2,14 +2,17 @@ import React, { useEffect, useState } from "react";
 import { CheckCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ModuleHeader from "../components/ModuleHeader";
-import Empty from "../components/Empty";
+import Page1 from "../components/Linked List/Page1";
+import Page2 from "../components/Linked List/Page2";
+import Page3 from "../components/Linked List/Page3";
+import Page4 from "../components/Linked List/Page4";
 
 const LinkedList = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const index = location.state?.index ?? 0;
 
-  const pages = [<Empty />];
+  const pages = [<Page1 />, <Page2 />, <Page3 />, <Page4 />];
   const totalPages = pages.length;
 
   const [currentPage, setCurrentPage] = useState(0);
