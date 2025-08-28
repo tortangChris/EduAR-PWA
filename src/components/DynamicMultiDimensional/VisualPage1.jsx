@@ -2,7 +2,11 @@ import React, { useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 
-const VisualPage1= ({ data = [10, 20, 30, 40], capacity = 6, spacing = 2.0 }) => {
+const VisualPage1 = ({
+  data = [10, 20, 30, 40],
+  capacity = 6,
+  spacing = 2.0,
+}) => {
   const originalRef = useRef(data.slice());
   const [boxes, setBoxes] = useState(() =>
     createBoxes(originalRef.current, capacity, spacing)
@@ -21,8 +25,8 @@ const VisualPage1= ({ data = [10, 20, 30, 40], capacity = 6, spacing = 2.0 }) =>
   }
 
   return (
-    <div className="w-full h-screen bg-gray-50 flex items-center justify-center">
-      <Canvas camera={{ position: [0, 4, 8], fov: 50 }}>
+    <div className="w-full h-[300px] bg-gray-50 flex items-center justify-center">
+      <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
         {boxes.map((b, i) => (
