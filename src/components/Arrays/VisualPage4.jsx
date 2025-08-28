@@ -251,7 +251,7 @@ const VisualPage4 = ({
       : boxes.length;
 
   return (
-    <div className="w-full h-screen bg-gray-50 flex flex-col items-center justify-center">
+    <div className="w-full h-[300px] bg-gray-50 flex flex-col items-center justify-center">
       {/* Video Player Style Controls */}
       <div className="w-2/3 mb-4">
         <div className="flex items-center gap-3 mb-2">
@@ -288,8 +288,8 @@ const VisualPage4 = ({
       </div>
 
       {/* 3D Scene */}
-      <div className="w-full h-[75%]">
-        <Canvas camera={{ position: [0, 4, 8], fov: 50 }}>
+      <div className="w-full h-[60%]">
+        <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
           {/* Lighting */}
           <ambientLight intensity={0.4} />
           <directionalLight position={[5, 10, 5]} intensity={0.8} />
