@@ -8,50 +8,51 @@ const ModulesContent = () => {
 
   const initialModules = [
     {
-      title: "Arrays",
+      title: "Arrays & Time Complexity",
       route: "/modules/arrays",
       image: "/images/Array.png",
     },
     {
-      title: "Sorting",
+      title: "Sorting Algorithms",
       route: "/modules/sorting",
       image: "/images/Sorting Algorith.png",
     },
     {
-      title: "Linked List",
+      title: "Dynamic Arrays and Multi-Dimensional Arrays",
+      route: "/modules/dynamic-and-multi-dimensional-arrays",
+      image: "/images/Sorting Algorith.png",
+    },
+    {
+      title: "Linked List Varation",
       route: "/modules/linked-list",
       image: "/images/Linked List.png",
     },
     {
-      title: "Stack",
-      route: "/modules/stack",
-      image: "/images/Stack.png",
-    },
-    {
-      title: "Queue",
-      route: "/modules/queue",
+      title: "Stack and Queue",
+      route: "/modules/stack-and-queue",
       image: "/images/arraylogo.jpg",
     },
-    { title: "Trees", route: "/modules/trees", image: "/images/Trees.png" },
+    {
+      title: "Tree Data Structure Recursion",
+      route: "/modules/tree-data-structure-recursion",
+      image: "/images/Trees.png",
+    },
+
     {
       title: "Set Data Structure and Operations",
       route: "/modules/set-data-structure",
       image: "/images/set.jpg",
     },
+
     {
       title: "Graph Data Structure and Operations",
       route: "/modules/graph-data-structure",
       image: "/images/graphlogo.jpg",
     },
     {
-      title: "Map Data Structure and Operations",
-      route: "/modules/map-data-structure",
+      title: "Map & Hash Table",
+      route: "/modules/map-and-hash-table",
       image: "/images/graphlogo.jpg",
-    },
-    {
-      title: "Hash Tables",
-      route: "/modules/hash-table",
-      image: "/images/hashtablelogo.jpg",
     },
   ];
 
