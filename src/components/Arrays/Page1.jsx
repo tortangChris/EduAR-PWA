@@ -2,8 +2,6 @@ import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import content from "../../../public/markdown/ArrayPage1.md?raw";
 import { Scan } from "lucide-react";
-
-// ✅ Import mo yung 3D Visual Component dito
 import VisualPage1 from "./VisualPage1";
 
 const Page1 = () => {
@@ -11,7 +9,6 @@ const Page1 = () => {
 
   const handleArClick = async () => {
     try {
-      // Check AR/WebXR support
       if (
         navigator.xr &&
         (await navigator.xr.isSessionSupported("immersive-ar"))
@@ -24,7 +21,6 @@ const Page1 = () => {
     } catch (err) {
       setShowWarning(true);
 
-      // Reset back to icon after 2.5s
       setTimeout(() => {
         setShowWarning(false);
       }, 2500);
@@ -37,12 +33,9 @@ const Page1 = () => {
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>
 
-      {/* 3D Viewer Container */}
       <div className="w-full h-[300px] bg-gray-900 rounded-xl flex items-center justify-center relative">
-        {/* 🔥 Render the VisualPage1 component here */}
         <VisualPage1 />
 
-        {/* AR Mode Button */}
         <button
           className={`absolute top-3 right-3 p-2 rounded-full shadow-md transition-all duration-300 ${
             showWarning
