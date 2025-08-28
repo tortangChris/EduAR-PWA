@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import content from "../../../public/markdown/DynamicPage3.md?raw";
 import { Scan } from "lucide-react";
 import VisualPage1 from "./VisualPage1";
+import VisualPage3 from "./VisualPage3";
 
 const Page3 = () => {
   const [showWarning, setShowWarning] = useState(false);
