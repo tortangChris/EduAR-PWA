@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 
-const VisualPage2 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
+const VisualPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   const [activeIndex, setActiveIndex] = useState(null);
   const [fadeValues, setFadeValues] = useState({});
 
