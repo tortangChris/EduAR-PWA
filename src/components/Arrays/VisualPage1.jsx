@@ -12,7 +12,7 @@ const VisualPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
 
   return (
     <div className="w-full  h-[300px] bg-gray-50">
-      <Canvas camera={{ position: [0, 4, 14], fov: 50 }}>
+      <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
         {/* Lighting */}
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
