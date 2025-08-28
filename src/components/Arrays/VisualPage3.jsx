@@ -98,7 +98,7 @@ const VisualPage3 = ({
       </div>
 
       {/* 3D Scene */}
-      <div className="w-full h-[75%]">
+      <div className="w-full h-[60%]">
         <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
           {/* Lighting */}
           <ambientLight intensity={0.4} />
