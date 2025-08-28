@@ -1,117 +1,33 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { CheckCircle } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import ModuleHeader from "../components/ModuleHeader";
 import Page1 from "../components/Sorting/Page1";
 import Page2 from "../components/Sorting/Page2";
 import Page3 from "../components/Sorting/Page3";
 import PageAssessment from "../components/Sorting/PageAssessment";
 
+import { useModuleProgress } from "../services/useModuleProgress";
+
 const Sorting = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const index = location.state?.index ?? 0;
 
   const pages = [<Page1 />, <Page2 />, <Page3 />, <PageAssessment />];
-  const totalPages = pages.length;
 
-  const [currentPage, setCurrentPage] = useState(0);
-  const [isFinished, setIsFinished] = useState(false);
-
-  useEffect(() => {
-    const storedProgress =
-      JSON.parse(localStorage.getItem("moduleProgress")) || [];
-    const storedPositions =
-      JSON.parse(localStorage.getItem("modulePagePositions")) || [];
-
-    const savedProgress = storedProgress[index] ?? 0;
-    const savedPage = storedPositions[index] ?? 0;
-
-    if (savedProgress === 100) {
-      setIsFinished(true);
-      setCurrentPage(savedPage);
-    } else {
-      setCurrentPage(savedPage);
-    }
-
-    const todayKey = new Date().toISOString().split("T")[0];
-    const storedActivities =
-      JSON.parse(localStorage.getItem("recentActivities")) || [];
-
-    const alreadyLogged = storedActivities.some(
-      (a) => a.date === todayKey && a.moduleTitle === "Arrays"
-    );
-
-    if (!alreadyLogged) {
-      storedActivities.push({
-        moduleTitle: "Arrays",
-        date: todayKey,
-        time: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      });
-
-      localStorage.setItem(
-        "recentActivities",
-        JSON.stringify(storedActivities)
-      );
-    }
-  }, [index]);
-
-  // Compute progress (first page = 0%)
-  const progress =
-    totalPages <= 1 ? 100 : Math.round((currentPage / (totalPages - 1)) * 100);
-
-  useEffect(() => {
-    const storedProgress =
-      JSON.parse(localStorage.getItem("moduleProgress")) || [];
-    const storedPositions =
-      JSON.parse(localStorage.getItem("modulePagePositions")) || [];
-
-    storedPositions[index] = currentPage;
-    localStorage.setItem(
-      "modulePagePositions",
-      JSON.stringify(storedPositions)
-    );
-
-    // FIX: Kapag finished na dati, huwag na i-update progress pababa
-    if (storedProgress[index] === 100) {
-      return;
-    }
-
-    storedProgress[index] = progress;
-    localStorage.setItem("moduleProgress", JSON.stringify(storedProgress));
-  }, [currentPage, progress, index]);
+  const { currentPage, setCurrentPage, progress, isFinished, finishModule } =
+    useModuleProgress(pages.length);
 
   const goNext = () => {
-    if (currentPage < totalPages - 1) {
+    if (currentPage < pages.length - 1) {
       setCurrentPage((p) => p + 1);
     } else {
       finishModule();
+      navigate("/modules", { state: { finishedModuleIndex: 0 } }); // 0 kasi Arrays yung unang module
     }
   };
 
   const goPrev = () => {
     setCurrentPage((p) => Math.max(0, p - 1));
-  };
-
-  const finishModule = () => {
-    const storedProgress =
-      JSON.parse(localStorage.getItem("moduleProgress")) || [];
-    storedProgress[index] = 100;
-    localStorage.setItem("moduleProgress", JSON.stringify(storedProgress));
-
-    const storedPositions =
-      JSON.parse(localStorage.getItem("modulePagePositions")) || [];
-    storedPositions[index] = totalPages - 1;
-    localStorage.setItem(
-      "modulePagePositions",
-      JSON.stringify(storedPositions)
-    );
-
-    setIsFinished(true);
-    navigate("/modules", { state: { finishedModuleIndex: index } });
   };
 
   return (
@@ -120,22 +36,7 @@ const Sorting = () => {
 
       {pages[currentPage]}
 
-      {/* <div>
-        <span className="text-xs text-gray-500">Progress</span>
-        <progress
-          className="progress w-full progress-primary mt-2"
-          value={isFinished ? 100 : progress}
-          max="100"
-        />
-        <div className="flex justify-between mt-1 text-sm">
-          <span className="font-semibold">{isFinished ? 100 : progress}%</span>
-          <span>
-            Page {currentPage + 1} / {totalPages}
-          </span>
-        </div>
-      </div> */}
-
-      <div className="flex justify-between">
+      <div className="flex justify-between items-center">
         <button
           onClick={goPrev}
           disabled={currentPage === 0}
@@ -144,13 +45,20 @@ const Sorting = () => {
           Previous
         </button>
 
-        {currentPage < totalPages - 1 ? (
+        <span className="text-sm font-semibold">
+          Page {currentPage + 1} / {pages.length}
+        </span>
+
+        {currentPage < pages.length - 1 ? (
           <button onClick={goNext} className="btn btn-primary">
             Next
           </button>
         ) : (
           <button
-            onClick={finishModule}
+            onClick={() => {
+              finishModule();
+              navigate("/modules", { state: { finishedModuleIndex: 0 } });
+            }}
             className="btn btn-success flex items-center gap-2"
           >
             <CheckCircle className="w-5 h-5" />
