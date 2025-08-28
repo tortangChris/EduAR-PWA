@@ -2,19 +2,27 @@ import React from "react";
 import { Navigate } from "react-router-dom";
 import LogIn from "../auth/LogIn";
 import SignUp from "../auth/SignUp";
+
 import Arrays from "../modules/Arrays";
-import LinkedList from "../modules/LinkedList";
-import Queue from "../modules/Queue";
-import Trees from "../modules/Trees";
-import SetDataStructure from "../modules/SetDataStructure";
-import GraphDataStructure from "../modules/GraphDataStructure";
-import MapDataStructure from "../modules/MapDataStructure";
-import HashTable from "../modules/HashTable";
-import Stack from "../modules/Stack";
 import WeekArray from "../components/Arrays/WeekArray";
+
 import Sorting from "../modules/Sorting";
 import Visualize3d from "../components/Sorting/Visualize3d";
+
+import LinkedList from "../modules/LinkedList";
 import VisualLinkList from "../components/Linked List/VisualLinkList";
+
+import DynamicMultiDimensionalArrays from "../modules/DynamicMultiDimensionalArrays";
+
+import StackAndQueue from "../modules/StackAndQueue";
+
+import TreeRecursion from "../modules/TreeRecursion";
+
+import SetDataStructure from "../modules/SetDataStructure";
+
+import GraphDataStructure from "../modules/GraphDataStructure";
+
+import MapHashTable from "../modules/MapHashTable";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Modules = React.lazy(() => import("../pages/Modules"));
@@ -59,16 +67,12 @@ const EduarRoutes = {
       element: <LinkedList />,
     },
     {
-      path: "modules/stack",
-      element: <Stack />,
+      path: "modules/stack-and-queue",
+      element: <StackAndQueue />,
     },
     {
-      path: "modules/queue",
-      element: <Queue />,
-    },
-    {
-      path: "modules/trees",
-      element: <Trees />,
+      path: "modules/tree-data-structure-recursion",
+      element: <TreeRecursion />,
     },
     {
       path: "modules/set-data-structure",
@@ -79,12 +83,12 @@ const EduarRoutes = {
       element: <GraphDataStructure />,
     },
     {
-      path: "modules/map-data-structure",
-      element: <MapDataStructure />,
+      path: "/modules/map-and-hash-table",
+      element: <MapHashTable />,
     },
     {
-      path: "modules/hash-table",
-      element: <HashTable />,
+      path: "modules/dynamic-and-multi-dimensional-arrays",
+      element: <DynamicMultiDimensionalArrays />,
     },
   ],
 };
