@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import {
   getModuleProgress,
   setModuleProgress,
@@ -6,34 +7,40 @@ import {
   setModulePosition,
 } from "./moduleService";
 
-export function useModuleProgress(route, totalPages) {
+export function useModuleProgress(totalPages) {
+  const location = useLocation();
+  const moduleRoute = location.pathname; // 🔑 auto key based on URL
+
   const [currentPage, setCurrentPage] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
 
   const progress =
     totalPages <= 1 ? 100 : Math.round((currentPage / (totalPages - 1)) * 100);
 
+  // Load progress/page on mount
   useEffect(() => {
-    const savedProgress = getModuleProgress(route);
-    const savedPage = getModulePosition(route);
+    const savedProgress = getModuleProgress(moduleRoute);
+    const savedPage = getModulePosition(moduleRoute);
 
     setCurrentPage(savedPage);
+
     if (savedProgress === 100) {
       setIsFinished(true);
     }
-  }, [route]);
+  }, [moduleRoute]);
 
+  // Save progress/page whenever page changes
   useEffect(() => {
-    setModulePosition(route, currentPage);
+    setModulePosition(moduleRoute, currentPage);
 
     if (!isFinished) {
-      setModuleProgress(route, progress);
+      setModuleProgress(moduleRoute, progress);
     }
-  }, [currentPage, progress, route, isFinished]);
+  }, [currentPage, progress, moduleRoute, isFinished]);
 
   const finishModule = () => {
-    setModuleProgress(route, 100);
-    setModulePosition(route, totalPages - 1);
+    setModuleProgress(moduleRoute, 100);
+    setModulePosition(moduleRoute, totalPages - 1);
     setIsFinished(true);
   };
 

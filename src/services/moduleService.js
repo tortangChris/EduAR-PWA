@@ -30,30 +30,25 @@ export function isUnlocked(modules, index) {
   return modules[index - 1].progress === 100;
 }
 
-// Save progress
-export function setModuleProgress(moduleId, progress) {
-  const storedProgress =
-    JSON.parse(localStorage.getItem("moduleProgress")) || {};
-  storedProgress[moduleId] = progress;
-  localStorage.setItem("moduleProgress", JSON.stringify(storedProgress));
+// services/moduleService.js
+export function getModuleProgress(route) {
+  const stored = JSON.parse(localStorage.getItem("moduleProgress")) || {};
+  return stored[route] ?? 0;
 }
 
-export function getModuleProgress(moduleId) {
-  const storedProgress =
-    JSON.parse(localStorage.getItem("moduleProgress")) || {};
-  return storedProgress[moduleId] ?? 0;
+export function setModuleProgress(route, value) {
+  const stored = JSON.parse(localStorage.getItem("moduleProgress")) || {};
+  stored[route] = value;
+  localStorage.setItem("moduleProgress", JSON.stringify(stored));
 }
 
-// Save last page position
-export function setModulePosition(moduleId, page) {
-  const storedPositions =
-    JSON.parse(localStorage.getItem("modulePagePositions")) || {};
-  storedPositions[moduleId] = page;
-  localStorage.setItem("modulePagePositions", JSON.stringify(storedPositions));
+export function getModulePosition(route) {
+  const stored = JSON.parse(localStorage.getItem("modulePagePositions")) || {};
+  return stored[route] ?? 0;
 }
 
-export function getModulePosition(moduleId) {
-  const storedPositions =
-    JSON.parse(localStorage.getItem("modulePagePositions")) || {};
-  return storedPositions[moduleId] ?? 0;
+export function setModulePosition(route, page) {
+  const stored = JSON.parse(localStorage.getItem("modulePagePositions")) || {};
+  stored[route] = page;
+  localStorage.setItem("modulePagePositions", JSON.stringify(stored));
 }
