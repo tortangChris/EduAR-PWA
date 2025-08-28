@@ -1,109 +1,39 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { X, Lock } from "lucide-react";
+import {
+  loadProgress,
+  finishModule,
+  isUnlocked,
+} from "../services/moduleService";
 
 const ModulesContent = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
-  const initialModules = [
-    {
-      title: "Arrays & Time Complexity",
-      route: "/modules/arrays",
-      image: "/images/Array.png",
-    },
-    {
-      title: "Sorting Algorithms",
-      route: "/modules/sorting",
-      image: "/images/Sorting Algorith.png",
-    },
-    {
-      title: "Dynamic Arrays and Multi-Dimensional Arrays",
-      route: "/modules/dynamic-and-multi-dimensional-arrays",
-      image: "/images/Sorting Algorith.png",
-    },
-    {
-      title: "Linked List Varation",
-      route: "/modules/linked-list",
-      image: "/images/Linked List.png",
-    },
-    {
-      title: "Stack and Queue",
-      route: "/modules/stack-and-queue",
-      image: "/images/arraylogo.jpg",
-    },
-    {
-      title: "Tree Data Structure Recursion",
-      route: "/modules/tree-data-structure-recursion",
-      image: "/images/Trees.png",
-    },
-
-    {
-      title: "Set Data Structure and Operations",
-      route: "/modules/set-data-structure",
-      image: "/images/set.jpg",
-    },
-
-    {
-      title: "Graph Data Structure and Operations",
-      route: "/modules/graph-data-structure",
-      image: "/images/graphlogo.jpg",
-    },
-    {
-      title: "Map & Hash Table",
-      route: "/modules/map-and-hash-table",
-      image: "/images/graphlogo.jpg",
-    },
-  ];
 
   const [modulesData, setModulesData] = useState([]);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    const storedProgress = JSON.parse(localStorage.getItem("moduleProgress"));
-    if (storedProgress) {
-      const mergedModules = initialModules.map((mod, index) => ({
-        ...mod,
-        progress: storedProgress[index] || 0,
-      }));
-      setModulesData(mergedModules);
-    } else {
-      const initialized = initialModules.map((mod) => ({
-        ...mod,
-        progress: 0,
-      }));
-      setModulesData(initialized);
-      localStorage.setItem(
-        "moduleProgress",
-        JSON.stringify(initialized.map(() => 0))
-      );
-    }
+    setModulesData(loadProgress());
   }, []);
 
-  // Update progress if coming back from finished module
   useEffect(() => {
     if (
-      location.state &&
-      location.state.finishedModuleIndex !== undefined &&
+      location.state?.finishedModuleIndex !== undefined &&
       modulesData.length > 0
     ) {
       const index = location.state.finishedModuleIndex;
       if (modulesData[index].progress < 100) {
-        const updatedModules = [...modulesData];
-        updatedModules[index].progress = 100;
-        setModulesData(updatedModules);
-        localStorage.setItem(
-          "moduleProgress",
-          JSON.stringify(updatedModules.map((m) => m.progress))
-        );
+        const updated = finishModule(modulesData, index);
+        setModulesData(updated);
       }
     }
   }, [location.state, modulesData]);
 
   const handleClick = (module, index) => {
-    const isUnlocked = index === 0 || modulesData[index - 1].progress === 100;
-    if (isUnlocked) {
+    if (isUnlocked(modulesData, index)) {
       navigate(module.route, { state: { index } });
     } else {
       setErrorMessage(
@@ -129,47 +59,41 @@ const ModulesContent = () => {
 
       <div className="bg-base-200 rounded-xl shadow-md h-[calc(100vh-6.5rem)] overflow-y-auto p-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {modulesData.map((module, index) => {
-            const isUnlocked =
-              index === 0 || modulesData[index - 1].progress === 100;
-
-            return (
-              <button
-                key={index}
-                onClick={() => handleClick(module, index)}
-                className={`flex flex-col items-start justify-between rounded-lg p-2 shadow transition-all duration-150
-                  ${
-                    isUnlocked
-                      ? "cursor-pointer bg-white dark:bg-neutral hover:ring-2 hover:ring-primary hover:scale-[1.02]"
-                      : "cursor-not-allowed bg-gray-100 dark:bg-base-300 opacity-70"
-                  }`}
-              >
-                <div className="w-full h-23.5 aspect-square flex items-center justify-center bg-gray-200 rounded-md overflow-hidden relative">
-                  <img
-                    src={module.image}
-                    alt={module.title}
-                    className="w-full h-full object-contain"
-                  />
-                  {!isUnlocked && (
-                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center rounded-md">
-                      <Lock className="w-6 h-6 text-white" />
-                    </div>
-                  )}
-                </div>
-
-                <div className="w-full flex flex-col mt-2 px-1">
-                  <span className="font-semibold text-left text-primary text-sm mb-1">
-                    {module.title}
-                  </span>
-                  <progress
-                    className="progress w-full progress-primary"
-                    value={module.progress}
-                    max="100"
-                  ></progress>
-                </div>
-              </button>
-            );
-          })}
+          {modulesData.map((module, index) => (
+            <button
+              key={index}
+              onClick={() => handleClick(module, index)}
+              className={`flex flex-col items-start justify-between rounded-lg p-2 shadow transition-all duration-150
+                ${
+                  isUnlocked(modulesData, index)
+                    ? "cursor-pointer bg-white dark:bg-neutral hover:ring-2 hover:ring-primary hover:scale-[1.02]"
+                    : "cursor-not-allowed bg-gray-100 dark:bg-base-300 opacity-70"
+                }`}
+            >
+              <div className="w-full aspect-square flex items-center justify-center bg-gray-200 rounded-md overflow-hidden relative">
+                <img
+                  src={module.image}
+                  alt={module.title}
+                  className="w-full h-full object-contain"
+                />
+                {!isUnlocked(modulesData, index) && (
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center rounded-md">
+                    <Lock className="w-6 h-6 text-white" />
+                  </div>
+                )}
+              </div>
+              <div className="w-full flex flex-col mt-2 px-1">
+                <span className="font-semibold text-left text-primary text-sm mb-1">
+                  {module.title}
+                </span>
+                <progress
+                  className="progress w-full progress-primary"
+                  value={module.progress}
+                  max="100"
+                ></progress>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
     </div>

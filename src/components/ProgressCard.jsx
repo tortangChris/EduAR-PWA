@@ -1,25 +1,26 @@
 import React, { useEffect, useState } from "react";
 import { CircleCheck, BookOpen, PlaySquare } from "lucide-react";
+import modulesConfig from "../config/modulesConfig";
 
 const ProgressCard = () => {
   const [progress, setProgress] = useState(0);
   const [completedModules, setCompletedModules] = useState(0);
 
-  const totalModules = 9; // fixed 9 modules
+  const totalModules = modulesConfig.length;
 
   useEffect(() => {
     const storedProgress =
-      JSON.parse(localStorage.getItem("moduleProgress")) || [];
+      JSON.parse(localStorage.getItem("moduleProgress")) || {};
 
-    // compute total progress
-    const totalProgress = storedProgress.reduce(
-      (sum, val) => sum + (val || 0),
-      0
-    );
-    const averageProgress = totalProgress / totalModules; // percent overall
+    // convert object → array of values
+    const values = modulesConfig.map((m) => storedProgress[m.route] ?? 0);
+
+    // compute total progress %
+    const totalProgress = values.reduce((sum, val) => sum + val, 0);
+    const averageProgress = totalProgress / totalModules;
 
     // compute completed modules
-    const finishedCount = storedProgress.filter((val) => val === 100).length;
+    const finishedCount = values.filter((val) => val === 100).length;
 
     setProgress(Math.round(averageProgress));
     setCompletedModules(finishedCount);
@@ -48,13 +49,6 @@ const ProgressCard = () => {
 
       <div className="grid grid-cols-3 gap-4 text-center text-sm font-medium">
         <div className="flex flex-col items-center">
-          <BookOpen className="w-6 h-6 text-primary mb-1" />
-          <span>Lessons</span>
-          <span className="text-xs text-gray-500">0 / 50</span>
-          {/* Placeholder pa to, depende sa logic mo */}
-        </div>
-
-        <div className="flex flex-col items-center">
           <PlaySquare className="w-6 h-6 text-primary mb-1" />
           <span>Modules</span>
           <span className="text-xs text-gray-500">
@@ -65,8 +59,7 @@ const ProgressCard = () => {
         <div className="flex flex-col items-center">
           <CircleCheck className="w-6 h-6 text-primary mb-1" />
           <span>Assessment</span>
-          <span className="text-xs text-gray-500">0 / 25</span>
-          {/* Placeholder pa to */}
+          <span className="text-xs text-gray-500">0 / 9</span>
         </div>
       </div>
     </div>
