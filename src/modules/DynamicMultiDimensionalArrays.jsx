@@ -3,12 +3,12 @@ import { CheckCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Week4 from "../components/Arrays/Week4";
 import ModuleHeader from "../components/ModuleHeader";
-import Page1 from "../components/Arrays/Page1";
-import Page2 from "../components/Arrays/Page2";
-import Page3 from "../components/Arrays/Page3";
-import Page4 from "../components/Arrays/Page4";
-import Page5 from "../components/Arrays/Page5";
-import Page0 from "../components/Arrays/Page0";
+import Page0 from "../components/DynamicMultiDimensional/Page0";
+import Page1 from "../components/DynamicMultiDimensional/Page1";
+import Page2 from "../components/DynamicMultiDimensional/Page2";
+import Page3 from "../components/DynamicMultiDimensional/Page3";
+import Page4 from "../components/DynamicMultiDimensional/Page4";
+import Page5 from "../components/DynamicMultiDimensional/Page5";
 
 const Arrays = () => {
   const navigate = useNavigate();
@@ -21,7 +21,6 @@ const Arrays = () => {
     <Page2 />,
     <Page3 />,
     <Page4 />,
-    <Page5 />,
     <Week4 />,
   ];
   const totalPages = pages.length;
