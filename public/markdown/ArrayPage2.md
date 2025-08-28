@@ -1,16 +1,11 @@
-## Declaring Arrays
+# Access Operation (O(1))
 
-To use an array, we must first declare it.  
-Declaration tells the program what type of values the array will hold.
+- **Access** = retrieving an element directly using its **index**.
+- Arrays support **direct access** because their memory addresses are sequential.
+- **Time Complexity:** `O(1)` → **constant time**, regardless of array size.
 
-**Example in Java:**
-
-```java
-int[] numbers;
-String[] names;
-```
-
-- `int[] numbers;` → declares an array that can hold integers.
-- `String[] names;` → declares an array that can hold strings.
-
-_Declaration does not allocate memory yet; it only defines the type._
+- **Example**
+  ```text
+  arr = [10, 20, 30, 40]
+  arr[2] = 30   # Accessing element at index 2
+  ```

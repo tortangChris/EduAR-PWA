@@ -1,18 +1,14 @@
-## Accessing Array Elements
+# Insertion (O(n))
 
-Array elements are accessed using an **index**, starting at **0**.
+### 📖 Content
 
-**Example in Java:**
+- **Insertion** = adding a new element into the array.
+- If inserting **in the middle**, elements **to the right must shift one position** to make space.
+- **Worst-case Time Complexity:** `O(n)` (when inserting at the beginning or middle).
 
-```java
-numbers[0] = 10;   // assigns 10 to the first element
-numbers[1] = 20;   // assigns 20 to the second element
-
-System.out.println(numbers[0]); // prints 10
-```
-
-- `numbers[0]` → first element
-- `numbers[1]` → second element
-- `numbers[n-1]` → last element (where n is the size of the array)
-
-Accessing outside the array’s range will cause an **ArrayIndexOutOfBoundsException**.
+- **Example**
+  ```text
+  arr = [10, 20, 30, 40]
+  Insert 99 at index 2:
+  → [10, 20, 99, 30, 40]
+  ```
