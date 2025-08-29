@@ -9,7 +9,7 @@ import {
 
 export function useModuleProgress(totalPages) {
   const location = useLocation();
-  const moduleRoute = location.pathname; // 🔑 auto key based on URL
+  const moduleRoute = location.pathname;
 
   const [currentPage, setCurrentPage] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
@@ -29,7 +29,6 @@ export function useModuleProgress(totalPages) {
     }
   }, [moduleRoute]);
 
-  // Save progress/page whenever page changes
   useEffect(() => {
     setModulePosition(moduleRoute, currentPage);
 
