@@ -30,7 +30,6 @@ export function isUnlocked(modules, index) {
   return modules[index - 1].progress === 100;
 }
 
-// services/moduleService.js
 export function getModuleProgress(route) {
   const stored = JSON.parse(localStorage.getItem("moduleProgress")) || {};
   return stored[route] ?? 0;
