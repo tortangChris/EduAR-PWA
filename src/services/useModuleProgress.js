@@ -17,7 +17,6 @@ export function useModuleProgress(totalPages) {
   const progress =
     totalPages <= 1 ? 100 : Math.round((currentPage / (totalPages - 1)) * 100);
 
-  // Load progress/page on mount
   useEffect(() => {
     const savedProgress = getModuleProgress(moduleRoute);
     const savedPage = getModulePosition(moduleRoute);
