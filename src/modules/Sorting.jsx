@@ -8,11 +8,20 @@ import Page3 from "../components/Sorting/Page3";
 import PageAssessment from "../components/Sorting/PageAssessment";
 
 import { useModuleProgress } from "../services/useModuleProgress";
+import Page0 from "../components/Sorting/Page0";
+import Page4 from "../components/Sorting/Page4";
 
 const Sorting = () => {
   const navigate = useNavigate();
 
-  const pages = [<Page1 />, <Page2 />, <Page3 />, <PageAssessment />];
+  const pages = [
+    <Page0 />,
+    <Page1 />,
+    <Page2 />,
+    <Page3 />,
+    <Page4 />,
+    <PageAssessment />,
+  ];
 
   const { currentPage, setCurrentPage, progress, isFinished, finishModule } =
     useModuleProgress(pages.length);
