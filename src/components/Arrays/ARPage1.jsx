@@ -1,9 +1,8 @@
 // ARPage1.jsx
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
-import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
 const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   const positions = useMemo(() => {
@@ -21,10 +20,20 @@ const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
         shadows
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
-          const arButton = ARButton.createButton(gl, {
-            requiredFeatures: ["hit-test"],
-          });
-          document.body.appendChild(arButton);
+
+          // 🔹 Auto request immersive-ar session
+          if (navigator.xr) {
+            navigator.xr
+              .requestSession("immersive-ar", {
+                requiredFeatures: ["hit-test", "local-floor"],
+              })
+              .then((session) => {
+                gl.xr.setSession(session);
+              })
+              .catch((err) => {
+                console.error("❌ Failed to start AR session:", err);
+              });
+          }
         }}
       >
         <ambientLight intensity={0.4} />
