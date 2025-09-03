@@ -1,140 +1,98 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Text } from "@react-three/drei";
+import React, { useState, useEffect, useMemo } from "react";
+import { ARCanvas } from "@react-three/xr";
+import { Text } from "@react-three/drei";
 
-const ARPage5 = ({
+const VisualPage5 = ({
   data = [10, 20, 30, 40, 50],
   spacing = 2.0,
   deleteIndex = 2,
-  stepDuration = 1200,
-  loopDelay = 3000,
 }) => {
-  const originalRef = useRef(data.slice());
-  const [boxes, setBoxes] = useState(() =>
-    createBoxes(originalRef.current, spacing)
-  );
-  const animRef = useRef({ cancelled: false });
+  const [boxes, setBoxes] = useState([]);
   const [status, setStatus] = useState("Idle");
+  const [loop, setLoop] = useState(0);
 
-  function createBoxes(arr, spacingVal) {
-    const n = arr.length;
-    const mid = (n - 1) / 2;
-    return arr.map((v, i) => ({
-      id: `b${i}`,
-      value: v,
-      x: (i - mid) * spacingVal,
-      opacity: 1,
-    }));
-  }
+  // positions
+  const positions = useMemo(() => {
+    const mid = (data.length - 1) / 2;
+    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
+  }, [data, spacing, loop]);
 
-  const reset = () => {
-    animRef.current.cancelled = true;
-    setBoxes(createBoxes(originalRef.current, spacing));
-    setStatus("Idle");
-  };
-
-  const animateMove = (boxId, toX, duration) => {
-    return new Promise((resolve) => {
-      const startX = boxes.find((b) => b.id === boxId).x;
-      const startTime = performance.now();
-
-      function frame(now) {
-        if (animRef.current.cancelled) return resolve();
-        const t = Math.min((now - startTime) / duration, 1);
-        setBoxes((prev) =>
-          prev.map((b) =>
-            b.id === boxId ? { ...b, x: startX + (toX - startX) * t } : b
-          )
-        );
-        if (t < 1) requestAnimationFrame(frame);
-        else resolve();
-      }
-
-      requestAnimationFrame(frame);
-    });
-  };
-
-  const animateFadeOut = (boxId, duration) => {
-    return new Promise((resolve) => {
-      const startTime = performance.now();
-
-      function frame(now) {
-        if (animRef.current.cancelled) return resolve();
-        const t = Math.min((now - startTime) / duration, 1);
-        setBoxes((prev) =>
-          prev.map((b) => (b.id === boxId ? { ...b, opacity: 1 - t } : b))
-        );
-        if (t < 1) requestAnimationFrame(frame);
-        else resolve();
-      }
-
-      requestAnimationFrame(frame);
-    });
-  };
-
-  // Main sequence autoplay
   useEffect(() => {
-    let cancelled = false;
+    let isCancelled = false;
 
-    const runSequence = async () => {
-      while (!cancelled) {
-        reset();
-        await new Promise((r) => setTimeout(r, 1000));
-        setStatus(`Deleting element at index ${deleteIndex}...`);
+    const runDemo = async () => {
+      while (!isCancelled) {
+        // reset
+        setBoxes(
+          data.map((v, i) => ({
+            id: i,
+            value: v,
+            x: positions[i][0],
+            opacity: 1,
+          }))
+        );
+        setStatus(`Delete operation: removing index ${deleteIndex}`);
+        await delay(2000);
 
-        // Fade out target
-        await animateFadeOut(`b${deleteIndex}`, stepDuration / 2);
-        setStatus(`Fading out value ${originalRef.current[deleteIndex]}...`);
-        await new Promise((r) => setTimeout(r, 500));
+        // fade out target
+        setStatus(`Fading out value ${data[deleteIndex]}...`);
+        setBoxes((prev) =>
+          prev.map((b, i) => (i === deleteIndex ? { ...b, opacity: 0.2 } : b))
+        );
+        await delay(2000);
 
-        // Shift remaining
-        for (let i = deleteIndex + 1; i < originalRef.current.length; i++) {
-          if (animRef.current.cancelled) break;
-          setStatus(`Shifting element at index ${i} left...`);
-          const targetX = boxes[i].x - spacing;
-          await animateMove(`b${i}`, targetX, stepDuration);
+        // shift left elements after deleteIndex
+        for (let i = deleteIndex + 1; i < data.length; i++) {
+          if (isCancelled) return;
+          setStatus(`Shifting value ${data[i]} from index ${i} → ${i - 1}`);
+          setBoxes((prev) =>
+            prev.map((b) => (b.id === i ? { ...b, x: positions[i - 1][0] } : b))
+          );
+          await delay(2000);
         }
 
-        // Finalize new array
-        const newArr = originalRef.current.slice();
+        // finalize deletion
+        const newArr = data.slice();
         newArr.splice(deleteIndex, 1);
-        setBoxes(createBoxes(newArr, spacing));
-        setStatus("✅ Deletion complete");
+        setStatus("✅ Deletion complete!");
+        setBoxes(
+          newArr.map((v, i) => ({
+            id: i,
+            value: v,
+            x: (i - (newArr.length - 1) / 2) * spacing,
+            opacity: 1,
+          }))
+        );
+        await delay(3000);
 
-        // Wait before looping
-        await new Promise((r) => setTimeout(r, loopDelay));
+        setLoop((prev) => prev + 1);
       }
     };
 
-    runSequence();
+    runDemo();
+
     return () => {
-      cancelled = true;
-      animRef.current.cancelled = true;
+      isCancelled = true;
     };
-  }, [deleteIndex, spacing, stepDuration, loopDelay]);
+  }, [data, spacing, deleteIndex]);
 
   return (
-    <div className="w-full h-[300px] bg-gray-50 flex flex-col items-center justify-center">
-      <div className="mb-2 text-gray-700 font-mono text-sm text-center">
-        {status}
-      </div>
+    <div className="w-full h-screen flex flex-col items-center justify-center">
+      <div className="text-center text-lg font-mono mb-4">{status}</div>
+      <ARCanvas>
+        <ambientLight intensity={0.4} />
+        <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-      <div className="w-full h-[80%]">
-        <Canvas camera={{ position: [0, 4, 8], fov: 50 }}>
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[5, 10, 5]} intensity={0.8} />
-          {boxes.map((b, i) => (
-            <Box
-              key={b.id}
-              value={b.value}
-              index={i}
-              position={[b.x, 0, 0]}
-              opacity={b.opacity}
-            />
-          ))}
-          <OrbitControls makeDefault />
-        </Canvas>
-      </div>
+        {boxes.map((b, i) => (
+          <Box
+            key={b.id}
+            value={b.value}
+            index={i}
+            position={[b.x, 0, 0]}
+            opacity={b.opacity}
+          />
+        ))}
+      </ARCanvas>
     </div>
   );
 };
@@ -147,6 +105,7 @@ const Box = ({ value, index, position, opacity = 1 }) => {
         <boxGeometry args={size} />
         <meshStandardMaterial color="#60a5fa" transparent opacity={opacity} />
       </mesh>
+      {/* Value */}
       <Text
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
         fontSize={0.35}
@@ -156,6 +115,7 @@ const Box = ({ value, index, position, opacity = 1 }) => {
       >
         {value}
       </Text>
+      {/* Index */}
       <Text
         position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
         fontSize={0.2}
@@ -169,4 +129,7 @@ const Box = ({ value, index, position, opacity = 1 }) => {
   );
 };
 
-export default ARPage5;
+// helper delay
+const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+
+export default VisualPage5;
