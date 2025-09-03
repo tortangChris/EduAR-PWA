@@ -6,7 +6,7 @@ const ARPage5 = ({
   data = [10, 20, 30, 40, 50],
   spacing = 2.0,
   deleteIndex = 2,
-  stepDuration = 700,
+  stepDuration = 1200,
   loopDelay = 3000,
 }) => {
   const originalRef = useRef(data.slice());
@@ -33,10 +33,9 @@ const ARPage5 = ({
     setStatus("Idle");
   };
 
-  const animateMove = (boxId, toX) => {
+  const animateMove = (boxId, toX, duration) => {
     return new Promise((resolve) => {
       const startX = boxes.find((b) => b.id === boxId).x;
-      const duration = stepDuration;
       const startTime = performance.now();
 
       function frame(now) {
@@ -55,9 +54,8 @@ const ARPage5 = ({
     });
   };
 
-  const animateFadeOut = (boxId) => {
+  const animateFadeOut = (boxId, duration) => {
     return new Promise((resolve) => {
-      const duration = stepDuration / 2;
       const startTime = performance.now();
 
       function frame(now) {
@@ -74,53 +72,54 @@ const ARPage5 = ({
     });
   };
 
-  // Main sequence — auto loop
-  const playSequence = async () => {
-    reset();
-    animRef.current.cancelled = false;
-
-    setStatus(`Deleting element at index ${deleteIndex}...`);
-    const n = boxes.length;
-
-    // Fade out target
-    await animateFadeOut(`b${deleteIndex}`);
-    setStatus(`Element at index ${deleteIndex} removed`);
-
-    // Shift others
-    for (let i = deleteIndex + 1; i < n; i++) {
-      if (animRef.current.cancelled) break;
-      const targetX = boxes[i].x - spacing;
-      setStatus(`Shifting element at index ${i} left`);
-      await animateMove(`b${i}`, targetX);
-    }
-
-    // Final state
-    const newArr = originalRef.current.slice();
-    newArr.splice(deleteIndex, 1);
-    setBoxes(createBoxes(newArr, spacing));
-    setStatus(`✅ Deletion complete`);
-
-    // Wait then loop
-    await new Promise((r) => setTimeout(r, loopDelay));
-    playSequence();
-  };
-
+  // Main sequence autoplay
   useEffect(() => {
-    playSequence();
+    let cancelled = false;
+
+    const runSequence = async () => {
+      while (!cancelled) {
+        reset();
+        await new Promise((r) => setTimeout(r, 1000));
+        setStatus(`Deleting element at index ${deleteIndex}...`);
+
+        // Fade out target
+        await animateFadeOut(`b${deleteIndex}`, stepDuration / 2);
+        setStatus(`Fading out value ${originalRef.current[deleteIndex]}...`);
+        await new Promise((r) => setTimeout(r, 500));
+
+        // Shift remaining
+        for (let i = deleteIndex + 1; i < originalRef.current.length; i++) {
+          if (animRef.current.cancelled) break;
+          setStatus(`Shifting element at index ${i} left...`);
+          const targetX = boxes[i].x - spacing;
+          await animateMove(`b${i}`, targetX, stepDuration);
+        }
+
+        // Finalize new array
+        const newArr = originalRef.current.slice();
+        newArr.splice(deleteIndex, 1);
+        setBoxes(createBoxes(newArr, spacing));
+        setStatus("✅ Deletion complete");
+
+        // Wait before looping
+        await new Promise((r) => setTimeout(r, loopDelay));
+      }
+    };
+
+    runSequence();
     return () => {
+      cancelled = true;
       animRef.current.cancelled = true;
     };
-  }, []);
+  }, [deleteIndex, spacing, stepDuration, loopDelay]);
 
   return (
     <div className="w-full h-[300px] bg-gray-50 flex flex-col items-center justify-center">
-      {/* Status text */}
-      <div className="mb-4 text-gray-700 font-mono text-sm text-center">
+      <div className="mb-2 text-gray-700 font-mono text-sm text-center">
         {status}
       </div>
 
-      {/* 3D Canvas */}
-      <div className="w-full h-[60%]">
+      <div className="w-full h-[80%]">
         <Canvas camera={{ position: [0, 4, 8], fov: 50 }}>
           <ambientLight intensity={0.4} />
           <directionalLight position={[5, 10, 5]} intensity={0.8} />
