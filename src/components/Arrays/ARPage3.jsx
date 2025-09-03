@@ -37,10 +37,8 @@ const ARPage3 = ({
         setFadeValues({ [currentIndex]: 1 });
         setStatus(`Checking index ${currentIndex}...`);
 
-        // Check if found
         if (data[currentIndex] === target) {
           setStatus(`✅ Found ${target} at index ${currentIndex}`);
-          // fade after 2s, then reset
           loopTimeout = setTimeout(() => {
             setFadeValues({});
             setActiveIndex(null);
@@ -48,10 +46,8 @@ const ARPage3 = ({
           }, 2000);
         } else if (currentIndex === data.length - 1) {
           setStatus(`❌ ${target} not found`);
-          // reset after 3s
           loopTimeout = setTimeout(runSearch, 3000);
         } else {
-          // move to next index after 1s
           loopTimeout = setTimeout(() => {
             setFadeValues({});
             currentIndex++;
@@ -60,8 +56,8 @@ const ARPage3 = ({
         }
       };
 
-      // Start after 2s delay (showing initial status text)
-      loopTimeout = setTimeout(step, 2000);
+      // 👉 Start immediately, no extra delay
+      step();
     };
 
     runSearch();
