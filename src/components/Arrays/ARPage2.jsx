@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 
-const ARPage2 = ({
+const ARPage2_Access = ({
   data = [10, 20, 30, 40, 50],
   spacing = 2.0,
   accessValue = 30,
@@ -13,56 +13,61 @@ const ARPage2 = ({
   const [operationText, setOperationText] = useState("");
   const [placed, setPlaced] = useState(false);
 
-  // compute positions for boxes
+  // positions for boxes
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  // run automatic access loop
+  // looped access operation (triggered after placement)
   useEffect(() => {
+    if (!placed) return;
+
     let targetIndex = data.findIndex((v) => v === accessValue);
     if (targetIndex === -1) return;
 
+    let loopTimeout;
+
     const runAccess = () => {
+      // Step 1: show text
       setOperationText(`Access v=${accessValue}`);
-      setActiveIndex(targetIndex);
+      setActiveIndex(null);
+
+      // Step 2: wait 3s then highlight
+      loopTimeout = setTimeout(() => {
+        setActiveIndex(targetIndex);
+
+        // Step 3: fade highlight (2s)
+        let start;
+        const duration = 2000;
+        const animate = (timestamp) => {
+          if (!start) start = timestamp;
+          const elapsed = timestamp - start;
+          const progress = Math.min(elapsed / duration, 1);
+          const fade = 1 - progress;
+
+          setFadeValues({ [targetIndex]: fade });
+
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          } else {
+            // Step 4: wait 3s then restart
+            loopTimeout = setTimeout(() => {
+              setFadeValues({});
+              setActiveIndex(null);
+              runAccess(); // loop again
+            }, 3000);
+          }
+        };
+
+        requestAnimationFrame(animate);
+      }, 3000);
     };
 
     runAccess();
-  }, [data, accessValue]);
 
-  // fade animation + reset loop
-  useEffect(() => {
-    if (activeIndex !== null) {
-      setFadeValues((prev) => ({ ...prev, [activeIndex]: 1 }));
-
-      let start;
-      const duration = 2000; // 2s fade
-      const animate = (timestamp) => {
-        if (!start) start = timestamp;
-        const elapsed = timestamp - start;
-        const progress = Math.min(elapsed / duration, 1);
-        const fade = 1 - progress;
-
-        setFadeValues((prev) => ({ ...prev, [activeIndex]: fade }));
-
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        } else {
-          // after fade complete → wait 3s then restart
-          setTimeout(() => {
-            setFadeValues({});
-            setActiveIndex(null);
-            setOperationText(`Access v=${accessValue}`);
-            setActiveIndex(data.findIndex((v) => v === accessValue));
-          }, 3000);
-        }
-      };
-
-      requestAnimationFrame(animate);
-    }
-  }, [activeIndex, data, accessValue]);
+    return () => clearTimeout(loopTimeout);
+  }, [placed, data, accessValue]);
 
   return (
     <div className="w-full h-screen">
@@ -90,7 +95,7 @@ const ARPage2 = ({
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
         <Reticle placed={placed} setPlaced={setPlaced}>
-          {/* Operation text shown above array */}
+          {/* Operation text */}
           {operationText && (
             <Text
               position={[0, 3, 0]}
@@ -244,4 +249,4 @@ const Box = ({ index, value, position = [0, 0, 0], fade }) => {
   );
 };
 
-export default ARPage2;
+export default ARPage2_Access;
