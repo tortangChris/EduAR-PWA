@@ -1,67 +1,71 @@
-// ARPage2.jsx
+// ARPage2_Access.jsx
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 
-const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
+const ARPage2 = ({
+  data = [10, 20, 30, 40, 50],
+  spacing = 2.0,
+  accessValue = 30,
+}) => {
   const [activeIndex, setActiveIndex] = useState(null);
   const [fadeValues, setFadeValues] = useState({});
+  const [operationText, setOperationText] = useState("");
   const [placed, setPlaced] = useState(false);
-  const [accessText, setAccessText] = useState("");
 
-  // positions along X-axis
+  // compute positions for boxes
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  // Looping access operation
+  // run automatic access loop
   useEffect(() => {
-    let currentIndex = 0;
+    let targetIndex = data.findIndex((v) => v === accessValue);
+    if (targetIndex === -1) return;
 
-    const runAccessLoop = () => {
-      const value = data[currentIndex];
-      setAccessText(`Access v=${value}`);
-      setActiveIndex(currentIndex);
+    const runAccess = () => {
+      setOperationText(`Access v=${accessValue}`);
+      setActiveIndex(targetIndex);
+    };
 
-      // start fade effect
-      setFadeValues((prev) => ({ ...prev, [currentIndex]: 1 }));
+    runAccess();
+  }, [data, accessValue]);
+
+  // fade animation + reset loop
+  useEffect(() => {
+    if (activeIndex !== null) {
+      setFadeValues((prev) => ({ ...prev, [activeIndex]: 1 }));
 
       let start;
-      const duration = 2000;
-
+      const duration = 2000; // 2s fade
       const animate = (timestamp) => {
         if (!start) start = timestamp;
         const elapsed = timestamp - start;
         const progress = Math.min(elapsed / duration, 1);
         const fade = 1 - progress;
 
-        setFadeValues((prev) => ({ ...prev, [currentIndex]: fade }));
+        setFadeValues((prev) => ({ ...prev, [activeIndex]: fade }));
 
         if (progress < 1) {
           requestAnimationFrame(animate);
         } else {
-          // After fade, wait 3s then move to next index
+          // after fade complete → wait 3s then restart
           setTimeout(() => {
-            currentIndex = (currentIndex + 1) % data.length;
-            runAccessLoop();
+            setFadeValues({});
+            setActiveIndex(null);
+            setOperationText(`Access v=${accessValue}`);
+            setActiveIndex(data.findIndex((v) => v === accessValue));
           }, 3000);
         }
       };
 
       requestAnimationFrame(animate);
-    };
-
-    runAccessLoop();
-  }, [data]);
+    }
+  }, [activeIndex, data, accessValue]);
 
   return (
     <div className="w-full h-screen">
-      {/* Access operation text */}
-      <div className="absolute top-4 w-full text-center text-xl font-bold text-white drop-shadow-lg">
-        {accessText}
-      </div>
-
       <Canvas
         camera={{ position: [0, 2, 6], fov: 50 }}
         gl={{ alpha: true }}
@@ -86,6 +90,20 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
         <Reticle placed={placed} setPlaced={setPlaced}>
+          {/* Operation text shown above array */}
+          {operationText && (
+            <Text
+              position={[0, 3, 0]}
+              fontSize={0.5}
+              anchorX="center"
+              anchorY="middle"
+              color="white"
+            >
+              {operationText}
+            </Text>
+          )}
+
+          {/* Boxes */}
           {data.map((value, i) => (
             <Box
               key={i}
@@ -203,6 +221,7 @@ const Box = ({ index, value, position = [0, 0, 0], fade }) => {
         />
       </mesh>
 
+      {/* Value text */}
       <Text
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
         fontSize={0.35}
@@ -212,6 +231,7 @@ const Box = ({ index, value, position = [0, 0, 0], fade }) => {
         {String(value)}
       </Text>
 
+      {/* Index text */}
       <Text
         position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
         fontSize={0.2}
