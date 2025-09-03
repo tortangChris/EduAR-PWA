@@ -1,88 +1,63 @@
-// ARPage3_Search_Hardcoded.jsx
-import React, { useMemo, useState, useEffect, useRef } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
+import React, { useMemo, useState, useEffect } from "react";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, Text } from "@react-three/drei";
 
-const ARPage3 = ({
+const VisualPage3_Hardcoded = ({
   data = [10, 20, 30, 40, 50],
   spacing = 2.0,
   target = 40,
 }) => {
   const [activeIndex, setActiveIndex] = useState(null);
   const [fadeValues, setFadeValues] = useState({});
-  const [operationText, setOperationText] = useState("");
-  const [placed, setPlaced] = useState(false);
+  const [operationText, setOperationText] = useState("Searching...");
 
-  // positions for boxes
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
   useEffect(() => {
-    if (!placed) return;
-
-    let timeoutIds = [];
+    let timeouts = [];
 
     const runSearch = () => {
-      setOperationText("🔍 Starting search...");
+      setOperationText(`🔍 Searching for ${target}...`);
       setActiveIndex(null);
       setFadeValues({});
 
       data.forEach((val, i) => {
-        // Step delay (each step after 3s * index)
-        const stepDelay = i * 3000;
+        const delay = i * 4000; // 2s highlight + 2s fade per index
 
-        // highlight this box
-        timeoutIds.push(
+        // highlight
+        timeouts.push(
           setTimeout(() => {
             setActiveIndex(i);
             setFadeValues({ [i]: 1 });
             setOperationText(`Checking index ${i}... v=${val}`);
-          }, stepDelay)
+          }, delay)
         );
 
-        // fade out after 1.5s
-        timeoutIds.push(
+        // fade out
+        timeouts.push(
           setTimeout(() => {
             setFadeValues({ [i]: 0 });
-          }, stepDelay + 1500)
+          }, delay + 2000)
         );
 
-        // if found target
+        // if found
         if (val === target) {
-          timeoutIds.push(
+          timeouts.push(
             setTimeout(() => {
               setOperationText(`✅ Found ${target} at index ${i}`);
               setActiveIndex(null);
               setFadeValues({});
-            }, stepDelay + 2000)
+            }, delay + 2500)
           );
 
-          // restart loop after 3s
-          timeoutIds.push(
+          // restart loop
+          timeouts.push(
             setTimeout(() => {
               runSearch();
-            }, stepDelay + 5000)
-          );
-
-          return; // stop further steps
-        }
-
-        // if last index and not found
-        if (i === data.length - 1 && val !== target) {
-          timeoutIds.push(
-            setTimeout(() => {
-              setOperationText(`❌ ${target} not found`);
-              setActiveIndex(null);
-              setFadeValues({});
-            }, stepDelay + 2000)
-          );
-
-          timeoutIds.push(
-            setTimeout(() => {
-              runSearch();
-            }, stepDelay + 5000)
+            }, delay + 5000)
           );
         }
       });
@@ -90,47 +65,20 @@ const ARPage3 = ({
 
     runSearch();
 
-    return () => timeoutIds.forEach((id) => clearTimeout(id));
-  }, [placed, data, target]);
+    return () => timeouts.forEach((id) => clearTimeout(id));
+  }, [data, target]);
 
   return (
-    <div className="w-full h-screen">
-      <Canvas
-        camera={{ position: [0, 2, 6], fov: 50 }}
-        gl={{ alpha: true }}
-        shadows
-        onCreated={({ gl }) => {
-          gl.xr.enabled = true;
-          if (navigator.xr) {
-            navigator.xr
-              .requestSession("immersive-ar", {
-                requiredFeatures: ["hit-test", "local-floor"],
-              })
-              .then((session) => {
-                gl.xr.setSession(session);
-              })
-              .catch((err) => console.error("❌ AR session failed:", err));
-          }
-        }}
-      >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
+    <div className="w-full h-[400px] bg-gray-50 flex flex-col items-center justify-center">
+      {/* Status text */}
+      <div className="mb-4 text-lg font-mono">{operationText}</div>
 
-        <Reticle placed={placed} setPlaced={setPlaced}>
-          {/* Operation text */}
-          {operationText && (
-            <Text
-              position={[0, 3, 0]}
-              fontSize={0.5}
-              anchorX="center"
-              anchorY="middle"
-              color="white"
-            >
-              {operationText}
-            </Text>
-          )}
+      {/* 3D Scene */}
+      <div className="w-full h-[70%]">
+        <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
+          <ambientLight intensity={0.4} />
+          <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-          {/* Boxes */}
           {data.map((value, i) => (
             <Box
               key={i}
@@ -141,99 +89,12 @@ const ARPage3 = ({
             />
           ))}
 
-          {/* Ground plane */}
-          <mesh rotation-x={-Math.PI / 2} receiveShadow>
-            <planeGeometry args={[10, 10]} />
-            <shadowMaterial opacity={0.3} />
-          </mesh>
-        </Reticle>
-      </Canvas>
+          <OrbitControls makeDefault />
+        </Canvas>
+      </div>
     </div>
   );
 };
-
-function Reticle({ children, placed, setPlaced }) {
-  const { gl } = useThree();
-  const reticleRef = useRef();
-  const [hitTestSource, setHitTestSource] = useState(null);
-  const [hitTestSourceRequested, setHitTestSourceRequested] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [targetPos, setTargetPos] = useState(null);
-
-  useFrame((_, delta) => {
-    const session = gl.xr.getSession();
-    if (!session) return;
-    const frame = gl.xr.getFrame();
-    if (!frame) return;
-
-    if (!hitTestSourceRequested) {
-      session.requestReferenceSpace("viewer").then((refSpace) => {
-        session.requestHitTestSource({ space: refSpace }).then((source) => {
-          setHitTestSource(source);
-        });
-      });
-      setHitTestSourceRequested(true);
-    }
-
-    if (hitTestSource && !placed) {
-      const referenceSpace = gl.xr.getReferenceSpace();
-      const hits = frame.getHitTestResults(hitTestSource);
-
-      if (hits.length > 0) {
-        const hit = hits[0];
-        const pose = hit.getPose(referenceSpace);
-
-        reticleRef.current.visible = true;
-        reticleRef.current.position.set(
-          pose.transform.position.x,
-          pose.transform.position.y,
-          pose.transform.position.z
-        );
-        reticleRef.current.updateMatrixWorld(true);
-
-        setProgress((prev) => {
-          const next = Math.min(prev + delta / 2, 1);
-          if (next >= 1 && !placed) {
-            setPlaced(true);
-            setTargetPos(pose.transform.position);
-          }
-          return next;
-        });
-      } else {
-        reticleRef.current.visible = false;
-        setProgress(0);
-      }
-    }
-  });
-
-  return (
-    <group>
-      {/* Reticle ring */}
-      <mesh ref={reticleRef} rotation-x={-Math.PI / 2} visible={false}>
-        <ringGeometry args={[0.07, 0.1, 32]} />
-        <meshBasicMaterial color="yellow" />
-      </mesh>
-
-      {/* Progress ring */}
-      {reticleRef.current && !placed && (
-        <mesh position={reticleRef.current.position} rotation-x={-Math.PI / 2}>
-          <ringGeometry args={[0.05, 0.09, 32, 1, 0, Math.PI * 2 * progress]} />
-          <meshBasicMaterial color="lime" transparent opacity={0.8} />
-        </mesh>
-      )}
-
-      {/* Place children */}
-      {placed && targetPos && (
-        <group
-          position={[targetPos.x, targetPos.y, targetPos.z]}
-          scale={[0.1, 0.1, 0.1]}
-        >
-          {children}
-        </group>
-      )}
-    </group>
-  );
-}
 
 const Box = ({ index, value, position = [0, 0, 0], fade }) => {
   const size = [1.6, 1.2, 1];
@@ -269,4 +130,4 @@ const Box = ({ index, value, position = [0, 0, 0], fade }) => {
   );
 };
 
-export default ARPage3;
+export default VisualPage3_Hardcoded;
