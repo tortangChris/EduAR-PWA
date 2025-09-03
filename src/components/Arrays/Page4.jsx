@@ -3,31 +3,36 @@ import ReactMarkdown from "react-markdown";
 import content from "../../../public/markdown/ArrayPage4.md?raw";
 import { Scan } from "lucide-react";
 import VisualPage4 from "./VisualPage4";
+import ARPage4 from "./ARPage4";
 
 const Page4 = () => {
   const [showWarning, setShowWarning] = useState(false);
+  const [showAR, setShowAR] = useState(false); // 👈 toggle view
 
   const handleArClick = async () => {
     try {
-      // Check AR/WebXR support
       if (
         navigator.xr &&
         (await navigator.xr.isSessionSupported("immersive-ar"))
       ) {
         console.log("✅ AR Mode Activated!");
         setShowWarning(false);
+        setShowAR(true); // 👈 switch to ARPage1
       } else {
         throw new Error("AR not supported");
       }
     } catch (err) {
       setShowWarning(true);
 
-      // Reset back to icon after 2.5s
       setTimeout(() => {
         setShowWarning(false);
       }, 2500);
     }
   };
+
+  if (showAR) {
+    return <ARPage4 />; // 👈 render ARPage1 instead of Page1
+  }
 
   return (
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(86vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">
