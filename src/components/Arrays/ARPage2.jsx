@@ -7,6 +7,7 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   const [activeIndex, setActiveIndex] = useState(null);
   const [fadeValues, setFadeValues] = useState({});
   const [placed, setPlaced] = useState(false);
+  const [accessText, setAccessText] = useState("");
 
   // positions along X-axis
   const positions = useMemo(() => {
@@ -14,10 +15,17 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  // Fade animation kapag may na-click
+  // Looping access operation
   useEffect(() => {
-    if (activeIndex !== null) {
-      setFadeValues((prev) => ({ ...prev, [activeIndex]: 1 }));
+    let currentIndex = 0;
+
+    const runAccessLoop = () => {
+      const value = data[currentIndex];
+      setAccessText(`Access v=${value}`);
+      setActiveIndex(currentIndex);
+
+      // start fade effect
+      setFadeValues((prev) => ({ ...prev, [currentIndex]: 1 }));
 
       let start;
       const duration = 2000;
@@ -28,21 +36,32 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
         const progress = Math.min(elapsed / duration, 1);
         const fade = 1 - progress;
 
-        setFadeValues((prev) => ({ ...prev, [activeIndex]: fade }));
+        setFadeValues((prev) => ({ ...prev, [currentIndex]: fade }));
 
         if (progress < 1) {
           requestAnimationFrame(animate);
         } else {
-          setActiveIndex(null);
+          // After fade, wait 3s then move to next index
+          setTimeout(() => {
+            currentIndex = (currentIndex + 1) % data.length;
+            runAccessLoop();
+          }, 3000);
         }
       };
 
       requestAnimationFrame(animate);
-    }
-  }, [activeIndex]);
+    };
+
+    runAccessLoop();
+  }, [data]);
 
   return (
     <div className="w-full h-screen">
+      {/* Access operation text */}
+      <div className="absolute top-4 w-full text-center text-xl font-bold text-white drop-shadow-lg">
+        {accessText}
+      </div>
+
       <Canvas
         camera={{ position: [0, 2, 6], fov: 50 }}
         gl={{ alpha: true }}
@@ -74,7 +93,6 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
               value={value}
               position={positions[i]}
               fade={fadeValues[i] || 0}
-              onClick={() => setActiveIndex(i)}
             />
           ))}
 
@@ -172,16 +190,11 @@ function Reticle({ children, placed, setPlaced }) {
   );
 }
 
-const Box = ({ index, value, position = [0, 0, 0], fade, onClick }) => {
+const Box = ({ index, value, position = [0, 0, 0], fade }) => {
   const size = [1.6, 1.2, 1];
   return (
     <group position={position}>
-      <mesh
-        castShadow
-        receiveShadow
-        position={[0, size[1] / 2, 0]}
-        onClick={onClick}
-      >
+      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
         <boxGeometry args={size} />
         <meshStandardMaterial
           color={index % 2 === 0 ? "#60a5fa" : "#34d399"}
