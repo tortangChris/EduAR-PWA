@@ -1,4 +1,4 @@
-// ARPage3_Search.jsx
+// ARPage3_Search_Hardcoded.jsx
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
@@ -22,78 +22,75 @@ const ARPage3 = ({
   useEffect(() => {
     if (!placed) return;
 
-    let loopTimeout;
-    let currentIndex = 0;
+    let timeoutIds = [];
 
     const runSearch = () => {
-      setOperationText("🔍 Starting linear search...");
+      setOperationText("🔍 Starting search...");
       setActiveIndex(null);
       setFadeValues({});
 
-      loopTimeout = setTimeout(() => {
-        const step = () => {
-          setActiveIndex(currentIndex);
-          setFadeValues({ [currentIndex]: 1 });
-          setOperationText(
-            `Checking index ${currentIndex}... v=${data[currentIndex]}`
-          );
+      data.forEach((val, i) => {
+        // Step delay (each step after 3s * index)
+        const stepDelay = i * 3000;
 
-          // fade animation
-          let start;
-          const duration = 1500;
-          const animate = (timestamp) => {
-            if (!start) start = timestamp;
-            const elapsed = timestamp - start;
-            const progress = Math.min(elapsed / duration, 1);
-            const fade = 1 - progress;
+        // highlight this box
+        timeoutIds.push(
+          setTimeout(() => {
+            setActiveIndex(i);
+            setFadeValues({ [i]: 1 });
+            setOperationText(`Checking index ${i}... v=${val}`);
+          }, stepDelay)
+        );
 
-            setFadeValues({ [currentIndex]: fade });
+        // fade out after 1.5s
+        timeoutIds.push(
+          setTimeout(() => {
+            setFadeValues({ [i]: 0 });
+          }, stepDelay + 1500)
+        );
 
-            if (progress < 1) {
-              requestAnimationFrame(animate);
-            }
-          };
-          requestAnimationFrame(animate);
-
-          if (data[currentIndex] === target) {
-            // found
-            loopTimeout = setTimeout(() => {
-              setOperationText(`✅ Found ${target} at index ${currentIndex}`);
+        // if found target
+        if (val === target) {
+          timeoutIds.push(
+            setTimeout(() => {
+              setOperationText(`✅ Found ${target} at index ${i}`);
               setActiveIndex(null);
               setFadeValues({});
-              // restart after 3s
-              loopTimeout = setTimeout(() => {
-                currentIndex = 0;
-                runSearch();
-              }, 3000);
-            }, 2000);
-          } else if (currentIndex === data.length - 1) {
-            // not found
-            loopTimeout = setTimeout(() => {
+            }, stepDelay + 2000)
+          );
+
+          // restart loop after 3s
+          timeoutIds.push(
+            setTimeout(() => {
+              runSearch();
+            }, stepDelay + 5000)
+          );
+
+          return; // stop further steps
+        }
+
+        // if last index and not found
+        if (i === data.length - 1 && val !== target) {
+          timeoutIds.push(
+            setTimeout(() => {
               setOperationText(`❌ ${target} not found`);
               setActiveIndex(null);
               setFadeValues({});
-              // restart after 3s
-              loopTimeout = setTimeout(() => {
-                currentIndex = 0;
-                runSearch();
-              }, 3000);
-            }, 2000);
-          } else {
-            // go next
-            loopTimeout = setTimeout(() => {
-              currentIndex++;
-              step();
-            }, 2000);
-          }
-        };
+            }, stepDelay + 2000)
+          );
 
-        step();
-      }, 2000);
+          timeoutIds.push(
+            setTimeout(() => {
+              runSearch();
+            }, stepDelay + 5000)
+          );
+        }
+      });
     };
 
     runSearch();
-    return () => clearTimeout(loopTimeout);
+
+    return () => timeoutIds.forEach((id) => clearTimeout(id));
   }, [placed, data, target]);
 
   return (
