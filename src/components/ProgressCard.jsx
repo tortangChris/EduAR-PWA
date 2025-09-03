@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CircleCheck, BookOpen, PlaySquare } from "lucide-react";
+import { CircleCheck, PlaySquare } from "lucide-react";
 import modulesConfig from "../config/modulesConfig";
 
 const ProgressCard = () => {
@@ -27,10 +27,11 @@ const ProgressCard = () => {
   }, []);
 
   return (
-    <div className="bg-base-200 p-4 rounded-xl shadow-md">
-      <div className="flex items-center gap-4">
+    <div className="bg-base-200 p-6 rounded-2xl shadow-lg">
+      {/* Progress Section */}
+      <div className="flex items-center gap-6">
         <div
-          className="radial-progress text-primary"
+          className="radial-progress text-primary text-lg font-bold"
           style={{ "--value": progress }}
           role="progressbar"
         >
@@ -38,28 +39,29 @@ const ProgressCard = () => {
         </div>
 
         <div>
-          <h2 className="text-lg font-bold">Overall Progress</h2>
+          <h2 className="text-xl font-bold">Overall Progress</h2>
           <p className="text-sm text-gray-500">
-            Keep going! You're doing great.
+            Keep going! You're doing great 🚀
           </p>
         </div>
       </div>
 
-      <div className="divider my-4"></div>
+      <div className="divider my-5"></div>
 
-      <div className="grid grid-cols-3 gap-4 text-center text-sm font-medium">
+      {/* Stats Section */}
+      <div className="grid grid-cols-2 gap-6 text-center">
         <div className="flex flex-col items-center">
-          <PlaySquare className="w-6 h-6 text-primary mb-1" />
-          <span>Modules</span>
-          <span className="text-xs text-gray-500">
+          <PlaySquare className="w-7 h-7 text-success mb-2" />
+          <span className="text-base font-semibold">Modules</span>
+          <span className="text-sm text-gray-500">
             {completedModules} / {totalModules}
           </span>
         </div>
 
         <div className="flex flex-col items-center">
-          <CircleCheck className="w-6 h-6 text-primary mb-1" />
-          <span>Assessment</span>
-          <span className="text-xs text-gray-500">0 / 9</span>
+          <CircleCheck className="w-7 h-7 text-success mb-2" />
+          <span className="text-base font-semibold">Assessment</span>
+          <span className="text-sm text-gray-500">0 / 9</span>
         </div>
       </div>
     </div>
