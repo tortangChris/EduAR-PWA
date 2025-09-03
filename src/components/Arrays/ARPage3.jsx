@@ -1,3 +1,4 @@
+// ARPage3_Search.jsx
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
@@ -8,8 +9,8 @@ const ARPage3 = ({
   target = 40,
 }) => {
   const [activeIndex, setActiveIndex] = useState(null);
-  const [status, setStatus] = useState("");
   const [fadeValues, setFadeValues] = useState({});
+  const [operationText, setOperationText] = useState("");
   const [placed, setPlaced] = useState(false);
 
   // positions for boxes
@@ -18,58 +19,82 @@ const ARPage3 = ({
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  // Looping search simulation (after placement)
   useEffect(() => {
+    if (!placed) return;
+
     let loopTimeout;
     let currentIndex = 0;
 
     const runSearch = () => {
-      setStatus(`Searching for v=${target}...`);
+      setOperationText("🔍 Starting linear search...");
       setActiveIndex(null);
       setFadeValues({});
 
-      currentIndex = 0;
+      loopTimeout = setTimeout(() => {
+        const step = () => {
+          setActiveIndex(currentIndex);
+          setFadeValues({ [currentIndex]: 1 });
+          setOperationText(
+            `Checking index ${currentIndex}... v=${data[currentIndex]}`
+          );
 
-      const step = () => {
-        setActiveIndex(currentIndex);
-        setFadeValues({ [currentIndex]: 1 }); // highlight current box
-        setStatus(`Checking index ${currentIndex}...`);
+          // fade animation
+          let start;
+          const duration = 1500;
+          const animate = (timestamp) => {
+            if (!start) start = timestamp;
+            const elapsed = timestamp - start;
+            const progress = Math.min(elapsed / duration, 1);
+            const fade = 1 - progress;
 
-        if (data[currentIndex] === target) {
-          // ✅ Found case
-          loopTimeout = setTimeout(() => {
-            setFadeValues({});
-            setActiveIndex(null);
-            setStatus(`✅ Found ${target} at index ${currentIndex}`);
-            loopTimeout = setTimeout(runSearch, 3000); // restart loop after 3s
-          }, 2000);
-        } else if (currentIndex === data.length - 1) {
-          // ❌ Not found case
-          loopTimeout = setTimeout(() => {
-            setFadeValues({});
-            setActiveIndex(null);
-            setStatus(`❌ ${target} not found`);
-            loopTimeout = setTimeout(runSearch, 3000); // restart loop after 3s
-          }, 2000);
-        } else {
-          // ➡️ Move to next index
-          loopTimeout = setTimeout(() => {
-            setFadeValues({});
-            setActiveIndex(null);
-            currentIndex++;
-            step();
-          }, 1000);
-        }
-      };
+            setFadeValues({ [currentIndex]: fade });
 
-      // Start agad
-      step();
+            if (progress < 1) {
+              requestAnimationFrame(animate);
+            }
+          };
+          requestAnimationFrame(animate);
+
+          if (data[currentIndex] === target) {
+            // found
+            loopTimeout = setTimeout(() => {
+              setOperationText(`✅ Found ${target} at index ${currentIndex}`);
+              setActiveIndex(null);
+              setFadeValues({});
+              // restart after 3s
+              loopTimeout = setTimeout(() => {
+                currentIndex = 0;
+                runSearch();
+              }, 3000);
+            }, 2000);
+          } else if (currentIndex === data.length - 1) {
+            // not found
+            loopTimeout = setTimeout(() => {
+              setOperationText(`❌ ${target} not found`);
+              setActiveIndex(null);
+              setFadeValues({});
+              // restart after 3s
+              loopTimeout = setTimeout(() => {
+                currentIndex = 0;
+                runSearch();
+              }, 3000);
+            }, 2000);
+          } else {
+            // go next
+            loopTimeout = setTimeout(() => {
+              currentIndex++;
+              step();
+            }, 2000);
+          }
+        };
+
+        step();
+      }, 2000);
     };
 
     runSearch();
-
     return () => clearTimeout(loopTimeout);
-  }, [data, target]);
+  }, [placed, data, target]);
 
   return (
     <div className="w-full h-screen">
@@ -87,9 +112,7 @@ const ARPage3 = ({
               .then((session) => {
                 gl.xr.setSession(session);
               })
-              .catch((err) => {
-                console.error("❌ Failed to start AR session:", err);
-              });
+              .catch((err) => console.error("❌ AR session failed:", err));
           }
         }}
       >
@@ -97,8 +120,8 @@ const ARPage3 = ({
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
         <Reticle placed={placed} setPlaced={setPlaced}>
-          {/* Status text */}
-          {status && (
+          {/* Operation text */}
+          {operationText && (
             <Text
               position={[0, 3, 0]}
               fontSize={0.5}
@@ -106,7 +129,7 @@ const ARPage3 = ({
               anchorY="middle"
               color="white"
             >
-              {status}
+              {operationText}
             </Text>
           )}
 
@@ -121,7 +144,7 @@ const ARPage3 = ({
             />
           ))}
 
-          {/* Shadow plane */}
+          {/* Ground plane */}
           <mesh rotation-x={-Math.PI / 2} receiveShadow>
             <planeGeometry args={[10, 10]} />
             <shadowMaterial opacity={0.3} />
@@ -194,7 +217,7 @@ function Reticle({ children, placed, setPlaced }) {
         <meshBasicMaterial color="yellow" />
       </mesh>
 
-      {/* Progress indicator */}
+      {/* Progress ring */}
       {reticleRef.current && !placed && (
         <mesh position={reticleRef.current.position} rotation-x={-Math.PI / 2}>
           <ringGeometry args={[0.05, 0.09, 32, 1, 0, Math.PI * 2 * progress]} />
@@ -202,7 +225,7 @@ function Reticle({ children, placed, setPlaced }) {
         </mesh>
       )}
 
-      {/* Children placed at reticle */}
+      {/* Place children */}
       {placed && targetPos && (
         <group
           position={[targetPos.x, targetPos.y, targetPos.z]}
@@ -228,7 +251,6 @@ const Box = ({ index, value, position = [0, 0, 0], fade }) => {
         />
       </mesh>
 
-      {/* Value text */}
       <Text
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
         fontSize={0.35}
@@ -238,7 +260,6 @@ const Box = ({ index, value, position = [0, 0, 0], fade }) => {
         {String(value)}
       </Text>
 
-      {/* Index text */}
       <Text
         position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
         fontSize={0.2}
