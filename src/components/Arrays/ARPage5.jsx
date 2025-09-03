@@ -1,144 +1,125 @@
 // ARPage5.jsx
-import React, { useEffect, useRef, useState } from "react";
-import { ARCanvas } from "@react-three/xr";
-import { Text } from "@react-three/drei";
+import React, { useState, useEffect, useMemo } from "react";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, Text } from "@react-three/drei";
 
 const ARPage5 = ({
   data = [10, 20, 30, 40, 50],
-  spacing = 0.25,
-  deleteIndex = 2,
+  spacing = 2.0,
+  deleteIndex = 2, // yung index ng ide-delete
+  loopDelay = 3000,
 }) => {
-  const originalRef = useRef(data.slice());
-  const [boxes, setBoxes] = useState([]);
+  const [boxes, setBoxes] = useState(data);
   const [status, setStatus] = useState("Idle");
-  const animRef = useRef({ cancelled: false });
+  const [highlightIndex, setHighlightIndex] = useState(null);
+  const [phase, setPhase] = useState(0);
 
-  // helper to create array of boxes with positions
-  const createBoxes = (arr) => {
-    const n = arr.length;
-    const mid = (n - 1) / 2;
-    return arr.map((v, i) => ({
-      id: `b${i}`,
-      value: v,
-      x: (i - mid) * spacing,
-      opacity: 1,
-    }));
-  };
+  // positions based on count
+  const positions = useMemo(() => {
+    const mid = (boxes.length - 1) / 2;
+    return boxes.map((_, i) => [(i - mid) * spacing, 0, 0]);
+  }, [boxes, spacing]);
 
   useEffect(() => {
-    setBoxes(createBoxes(originalRef.current));
-    let loop = true;
+    let timer;
 
     const runSequence = async () => {
-      while (loop) {
-        setBoxes(createBoxes(originalRef.current));
-        setStatus(`Deleting element at index ${deleteIndex}...`);
+      setBoxes(data);
+      setStatus(
+        `Deleting value ${data[deleteIndex]} at index ${deleteIndex}...`
+      );
+      setHighlightIndex(deleteIndex);
 
-        // wait 2s
-        await delay(2000);
+      // highlight target
+      await delay(2000);
 
-        // fade out deleted element
-        setBoxes((prev) =>
-          prev.map((b, i) => (i === deleteIndex ? { ...b, opacity: 0 } : b))
-        );
-        setStatus(`Element ${originalRef.current[deleteIndex]} removed`);
-        await delay(2000);
+      // remove target
+      setHighlightIndex(null);
+      setStatus(`Removing value ${data[deleteIndex]}...`);
+      await delay(1000);
+      const newArr = data.filter((_, i) => i !== deleteIndex);
+      setBoxes(newArr);
 
-        // shift elements after deleteIndex
-        for (let i = deleteIndex + 1; i < originalRef.current.length; i++) {
-          setStatus(`Shifting element at index ${i} left...`);
-          setBoxes((prev) =>
-            prev.map((b, j) => (j === i ? { ...b, x: b.x - spacing } : b))
-          );
-          await delay(2000);
-        }
+      // shift left
+      setStatus(`Shifting elements...`);
+      await delay(2000);
 
-        // finalize
-        const newArr = originalRef.current.slice();
-        newArr.splice(deleteIndex, 1);
-        setBoxes(createBoxes(newArr));
-        setStatus("✅ Deletion complete");
+      // finalize
+      setStatus("✅ Deletion complete!");
+      await delay(loopDelay);
 
-        // wait 3s before loop reset
-        await delay(3000);
-      }
+      // reset loop
+      setPhase((p) => p + 1);
     };
 
     runSequence();
 
-    return () => {
-      loop = false;
-      animRef.current.cancelled = true;
-    };
-  }, [deleteIndex]);
+    return () => clearTimeout(timer);
+  }, [phase, data, deleteIndex, loopDelay]);
 
   return (
-    <div className="w-full h-screen">
-      <ARCanvas>
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[2, 5, 2]} intensity={0.8} />
+    <div className="w-full h-screen bg-gray-50 flex flex-col items-center justify-center">
+      {/* Status text */}
+      <div className="mb-4 text-lg font-mono text-gray-800">{status}</div>
 
-        {/* Status text floating above */}
-        <Text
-          position={[0, 0.5, -1]}
-          fontSize={0.08}
-          anchorX="center"
-          anchorY="middle"
-        >
-          {status}
-        </Text>
+      {/* 3D Scene */}
+      <div className="w-full h-[70%]">
+        <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
+          <ambientLight intensity={0.4} />
+          <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* Render boxes */}
-        {boxes.map((b, i) => (
-          <Box
-            key={b.id}
-            value={b.value}
-            index={i}
-            position={[b.x, 0, -1]}
-            opacity={b.opacity}
-          />
-        ))}
-      </ARCanvas>
+          {boxes.map((value, i) => (
+            <Box
+              key={i}
+              index={i}
+              value={value}
+              position={positions[i]}
+              highlight={highlightIndex === i}
+            />
+          ))}
+
+          <OrbitControls makeDefault />
+        </Canvas>
+      </div>
     </div>
   );
 };
 
-const Box = ({ value, index, position, opacity = 1 }) => {
-  const size = [0.18, 0.12, 0.1];
+const Box = ({ index, value, position, highlight }) => {
+  const size = [1.6, 1.2, 1];
   return (
     <group position={position}>
-      <mesh>
+      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
         <boxGeometry args={size} />
-        <meshStandardMaterial color="#60a5fa" transparent opacity={opacity} />
+        <meshStandardMaterial
+          color={highlight ? "#f87171" : "#60a5fa"}
+          emissive={highlight ? "#facc15" : "#000000"}
+          emissiveIntensity={highlight ? 0.9 : 0}
+        />
       </mesh>
 
-      {/* Value */}
       <Text
-        position={[0, 0.1, 0.06]}
-        fontSize={0.05}
+        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
+        fontSize={0.35}
         anchorX="center"
         anchorY="middle"
-        color={`rgba(0,0,0,${opacity})`}
       >
-        {value}
+        {String(value)}
       </Text>
 
-      {/* Index */}
       <Text
-        position={[0, -0.05, 0.06]}
-        fontSize={0.04}
+        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
+        fontSize={0.2}
         anchorX="center"
         anchorY="middle"
-        color={`rgba(0,0,0,${opacity})`}
       >
-        [{index}]
+        {`[${index}]`}
       </Text>
     </group>
   );
 };
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+// small delay utility
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default ARPage5;
