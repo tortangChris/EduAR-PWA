@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import content from "../../../public/markdown/ArrayPage5.md?raw";
+import content from "../../../public/markdown/ArrayPage4.md?raw";
 import { Scan } from "lucide-react";
 import VisualPage5 from "./VisualPage5";
+import ARPage5 from "./ARPage5";
 
 const Page5 = () => {
   const [showWarning, setShowWarning] = useState(false);
+  const [showAR, setShowAR] = useState(false); // 👈 toggle view
 
   const handleArClick = async () => {
     try {
@@ -15,6 +17,7 @@ const Page5 = () => {
       ) {
         console.log("✅ AR Mode Activated!");
         setShowWarning(false);
+        setShowAR(true); // 👈 switch to ARPage1
       } else {
         throw new Error("AR not supported");
       }
@@ -26,6 +29,10 @@ const Page5 = () => {
       }, 2500);
     }
   };
+
+  if (showAR) {
+    return <ARPage5 />; // 👈 render ARPage1 instead of Page1
+  }
 
   return (
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(86vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">

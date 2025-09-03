@@ -1,13 +1,13 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
-import { Play, Square, RotateCcw } from "lucide-react";
 
-const VisualPage5 = ({
+const ARPage5 = ({
   data = [10, 20, 30, 40, 50],
   spacing = 2.0,
   deleteIndex = 2,
   stepDuration = 700,
+  loopDelay = 3000,
 }) => {
   const originalRef = useRef(data.slice());
   const [boxes, setBoxes] = useState(() =>
@@ -15,8 +15,6 @@ const VisualPage5 = ({
   );
   const animRef = useRef({ cancelled: false });
   const [status, setStatus] = useState("Idle");
-  const [progress, setProgress] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
 
   function createBoxes(arr, spacingVal) {
     const n = arr.length;
@@ -25,7 +23,6 @@ const VisualPage5 = ({
       id: `b${i}`,
       value: v,
       x: (i - mid) * spacingVal,
-      targetX: (i - mid) * spacingVal,
       opacity: 1,
     }));
   }
@@ -34,8 +31,6 @@ const VisualPage5 = ({
     animRef.current.cancelled = true;
     setBoxes(createBoxes(originalRef.current, spacing));
     setStatus("Idle");
-    setProgress(0);
-    setIsPlaying(false);
   };
 
   const animateMove = (boxId, toX) => {
@@ -79,80 +74,49 @@ const VisualPage5 = ({
     });
   };
 
-  const handlePlay = async () => {
-    if (isPlaying) return;
+  // Main sequence — auto loop
+  const playSequence = async () => {
+    reset();
     animRef.current.cancelled = false;
-    setBoxes(createBoxes(originalRef.current, spacing));
-    setProgress(0);
-    setStatus(`Deleting element at index ${deleteIndex}...`);
-    setIsPlaying(true);
 
+    setStatus(`Deleting element at index ${deleteIndex}...`);
     const n = boxes.length;
 
-    // Fade out the deleted box
-    await animateFadeOut(boxes[deleteIndex].id);
+    // Fade out target
+    await animateFadeOut(`b${deleteIndex}`);
+    setStatus(`Element at index ${deleteIndex} removed`);
 
-    // Shift left the boxes on the right
+    // Shift others
     for (let i = deleteIndex + 1; i < n; i++) {
       if (animRef.current.cancelled) break;
       const targetX = boxes[i].x - spacing;
       setStatus(`Shifting element at index ${i} left`);
-      await animateMove(boxes[i].id, targetX);
-      setProgress(Math.round(((i - deleteIndex) / (n - deleteIndex)) * 100));
+      await animateMove(`b${i}`, targetX);
     }
 
-    // Remove the deleted element and finalize array
+    // Final state
     const newArr = originalRef.current.slice();
     newArr.splice(deleteIndex, 1);
     setBoxes(createBoxes(newArr, spacing));
     setStatus(`✅ Deletion complete`);
-    setProgress(100);
-    setIsPlaying(false);
+
+    // Wait then loop
+    await new Promise((r) => setTimeout(r, loopDelay));
+    playSequence();
   };
 
-  const handleStop = () => {
-    animRef.current.cancelled = true;
-    setIsPlaying(false);
-    setStatus("Stopped");
-  };
-
-  const handleReset = () => reset();
+  useEffect(() => {
+    playSequence();
+    return () => {
+      animRef.current.cancelled = true;
+    };
+  }, []);
 
   return (
-    <div className="w-full h-[300px] flex flex-col items-center justify-center">
-      {/* Video Player Controls */}
-      <div className="w-2/3 mb-4">
-        <div className="flex items-center gap-3 mb-2">
-          <button
-            onClick={handlePlay}
-            disabled={isPlaying}
-            className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600"
-          >
-            <Play size={20} />
-          </button>
-          <button
-            onClick={handleStop}
-            disabled={!isPlaying}
-            className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600"
-          >
-            <Square size={20} />
-          </button>
-          <button
-            onClick={handleReset}
-            className="p-2 bg-gray-500 text-white rounded-full hover:bg-gray-600"
-          >
-            <RotateCcw size={20} />
-          </button>
-        </div>
-        <div className="w-full h-2 bg-gray-300 rounded">
-          <div
-            className="h-2 bg-green-500 rounded"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <div className="mt-2 text-gray-700 font-mono text-sm text-center">
-          {status}
-        </div>
+    <div className="w-full h-[300px] bg-gray-50 flex flex-col items-center justify-center">
+      {/* Status text */}
+      <div className="mb-4 text-gray-700 font-mono text-sm text-center">
+        {status}
       </div>
 
       {/* 3D Canvas */}
@@ -206,4 +170,4 @@ const Box = ({ value, index, position, opacity = 1 }) => {
   );
 };
 
-export default VisualPage5;
+export default ARPage5;
