@@ -20,8 +20,6 @@ const ARPage3 = ({
 
   // Looping search simulation (after placement)
   useEffect(() => {
-    if (!placed) return;
-
     let loopTimeout;
     let currentIndex = 0;
 
@@ -34,27 +32,27 @@ const ARPage3 = ({
 
       const step = () => {
         setActiveIndex(currentIndex);
-        setFadeValues({ [currentIndex]: 1 }); // highlight box
+        setFadeValues({ [currentIndex]: 1 }); // highlight current box
         setStatus(`Checking index ${currentIndex}...`);
 
         if (data[currentIndex] === target) {
-          // found
+          // ✅ Found case
           loopTimeout = setTimeout(() => {
             setFadeValues({});
             setActiveIndex(null);
             setStatus(`✅ Found ${target} at index ${currentIndex}`);
-            loopTimeout = setTimeout(runSearch, 3000); // restart loop
+            loopTimeout = setTimeout(runSearch, 3000); // restart loop after 3s
           }, 2000);
         } else if (currentIndex === data.length - 1) {
-          // not found
+          // ❌ Not found case
           loopTimeout = setTimeout(() => {
             setFadeValues({});
             setActiveIndex(null);
             setStatus(`❌ ${target} not found`);
-            loopTimeout = setTimeout(runSearch, 3000);
+            loopTimeout = setTimeout(runSearch, 3000); // restart loop after 3s
           }, 2000);
         } else {
-          // proceed to next index
+          // ➡️ Move to next index
           loopTimeout = setTimeout(() => {
             setFadeValues({});
             setActiveIndex(null);
@@ -71,7 +69,7 @@ const ARPage3 = ({
     runSearch();
 
     return () => clearTimeout(loopTimeout);
-  }, [placed, data, target]);
+  }, [data, target]);
 
   return (
     <div className="w-full h-screen">
