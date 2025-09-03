@@ -34,29 +34,37 @@ const ARPage3 = ({
 
       const step = () => {
         setActiveIndex(currentIndex);
-        setFadeValues({ [currentIndex]: 1 });
+        setFadeValues({ [currentIndex]: 1 }); // highlight box
         setStatus(`Checking index ${currentIndex}...`);
 
         if (data[currentIndex] === target) {
-          setStatus(`✅ Found ${target} at index ${currentIndex}`);
+          // found
           loopTimeout = setTimeout(() => {
             setFadeValues({});
             setActiveIndex(null);
+            setStatus(`✅ Found ${target} at index ${currentIndex}`);
             loopTimeout = setTimeout(runSearch, 3000); // restart loop
           }, 2000);
         } else if (currentIndex === data.length - 1) {
-          setStatus(`❌ ${target} not found`);
-          loopTimeout = setTimeout(runSearch, 3000);
-        } else {
+          // not found
           loopTimeout = setTimeout(() => {
             setFadeValues({});
+            setActiveIndex(null);
+            setStatus(`❌ ${target} not found`);
+            loopTimeout = setTimeout(runSearch, 3000);
+          }, 2000);
+        } else {
+          // proceed to next index
+          loopTimeout = setTimeout(() => {
+            setFadeValues({});
+            setActiveIndex(null);
             currentIndex++;
             step();
           }, 1000);
         }
       };
 
-      // 👉 Start immediately, no extra delay
+      // Start agad
       step();
     };
 
