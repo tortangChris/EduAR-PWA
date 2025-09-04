@@ -59,7 +59,7 @@ const ProgressCard = () => {
         <div className="flex flex-col items-center">
           <CircleCheck className="w-6 h-6 text-primary mb-1" />
           <span>Assessment</span>
-          <span className="text-xs text-gray-500">0 / 9</span>
+          <span className="text-xs text-gray-500">- / -</span>
         </div>
       </div>
     </div>
