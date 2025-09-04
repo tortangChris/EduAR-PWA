@@ -3,6 +3,8 @@ import { BookOpen } from "lucide-react";
 
 const RecentActivity = () => {
   const [activities, setActivities] = useState([]);
+
+  const todayKey = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
   const currentDate = new Date().toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
@@ -10,14 +12,10 @@ const RecentActivity = () => {
   });
 
   useEffect(() => {
-    const todayKey = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-    const storedActivities =
-      JSON.parse(localStorage.getItem("recentActivities")) || [];
-
-    // Filter para lang sa today
-    const todayActivities = storedActivities.filter((a) => a.date === todayKey);
+    const stored = JSON.parse(localStorage.getItem("recentActivities")) || [];
+    const todayActivities = stored.filter((a) => a.date === todayKey);
     setActivities(todayActivities);
-  }, []);
+  }, [todayKey]);
 
   return (
     <div className="bg-base-200 p-4 rounded-xl shadow-md mt-6">
@@ -33,7 +31,12 @@ const RecentActivity = () => {
             <React.Fragment key={idx}>
               <li className="flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-primary" />
-                <span className="text-sm">{act.moduleTitle}</span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{act.moduleTitle}</span>
+                  {act.time && (
+                    <span className="text-xs text-gray-500">{act.time}</span>
+                  )}
+                </div>
               </li>
               {idx < activities.length - 1 && (
                 <div className="divider my-1"></div>
@@ -42,8 +45,8 @@ const RecentActivity = () => {
           ))}
         </ul>
       ) : (
-        <div className="flex flex-col items-center justify-center py-8 text-gray-500">
-          <BookOpen className="w-10 h-10 mb-2 text-gray-700" />
+        <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+          <BookOpen className="w-10 h-10 mb-2 text-gray-500" />
           <p className="text-sm">No activities yet today</p>
         </div>
       )}
