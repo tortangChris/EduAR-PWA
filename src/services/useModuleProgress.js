@@ -6,15 +6,23 @@ import {
   setModulePosition,
 } from "./moduleService";
 
+function normalizeRouteKey(route) {
+  if (!route) return "";
+  // remove leading slash at "/modules/"
+  return route.replace(/^\/modules\//, "").replace(/^\//, "");
+}
+
 export function useModuleProgress(route, totalPages) {
+  const key = normalizeRouteKey(route);
+
   const [currentPage, setCurrentPage] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // ✅ Load saved state (progress + page)
+  // Load saved state (progress + page)
   useEffect(() => {
-    const savedProgress = getModuleProgress(route);
-    const savedPage = getModulePosition(route);
+    const savedProgress = getModuleProgress(key);
+    const savedPage = getModulePosition(key);
 
     setCurrentPage(savedPage || 0);
     setProgress(savedProgress || 0);
@@ -22,9 +30,9 @@ export function useModuleProgress(route, totalPages) {
     if (savedProgress === 100) {
       setIsFinished(true);
     }
-  }, [route]);
+  }, [key]);
 
-  // ✅ Save state whenever page changes
+  // Save state whenever page changes
   useEffect(() => {
     if (totalPages <= 0) return;
 
@@ -34,24 +42,23 @@ export function useModuleProgress(route, totalPages) {
         ? 100
         : Math.round((currentPage / (totalPages - 1)) * 100);
 
-    // save page always
-    setModulePosition(route, currentPage);
+    setModulePosition(key, currentPage);
 
     if (!isFinished) {
-      // ✅ never decrease progress, only increase
-      const savedProgress = getModuleProgress(route);
+      // never decrease progress, only increase
+      const savedProgress = getModuleProgress(key);
       const updatedProgress = Math.max(savedProgress, newProgress);
 
-      setModuleProgress(route, updatedProgress);
+      setModuleProgress(key, updatedProgress);
       setProgress(updatedProgress);
     }
-  }, [currentPage, totalPages, route, isFinished]);
+  }, [currentPage, totalPages, key, isFinished]);
 
   const finishModule = () => {
-    setModuleProgress(route, 100);
-    setModulePosition(route, totalPages - 1); // jump to last page
+    setModuleProgress(key, 100);
+    setModulePosition(key, totalPages - 1); // jump to last page
     setIsFinished(true);
-    setProgress(100); // ✅ UI sync agad
+    setProgress(100);
   };
 
   return {

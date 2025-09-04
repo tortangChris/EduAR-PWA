@@ -7,6 +7,11 @@ import {
   isUnlocked,
 } from "../services/moduleService";
 
+function normalizeRouteKey(route) {
+  if (!route) return "";
+  return route.replace(/^\/modules\//, "").replace(/^\//, "");
+}
+
 const ModulesContent = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -19,14 +24,16 @@ const ModulesContent = () => {
     setModulesData(loadProgress());
   }, []);
 
+  // Update finished module based on route (not index)
   useEffect(() => {
-    if (
-      location.state?.finishedModuleIndex !== undefined &&
-      modulesData.length > 0
-    ) {
-      const index = location.state.finishedModuleIndex;
-      if (modulesData[index].progress < 100) {
-        const updated = finishModule(modulesData, index);
+    if (location.state?.route && modulesData.length > 0) {
+      const key = normalizeRouteKey(location.state.route);
+      const moduleIndex = modulesData.findIndex(
+        (m) => normalizeRouteKey(m.route) === key
+      );
+
+      if (moduleIndex !== -1 && modulesData[moduleIndex].progress < 100) {
+        const updated = finishModule(modulesData, moduleIndex);
         setModulesData(updated);
       }
     }
@@ -34,7 +41,7 @@ const ModulesContent = () => {
 
   const handleClick = (module, index) => {
     if (isUnlocked(modulesData, index)) {
-      navigate(module.route, { state: { index } });
+      navigate(module.route, { state: { route: module.route } });
     } else {
       setErrorMessage(
         `⚠️ You need to finish "${modulesData[index - 1].title}" first.`
@@ -61,7 +68,7 @@ const ModulesContent = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {modulesData.map((module, index) => (
             <button
-              key={index}
+              key={normalizeRouteKey(module.route)}
               onClick={() => handleClick(module, index)}
               className={`flex flex-col items-start justify-between rounded-lg p-2 shadow transition-all duration-150
                 ${
