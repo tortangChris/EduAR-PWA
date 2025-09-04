@@ -1,69 +1,59 @@
 import modulesConfig from "../config/modulesConfig";
 
 const STORAGE_KEY_PROGRESS = "moduleProgress";
+const STORAGE_KEY_POSITION = "modulePagePositions";
 
-// Load the saved progress for all modules
-// FSM concept: initializing all module "states" from storage
+// Load / Save All Progress
 export function loadProgress() {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_PROGRESS)) || {};
   return modulesConfig.map((m) => ({
     ...m,
-    progress: saved[m.route] ?? 0, // FSM state = current progress
+    progress: saved[m.route] ?? 0,
   }));
 }
 
-// Save all modules progress to storage
-// FSM concept: persisting the current "states" after transitions
 export function saveProgress(modules) {
   const progressObj = {};
   modules.forEach((m) => {
-    progressObj[m.route] = m.progress; // FSM state
+    progressObj[m.route] = m.progress;
   });
   localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(progressObj));
 }
 
-// Mark a module as finished (progress = 100)
-// FSM concept: transition to terminal state for a module
+// Per-Module Progress
+export function getModuleProgress(route) {
+  const stored = JSON.parse(localStorage.getItem(STORAGE_KEY_PROGRESS)) || {};
+  return stored[route] ?? 0;
+}
+
+export function setModuleProgress(route, value) {
+  const stored = JSON.parse(localStorage.getItem(STORAGE_KEY_PROGRESS)) || {};
+  stored[route] = Math.min(100, value); // clamp to 100
+  localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(stored));
+}
+
+// Module Page Position
+export function getModulePosition(route) {
+  const stored = JSON.parse(localStorage.getItem(STORAGE_KEY_POSITION)) || {};
+  return stored[route] ?? 0;
+}
+
+export function setModulePosition(route, page) {
+  const stored = JSON.parse(localStorage.getItem(STORAGE_KEY_POSITION)) || {};
+  stored[route] = page;
+  localStorage.setItem(STORAGE_KEY_POSITION, JSON.stringify(stored));
+}
+
+// Finish Module
 export function finishModule(modules, index) {
   const updated = [...modules];
-  updated[index] = { ...updated[index], progress: 100 }; // FSM terminal state
-  saveProgress(updated); // persist state
+  updated[index] = { ...updated[index], progress: 100 };
+  setModuleProgress(updated[index].route, 100); // ✅ persist finished state
   return updated;
 }
 
-// Check if a module is unlocked based on previous module's completion
-// FSM concept: conditional transitions, only allow next state if previous is terminal
+// Unlock Condition
 export function isUnlocked(modules, index) {
-  if (index === 0) return true; // first module always unlocked
-  return modules[index - 1].progress === 100; // transition allowed only if previous module is finished
-}
-
-// Get a single module's progress
-// FSM concept: read current state of a particular FSM
-export function getModuleProgress(route) {
-  const stored = JSON.parse(localStorage.getItem("moduleProgress")) || {};
-  return stored[route] ?? 0; // default FSM state = 0
-}
-
-// Set a single module's progress
-// FSM concept: update FSM state on transition
-export function setModuleProgress(route, value) {
-  const stored = JSON.parse(localStorage.getItem("moduleProgress")) || {};
-  stored[route] = value; // FSM state transition
-  localStorage.setItem("moduleProgress", JSON.stringify(stored));
-}
-
-// Get current page position of a module
-// FSM concept: tracks FSM sub-state (current step/page)
-export function getModulePosition(route) {
-  const stored = JSON.parse(localStorage.getItem("modulePagePositions")) || {};
-  return stored[route] ?? 0; // default FSM sub-state
-}
-
-// Set current page position of a module
-// FSM concept: FSM transition between sub-states
-export function setModulePosition(route, page) {
-  const stored = JSON.parse(localStorage.getItem("modulePagePositions")) || {};
-  stored[route] = page; // FSM sub-state transition
-  localStorage.setItem("modulePagePositions", JSON.stringify(stored));
+  if (index === 0) return true;
+  return modules[index - 1].progress === 100;
 }

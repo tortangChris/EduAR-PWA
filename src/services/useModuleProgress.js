@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
 import {
   getModuleProgress,
   setModuleProgress,
@@ -7,51 +6,52 @@ import {
   setModulePosition,
 } from "./moduleService";
 
-// Custom hook to track module progress (acts like a FSM)
-export function useModuleProgress(totalPages) {
-  const location = useLocation();
-  const moduleRoute = location.pathname;
-
-  // FSM state: current page in the module
+export function useModuleProgress(route, totalPages) {
   const [currentPage, setCurrentPage] = useState(0);
-
-  // FSM state: whether the module has reached the "finished" state
   const [isFinished, setIsFinished] = useState(false);
+  const [progress, setProgress] = useState(0);
 
-  // Derived state: progress percentage
-  const progress =
-    totalPages <= 1 ? 100 : Math.round((currentPage / (totalPages - 1)) * 100);
-
-  // Initialize FSM states from saved data
+  // ✅ Load saved state (progress + page)
   useEffect(() => {
-    const savedProgress = getModuleProgress(moduleRoute);
-    const savedPage = getModulePosition(moduleRoute);
+    const savedProgress = getModuleProgress(route);
+    const savedPage = getModulePosition(route);
 
-    // Set FSM initial state to saved position
-    setCurrentPage(savedPage);
+    setCurrentPage(savedPage || 0);
+    setProgress(savedProgress || 0);
 
-    // If progress is complete, move FSM to "finished" state
     if (savedProgress === 100) {
       setIsFinished(true);
     }
-  }, [moduleRoute]);
+  }, [route]);
 
-  // Whenever currentPage changes, update FSM states in storage
+  // ✅ Save state whenever page changes
   useEffect(() => {
-    // Save FSM state: current page
-    setModulePosition(moduleRoute, currentPage);
+    if (totalPages <= 0) return;
 
-    // Save FSM state: progress (only if not finished)
+    // compute % base sa page (0-based to percentage)
+    const newProgress =
+      totalPages <= 1
+        ? 100
+        : Math.round((currentPage / (totalPages - 1)) * 100);
+
+    // save page always
+    setModulePosition(route, currentPage);
+
     if (!isFinished) {
-      setModuleProgress(moduleRoute, progress);
-    }
-  }, [currentPage, progress, moduleRoute, isFinished]);
+      // ✅ never decrease progress, only increase
+      const savedProgress = getModuleProgress(route);
+      const updatedProgress = Math.max(savedProgress, newProgress);
 
-  // Action to explicitly move FSM to "finished" state
+      setModuleProgress(route, updatedProgress);
+      setProgress(updatedProgress);
+    }
+  }, [currentPage, totalPages, route, isFinished]);
+
   const finishModule = () => {
-    setModuleProgress(moduleRoute, 100);
-    setModulePosition(moduleRoute, totalPages - 1);
+    setModuleProgress(route, 100);
+    setModulePosition(route, totalPages - 1); // jump to last page
     setIsFinished(true);
+    setProgress(100); // ✅ UI sync agad
   };
 
   return {
