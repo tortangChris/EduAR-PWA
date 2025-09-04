@@ -1,5 +1,4 @@
-// Isang central config ng lahat ng modules
-const moduleConfig = {
+const modules = {
   arrays: "Arrays",
   sorting: "Sorting",
   "dynamic-and-multi-dimensional-arrays":
@@ -12,4 +11,4 @@ const moduleConfig = {
   "map-and-hash-table": "Map Data Structure",
 };
 
-export default moduleConfig;
+export default modules;
