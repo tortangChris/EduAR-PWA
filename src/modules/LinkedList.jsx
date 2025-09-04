@@ -2,6 +2,8 @@ import React, { useEffect } from "react";
 import { CheckCircle } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import ModuleHeader from "../components/ModuleHeader";
+import ProgressBar from "../components/common/ProgressBar";
+
 import Page1 from "../components/Linked List/Page1";
 import Page2 from "../components/Linked List/Page2";
 import Page3 from "../components/Linked List/Page3";
@@ -25,46 +27,44 @@ const LinkedList = () => {
   ];
   const totalPages = pages.length;
 
-  // 🔑 Convert 1-based URL param to 0-based index
   const pageIndex = Math.min((Number(page) || 1) - 1, totalPages - 1);
 
   const { currentPage, setCurrentPage, isFinished, finishModule, progress } =
     useModuleProgress("linked-list", totalPages);
 
-  // ✅ Sync URL param to state + log activity
   useEffect(() => {
-    // ✅ Lagi pa rin sinusync sa URL param (kahit finished na)
     setCurrentPage(pageIndex);
 
     if (!isFinished) {
-      // 📝 Update progress lang kung hindi pa finished
       setCurrentPage((prev) => {
         if (pageIndex > prev) return pageIndex;
         return prev;
       });
 
-      logActivity("Arrays & Time Complexity");
+      logActivity("Linked List Varation");
     }
   }, [pageIndex, setCurrentPage, isFinished]);
 
   const goNext = () => {
     if (currentPage < totalPages - 1) {
-      navigate(`/modules/linked-list/${currentPage + 2}`); // +2 para 1-based
+      navigate(`/modules/linked-list/${currentPage + 2}`);
     } else {
       finishModule();
-      navigate("/modules", { state: { finishedModuleIndex: 0 } });
+      navigate("/modules", { state: { route: "linked-list" } });
     }
   };
 
   const goPrev = () => {
     if (currentPage > 0) {
-      navigate(`/modules/linked-list/${currentPage}`); // back to 1-based
+      navigate(`/modules/linked-list/${currentPage}`);
     }
   };
 
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
       <ModuleHeader />
+
+      <ProgressBar progress={progress} />
 
       {pages[currentPage]}
 
@@ -89,7 +89,7 @@ const LinkedList = () => {
           <button
             onClick={() => {
               finishModule();
-              navigate("/modules", { state: { finishedModuleIndex: 0 } });
+              navigate("/modules", { state: { route: "linked-list" } });
             }}
             className="btn btn-success flex items-center gap-2"
           >

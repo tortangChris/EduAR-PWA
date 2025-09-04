@@ -3,10 +3,11 @@ import { CheckCircle } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import ModuleHeader from "../components/ModuleHeader";
 import Empty from "../components/Empty";
+import ProgressBar from "../components/common/ProgressBar";
 
 import { useModuleProgress } from "../services/useModuleProgress";
 
-import { logActivity } from "../services/activityService"; // 👈 import logger
+import { logActivity } from "../services/activityService";
 
 const TreeRecursion = () => {
   const navigate = useNavigate();
@@ -16,46 +17,46 @@ const TreeRecursion = () => {
 
   const totalPages = pages.length;
 
-  // 🔑 Convert 1-based URL param to 0-based index
   const pageIndex = Math.min((Number(page) || 1) - 1, totalPages - 1);
 
   const { currentPage, setCurrentPage, isFinished, finishModule, progress } =
     useModuleProgress("tree-data-structure-recursion", totalPages);
 
-  // ✅ Sync URL param to state + log activity
   useEffect(() => {
-    // ✅ Lagi pa rin sinusync sa URL param (kahit finished na)
     setCurrentPage(pageIndex);
 
     if (!isFinished) {
-      // 📝 Update progress lang kung hindi pa finished
       setCurrentPage((prev) => {
         if (pageIndex > prev) return pageIndex;
         return prev;
       });
 
-      logActivity("Arrays & Time Complexity");
+      logActivity("Tree Data Structure Recursion");
     }
   }, [pageIndex, setCurrentPage, isFinished]);
 
   const goNext = () => {
     if (currentPage < totalPages - 1) {
-      navigate(`/modules/tree-data-structure-recursion/${currentPage + 2}`); // +2 para 1-based
+      navigate(`/modules/tree-data-structure-recursion/${currentPage + 2}`);
     } else {
       finishModule();
-      navigate("/modules", { state: { finishedModuleIndex: 0 } });
+      navigate("/modules", {
+        state: { route: "tree-data-structure-recursion" },
+      });
     }
   };
 
   const goPrev = () => {
     if (currentPage > 0) {
-      navigate(`/modules/tree-data-structure-recursion/${currentPage}`); // back to 1-based
+      navigate(`/modules/tree-data-structure-recursion/${currentPage}`);
     }
   };
 
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
       <ModuleHeader />
+
+      <ProgressBar progress={progress} />
 
       {pages[currentPage]}
 
@@ -80,7 +81,9 @@ const TreeRecursion = () => {
           <button
             onClick={() => {
               finishModule();
-              navigate("/modules", { state: { finishedModuleIndex: 0 } });
+              navigate("/modules", {
+                state: { route: "tree-data-structure-recursion" },
+              });
             }}
             className="btn btn-success flex items-center gap-2"
           >

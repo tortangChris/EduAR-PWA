@@ -3,6 +3,7 @@ import { CheckCircle } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import ModuleHeader from "../components/ModuleHeader";
 import Empty from "../components/Empty";
+import ProgressBar from "../components/common/ProgressBar";
 
 import { useModuleProgress } from "../services/useModuleProgress";
 
@@ -24,17 +25,15 @@ const MapHashTable = () => {
 
   // ✅ Sync URL param to state + log activity
   useEffect(() => {
-    // ✅ Lagi pa rin sinusync sa URL param (kahit finished na)
     setCurrentPage(pageIndex);
 
     if (!isFinished) {
-      // 📝 Update progress lang kung hindi pa finished
       setCurrentPage((prev) => {
         if (pageIndex > prev) return pageIndex;
         return prev;
       });
 
-      logActivity("Arrays & Time Complexity");
+      logActivity("Map & Hash Table");
     }
   }, [pageIndex, setCurrentPage, isFinished]);
 
@@ -43,7 +42,7 @@ const MapHashTable = () => {
       navigate(`/modules/map-and-hash-table/${currentPage + 2}`); // +2 para 1-based
     } else {
       finishModule();
-      navigate("/modules", { state: { finishedModuleIndex: 0 } });
+      navigate("/modules", { state: { route: "map-and-hash-table" } });
     }
   };
 
@@ -56,6 +55,8 @@ const MapHashTable = () => {
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
       <ModuleHeader />
+
+      <ProgressBar progress={progress} />
 
       {pages[currentPage]}
 
@@ -80,7 +81,7 @@ const MapHashTable = () => {
           <button
             onClick={() => {
               finishModule();
-              navigate("/modules", { state: { finishedModuleIndex: 0 } });
+              navigate("/modules", { state: { route: "map-and-hash-table" } });
             }}
             className="btn btn-success flex items-center gap-2"
           >

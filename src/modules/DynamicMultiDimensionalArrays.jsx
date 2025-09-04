@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { CheckCircle } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import ModuleHeader from "../components/ModuleHeader";
+import ProgressBar from "../components/common/ProgressBar";
 
 import Week4 from "../components/Arrays/Week4";
 
@@ -29,25 +30,21 @@ const DynamicMultiDimensional = () => {
   ];
   const totalPages = pages.length;
 
-  // 🔑 Convert 1-based URL param to 0-based index
   const pageIndex = Math.min((Number(page) || 1) - 1, totalPages - 1);
 
   const { currentPage, setCurrentPage, isFinished, finishModule, progress } =
     useModuleProgress("dynamic-and-multi-dimensional-arrays", totalPages);
 
-  // ✅ Sync URL param to state + log activity
   useEffect(() => {
-    // ✅ Lagi pa rin sinusync sa URL param (kahit finished na)
     setCurrentPage(pageIndex);
 
     if (!isFinished) {
-      // 📝 Update progress lang kung hindi pa finished
       setCurrentPage((prev) => {
         if (pageIndex > prev) return pageIndex;
         return prev;
       });
 
-      logActivity("Arrays & Time Complexity");
+      logActivity("Dynamic Multi-Dimensional Arrays");
     }
   }, [pageIndex, setCurrentPage, isFinished]);
 
@@ -55,10 +52,12 @@ const DynamicMultiDimensional = () => {
     if (currentPage < totalPages - 1) {
       navigate(
         `/modules/dynamic-and-multi-dimensional-arrays/${currentPage + 2}`
-      ); // +2 para 1-based
+      );
     } else {
       finishModule();
-      navigate("/modules", { state: { finishedModuleIndex: 0 } });
+      navigate("/modules", {
+        state: { route: "dynamic-and-multi-dimensional-arrays" },
+      });
     }
   };
 
@@ -71,6 +70,8 @@ const DynamicMultiDimensional = () => {
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
       <ModuleHeader />
+
+      <ProgressBar progress={progress} />
 
       {pages[currentPage]}
 
@@ -95,7 +96,9 @@ const DynamicMultiDimensional = () => {
           <button
             onClick={() => {
               finishModule();
-              navigate("/modules", { state: { finishedModuleIndex: 0 } });
+              navigate("/modules", {
+                state: { route: "dynamic-and-multi-dimensional-arrays" },
+              });
             }}
             className="btn btn-success flex items-center gap-2"
           >
