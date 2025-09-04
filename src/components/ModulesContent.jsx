@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { X, Lock } from "lucide-react";
+import { X, Lock, CheckCircle, Loader2, Loader, Clock } from "lucide-react";
 import {
   loadProgress,
   finishModule,
@@ -51,6 +51,22 @@ const ModulesContent = () => {
     }
   };
 
+  const getStatus = (module, index) => {
+    if (!isUnlocked(modulesData, index)) return null;
+    if (module.progress === 100) {
+      return (
+        <span className="flex items-center gap-1 text-green-600 text-xs font-semibold">
+          <CheckCircle className="w-4 h-4" /> Done
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center gap-1 text-red-400 text-xs font-medium">
+        <Clock className="w-4 h-4" /> In Progress
+      </span>
+    );
+  };
+
   return (
     <div className="relative">
       {showError && (
@@ -89,15 +105,12 @@ const ModulesContent = () => {
                   </div>
                 )}
               </div>
+
               <div className="w-full flex flex-col mt-2 px-1">
                 <span className="font-semibold text-left text-primary text-sm mb-1">
                   {module.title}
                 </span>
-                <progress
-                  className="progress w-full progress-primary"
-                  value={module.progress}
-                  max="100"
-                ></progress>
+                {getStatus(module, index)}
               </div>
             </button>
           ))}
