@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { CheckCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import ModuleHeader from "../components/ModuleHeader";
 import Page1 from "../components/Linked List/Page1";
 import Page2 from "../components/Linked List/Page2";
@@ -10,8 +10,11 @@ import PageAssessment from "../components/Linked List/PageAssessment";
 
 import { useModuleProgress } from "../services/useModuleProgress";
 
+import { logActivity } from "../services/activityService"; // 👈 import logger
+
 const LinkedList = () => {
   const navigate = useNavigate();
+  const { page } = useParams();
 
   const pages = [
     <Page1 />,
@@ -20,21 +23,43 @@ const LinkedList = () => {
     <Page4 />,
     <PageAssessment />,
   ];
+  const totalPages = pages.length;
 
-  const { currentPage, setCurrentPage, progress, isFinished, finishModule } =
-    useModuleProgress(pages.length);
+  // 🔑 Convert 1-based URL param to 0-based index
+  const pageIndex = Math.min((Number(page) || 1) - 1, totalPages - 1);
+
+  const { currentPage, setCurrentPage, isFinished, finishModule, progress } =
+    useModuleProgress("linked-list", totalPages);
+
+  // ✅ Sync URL param to state + log activity
+  useEffect(() => {
+    // ✅ Lagi pa rin sinusync sa URL param (kahit finished na)
+    setCurrentPage(pageIndex);
+
+    if (!isFinished) {
+      // 📝 Update progress lang kung hindi pa finished
+      setCurrentPage((prev) => {
+        if (pageIndex > prev) return pageIndex;
+        return prev;
+      });
+
+      logActivity("Arrays & Time Complexity");
+    }
+  }, [pageIndex, setCurrentPage, isFinished]);
 
   const goNext = () => {
-    if (currentPage < pages.length - 1) {
-      setCurrentPage((p) => p + 1);
+    if (currentPage < totalPages - 1) {
+      navigate(`/modules/linked-list/${currentPage + 2}`); // +2 para 1-based
     } else {
       finishModule();
-      navigate("/modules", { state: { finishedModuleIndex: 0 } }); // 0 kasi Arrays yung unang module
+      navigate("/modules", { state: { finishedModuleIndex: 0 } });
     }
   };
 
   const goPrev = () => {
-    setCurrentPage((p) => Math.max(0, p - 1));
+    if (currentPage > 0) {
+      navigate(`/modules/linked-list/${currentPage}`); // back to 1-based
+    }
   };
 
   return (
