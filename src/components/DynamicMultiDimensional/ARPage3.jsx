@@ -173,6 +173,8 @@ function Reticle({ children }) {
   const [progress, setProgress] = useState(0);
 
   useFrame((_, delta) => {
+    if (placed) return; // ✅ Stop updating once placed
+
     const session = gl.xr.getSession();
     if (!session) return;
     const frame = gl.xr.getFrame();
@@ -187,7 +189,7 @@ function Reticle({ children }) {
       setHitTestSourceRequested(true);
     }
 
-    if (hitTestSource && !placed) {
+    if (hitTestSource) {
       const referenceSpace = gl.xr.getReferenceSpace();
       const hits = frame.getHitTestResults(hitTestSource);
 
@@ -195,23 +197,28 @@ function Reticle({ children }) {
         const hit = hits[0];
         const pose = hit.getPose(referenceSpace);
 
-        reticleRef.current.visible = true;
-        reticleRef.current.position.set(
-          pose.transform.position.x,
-          pose.transform.position.y,
-          pose.transform.position.z
-        );
-        reticleRef.current.updateMatrixWorld(true);
+        if (reticleRef.current) {
+          reticleRef.current.visible = true;
+          reticleRef.current.position.set(
+            pose.transform.position.x,
+            pose.transform.position.y,
+            pose.transform.position.z
+          );
+          reticleRef.current.updateMatrixWorld(true);
+        }
 
         setProgress((prev) => {
           const next = Math.min(prev + delta / 2, 1); // 2s hold
           if (next >= 1 && !placed) {
             setPlaced(true);
             setTargetPos(pose.transform.position);
+
+            // ✅ Hide reticle permanently after placement
+            if (reticleRef.current) reticleRef.current.visible = false;
           }
           return next;
         });
-      } else {
+      } else if (reticleRef.current) {
         reticleRef.current.visible = false;
         setProgress(0);
       }
@@ -220,21 +227,30 @@ function Reticle({ children }) {
 
   return (
     <group>
-      {/* Reticle ring */}
-      <mesh ref={reticleRef} rotation-x={-Math.PI / 2} visible={false}>
-        <ringGeometry args={[0.07, 0.1, 32]} />
-        <meshBasicMaterial color="yellow" />
-      </mesh>
+      {/* Reticle ring (visible only before placement) */}
+      {!placed && (
+        <>
+          <mesh ref={reticleRef} rotation-x={-Math.PI / 2} visible={false}>
+            <ringGeometry args={[0.07, 0.1, 32]} />
+            <meshBasicMaterial color="yellow" />
+          </mesh>
 
-      {/* Progress indicator */}
-      {reticleRef.current && !placed && (
-        <mesh position={reticleRef.current.position} rotation-x={-Math.PI / 2}>
-          <ringGeometry args={[0.05, 0.09, 32, 1, 0, Math.PI * 2 * progress]} />
-          <meshBasicMaterial color="lime" transparent opacity={0.8} />
-        </mesh>
+          {/* Progress indicator */}
+          {reticleRef.current && (
+            <mesh
+              position={reticleRef.current.position}
+              rotation-x={-Math.PI / 2}
+            >
+              <ringGeometry
+                args={[0.05, 0.09, 32, 1, 0, Math.PI * 2 * progress]}
+              />
+              <meshBasicMaterial color="lime" transparent opacity={0.8} />
+            </mesh>
+          )}
+        </>
       )}
 
-      {/* Place children */}
+      {/* Placed children */}
       {placed && targetPos && (
         <group
           position={[targetPos.x, targetPos.y, targetPos.z]}
