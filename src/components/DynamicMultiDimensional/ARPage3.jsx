@@ -1,12 +1,13 @@
 import React, { useRef, useState, useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Text } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Text } from "@react-three/drei";
+import * as THREE from "three";
 
-const VisualPage3 = ({
+const ARVisualPage3 = ({
   rows = 3,
   cols = 4,
   spacing = 2.0,
-  stepDuration = 700,
+  stepDuration = 1000,
 }) => {
   const initialMatrix = useRef(
     Array.from({ length: rows }, (_, r) =>
@@ -16,12 +17,9 @@ const VisualPage3 = ({
   const [boxes, setBoxes] = useState(
     createGridBoxes(initialMatrix.current, spacing)
   );
-  const animRef = useRef({ cancelled: false });
   const [status, setStatus] = useState("");
-  const [progress, setProgress] = useState(0);
   const [loopTrigger, setLoopTrigger] = useState(0);
 
-  // helper: make grid
   function createGridBoxes(matrix, spacingVal) {
     const nRows = matrix.length;
     const nCols = matrix[0].length;
@@ -40,21 +38,24 @@ const VisualPage3 = ({
     );
   }
 
-  // automatic animation sequence
   useEffect(() => {
     let cancelled = false;
 
     const runSequence = async () => {
-      setStatus("Starting grid...");
-      setBoxes(createGridBoxes(initialMatrix.current, spacing));
-      await wait(1500);
-
-      // highlight bawat cell isa-isa
+      const matrix = initialMatrix.current;
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           if (cancelled) return;
-          await highlightElement(r, c);
-          await wait(500); // pause between cells
+
+          setBoxes((prev) =>
+            prev.map((b) => ({
+              ...b,
+              highlight: b.row === r && b.col === c,
+            }))
+          );
+          setStatus(`Highlighting element at [${r}][${c}] → ${matrix[r][c]}`);
+
+          await wait(stepDuration);
         }
       }
 
@@ -62,55 +63,54 @@ const VisualPage3 = ({
       await wait(2000);
 
       if (!cancelled) {
-        setLoopTrigger((t) => t + 1); // loop ulit
+        setBoxes(createGridBoxes(initialMatrix.current, spacing));
+        setLoopTrigger((t) => t + 1); // restart loop
       }
     };
 
     runSequence();
+
     return () => {
       cancelled = true;
     };
-  }, [loopTrigger]);
-
-  // highlight effect
-  const highlightElement = async (rowIndex, colIndex) => {
-    setStatus(`Highlighting element at [${rowIndex}][${colIndex}]`);
-    const totalSteps = 20;
-    for (let step = 0; step <= totalSteps; step++) {
-      setBoxes((prev) =>
-        prev.map((b) => ({
-          ...b,
-          highlight:
-            b.row === rowIndex && b.col === colIndex
-              ? step < totalSteps / 2
-              : false,
-        }))
-      );
-      setProgress(Math.round((step / totalSteps) * 100));
-      await wait(stepDuration / totalSteps);
-    }
-  };
+  }, [loopTrigger, rows, cols, spacing, stepDuration]);
 
   const wait = (ms) => new Promise((res) => setTimeout(res, ms));
 
   return (
-    <div className="w-full h-[400px] flex flex-col items-center justify-center">
-      <div className="w-2/3 mb-4">
-        {/* Progress bar */}
-        <div className="w-full h-2 bg-gray-300 rounded">
-          <div
-            className="h-2 bg-green-500 rounded"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <div className="mt-2 text-gray-700 font-mono text-sm text-center">
-          {status}
-        </div>
-      </div>
-      <div className="w-full h-[60%]">
-        <Canvas camera={{ position: [8, 0, 12], fov: 50 }}>
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[5, 10, 5]} intensity={0.8} />
+    <div className="w-full h-screen">
+      <Canvas
+        camera={{ position: [8, 0, 12], fov: 50 }}
+        gl={{ alpha: true }}
+        shadows
+        onCreated={({ gl }) => {
+          gl.xr.enabled = true;
+          if (navigator.xr) {
+            navigator.xr
+              .requestSession("immersive-ar", {
+                requiredFeatures: ["hit-test", "local-floor"],
+              })
+              .then((session) => {
+                gl.xr.setSession(session);
+              })
+              .catch((err) => console.error("❌ AR Session failed:", err));
+          }
+        }}
+      >
+        <ambientLight intensity={0.4} />
+        <directionalLight position={[5, 10, 5]} intensity={0.8} />
+
+        <Reticle>
+          {/* Status text above grid */}
+          <Text
+            position={[0, rows * spacing * 0.6, 0]}
+            fontSize={0.35}
+            anchorX="center"
+            anchorY="middle"
+            color="yellow"
+          >
+            {status}
+          </Text>
 
           {/* Boxes */}
           {boxes.map((b) => (
@@ -127,14 +127,14 @@ const VisualPage3 = ({
             <Text
               key={`row-label-${r}`}
               position={[
-                -spacing * 2.5,
+                -spacing * (cols / 2 + 0.8),
                 ((rows - 1) / 2) * spacing - r * spacing,
                 0,
               ]}
               fontSize={0.3}
               anchorX="center"
               anchorY="middle"
-              color="#000000"
+              color="#ffffff"
             >
               Row {r}
             </Text>
@@ -144,22 +144,108 @@ const VisualPage3 = ({
           {Array.from({ length: cols }).map((_, c) => (
             <Text
               key={`col-label-${c}`}
-              position={[(c - (cols - 1) / 2) * spacing, spacing * 2.0, 0]}
+              position={[
+                (c - (cols - 1) / 2) * spacing,
+                spacing * (rows / 2 + 1.2),
+                0,
+              ]}
               fontSize={0.3}
               anchorX="center"
               anchorY="middle"
-              color="#000000"
+              color="#ffffff"
             >
               Col {c}
             </Text>
           ))}
-
-          <OrbitControls makeDefault />
-        </Canvas>
-      </div>
+        </Reticle>
+      </Canvas>
     </div>
   );
 };
+
+function Reticle({ children }) {
+  const { gl } = useThree();
+  const reticleRef = useRef();
+  const [hitTestSource, setHitTestSource] = useState(null);
+  const [hitTestSourceRequested, setHitTestSourceRequested] = useState(false);
+  const [placed, setPlaced] = useState(false);
+  const [targetPos, setTargetPos] = useState(null);
+  const [progress, setProgress] = useState(0);
+
+  useFrame((_, delta) => {
+    const session = gl.xr.getSession();
+    if (!session) return;
+    const frame = gl.xr.getFrame();
+    if (!frame) return;
+
+    if (!hitTestSourceRequested) {
+      session.requestReferenceSpace("viewer").then((refSpace) => {
+        session.requestHitTestSource({ space: refSpace }).then((source) => {
+          setHitTestSource(source);
+        });
+      });
+      setHitTestSourceRequested(true);
+    }
+
+    if (hitTestSource && !placed) {
+      const referenceSpace = gl.xr.getReferenceSpace();
+      const hits = frame.getHitTestResults(hitTestSource);
+
+      if (hits.length > 0) {
+        const hit = hits[0];
+        const pose = hit.getPose(referenceSpace);
+
+        reticleRef.current.visible = true;
+        reticleRef.current.position.set(
+          pose.transform.position.x,
+          pose.transform.position.y,
+          pose.transform.position.z
+        );
+        reticleRef.current.updateMatrixWorld(true);
+
+        setProgress((prev) => {
+          const next = Math.min(prev + delta / 2, 1); // 2s hold
+          if (next >= 1 && !placed) {
+            setPlaced(true);
+            setTargetPos(pose.transform.position);
+          }
+          return next;
+        });
+      } else {
+        reticleRef.current.visible = false;
+        setProgress(0);
+      }
+    }
+  });
+
+  return (
+    <group>
+      {/* Reticle ring */}
+      <mesh ref={reticleRef} rotation-x={-Math.PI / 2} visible={false}>
+        <ringGeometry args={[0.07, 0.1, 32]} />
+        <meshBasicMaterial color="yellow" />
+      </mesh>
+
+      {/* Progress indicator */}
+      {reticleRef.current && !placed && (
+        <mesh position={reticleRef.current.position} rotation-x={-Math.PI / 2}>
+          <ringGeometry args={[0.05, 0.09, 32, 1, 0, Math.PI * 2 * progress]} />
+          <meshBasicMaterial color="lime" transparent opacity={0.8} />
+        </mesh>
+      )}
+
+      {/* Place children */}
+      {placed && targetPos && (
+        <group
+          position={[targetPos.x, targetPos.y, targetPos.z]}
+          scale={[0.1, 0.1, 0.1]}
+        >
+          {children}
+        </group>
+      )}
+    </group>
+  );
+}
 
 const Box = ({ value, position, highlight }) => {
   const size = [1.6, 1.2, 1];
@@ -167,7 +253,11 @@ const Box = ({ value, position, highlight }) => {
     <group position={position}>
       <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
         <boxGeometry args={size} />
-        <meshStandardMaterial color={highlight ? "#f59e0b" : "#60a5fa"} />
+        <meshStandardMaterial
+          color={highlight ? "#f59e0b" : "#60a5fa"}
+          transparent
+          opacity={1}
+        />
       </mesh>
       <Text
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
@@ -182,4 +272,4 @@ const Box = ({ value, position, highlight }) => {
   );
 };
 
-export default VisualPage3;
+export default ARVisualPage3;
