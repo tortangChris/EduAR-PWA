@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import content from "../../../public/markdown/DynamicPage4.md?raw";
 import { Scan } from "lucide-react";
 import ARPage4 from "./ARPage4";
-import VisualPage4 from "./ARPage4";
+import VisualPage4 from "./VisualPage4";
 
 const Page4 = () => {
   const [showWarning, setShowWarning] = useState(false);
