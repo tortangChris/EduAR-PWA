@@ -39,7 +39,7 @@ const VisualPage4 = ({ rows = 3, cols = 3, depth = 3, spacing = 2.0 }) => {
   }
 
   return (
-    <div className="w-full h-[300px] bg-gray-50 flex flex-col items-center justify-center">
+    <div className="w-full h-[300px] flex flex-col items-center justify-center">
       <div className="w-full h-full">
         <Canvas camera={{ position: [8, 8, 8], fov: 50 }}>
           <ambientLight intensity={0.4} />

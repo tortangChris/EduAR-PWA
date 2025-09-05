@@ -25,7 +25,7 @@ const VisualPage1 = ({
   }
 
   return (
-    <div className="w-full h-[300px] bg-gray-50 flex items-center justify-center">
+    <div className="w-full h-[300px] flex items-center justify-center">
       <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
