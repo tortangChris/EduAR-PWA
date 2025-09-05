@@ -65,8 +65,9 @@ function Reticle({ children }) {
   const [hitTestSourceRequested, setHitTestSourceRequested] = useState(false);
   const [placed, setPlaced] = useState(false);
   const [targetPos, setTargetPos] = useState(null);
+  const [progress, setProgress] = useState(0);
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     const session = gl.xr.getSession();
     if (!session) return;
     const frame = gl.xr.getFrame();
@@ -97,11 +98,18 @@ function Reticle({ children }) {
         );
         reticleRef.current.updateMatrixWorld(true);
 
-        // auto place on first valid surface
-        setPlaced(true);
-        setTargetPos(pose.transform.position);
+        // ⏳ accumulate progress (2 seconds hold)
+        setProgress((prev) => {
+          const next = Math.min(prev + delta / 2, 1); // delta/2 = 2s fill
+          if (next >= 1 && !placed) {
+            setPlaced(true);
+            setTargetPos(pose.transform.position);
+          }
+          return next;
+        });
       } else {
         reticleRef.current.visible = false;
+        setProgress(0);
       }
     }
   });
@@ -114,7 +122,15 @@ function Reticle({ children }) {
         <meshBasicMaterial color="yellow" />
       </mesh>
 
-      {/* Place children on surface */}
+      {/* Progress indicator (fills while holding on surface) */}
+      {reticleRef.current && !placed && (
+        <mesh position={reticleRef.current.position} rotation-x={-Math.PI / 2}>
+          <ringGeometry args={[0.05, 0.09, 32, 1, 0, Math.PI * 2 * progress]} />
+          <meshBasicMaterial color="lime" transparent opacity={0.8} />
+        </mesh>
+      )}
+
+      {/* Place children after hold is complete */}
       {placed && targetPos && (
         <group
           position={[targetPos.x, targetPos.y, targetPos.z]}
