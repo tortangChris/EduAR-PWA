@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import content from "../../../public/markdown/ArrayPage1.md?raw";
+import content from "../../../public/markdown/DynamicPage2.md?raw";
 import { Scan } from "lucide-react";
 import VisualPage1 from "./VisualPage1";
-import ARPage1 from "./ARPage1"; // 👈 direct import
+import ARPage1 from "./ARPage1";
 
 const Page1 = () => {
   const [showWarning, setShowWarning] = useState(false);
-  const [showAR, setShowAR] = useState(false); // 👈 toggle view
+  const [showAR, setShowAR] = useState(false);
 
   const handleArClick = async () => {
     try {
@@ -17,7 +17,7 @@ const Page1 = () => {
       ) {
         console.log("✅ AR Mode Activated!");
         setShowWarning(false);
-        setShowAR(true); // 👈 switch to ARPage1
+        setShowAR(true);
       } else {
         throw new Error("AR not supported");
       }
@@ -31,7 +31,7 @@ const Page1 = () => {
   };
 
   if (showAR) {
-    return <ARPage1 />; // 👈 render ARPage1 instead of Page1
+    return <ARPage1 />;
   }
 
   return (
