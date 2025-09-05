@@ -1,122 +1,131 @@
-// ARPage1.jsx
-import React, { useRef, useState, useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
-import { ARButton, Text } from "@react-three/drei";
+import React, { useRef, useState, useMemo } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Text } from "@react-three/drei";
+import * as THREE from "three";
 
-const ARPage1 = ({
-  data = [10, 20, 30, 40],
-  spacing = 2.0,
-  stepDuration = 1500,
-  extraSpace = 2,
-  loopDelay = 3000,
-}) => {
-  const initialData = useRef(data.slice());
-  const [boxes, setBoxes] = useState(() =>
-    createBoxes(
-      initialData.current,
-      initialData.current.length + extraSpace,
-      spacing
-    )
-  );
-  const animRef = useRef({ cancelled: false });
-  const [status, setStatus] = useState("");
+const ARPage1 = ({ data = [10, 20, 30, 40], capacity = 6, spacing = 2.0 }) => {
+  const originalRef = useRef(data.slice());
 
-  // Create slots (array with capacity)
-  function createBoxes(arr, capacityVal, spacingVal) {
-    const n = capacityVal;
+  const boxes = useMemo(() => {
+    const arr = originalRef.current;
+    const n = capacity;
     const mid = (n - 1) / 2;
     return Array.from({ length: n }).map((_, i) => ({
       id: `b${i}`,
       value: i < arr.length ? arr[i] : null,
-      x: (i - mid) * spacingVal,
+      x: (i - mid) * spacing,
       opacity: i < arr.length ? 1 : 0.2,
+      isExtra: i >= arr.length,
     }));
-  }
-
-  // Reset to starting array
-  const resetToStart = () => {
-    animRef.current.cancelled = true;
-    setBoxes(
-      createBoxes(
-        initialData.current,
-        initialData.current.length + extraSpace,
-        spacing
-      )
-    );
-    setStatus("Idle...");
-  };
-
-  // Append animation (auto-play)
-  const animateAppendWithExtra = async () => {
-    animRef.current.cancelled = false;
-
-    let currentArr = initialData.current.slice();
-    setBoxes(createBoxes(currentArr, currentArr.length + extraSpace, spacing));
-    setStatus("📦 Appending values...");
-
-    const valuesToAdd = [50, 60];
-
-    for (let v = 0; v < valuesToAdd.length; v++) {
-      if (animRef.current.cancelled) break;
-      await new Promise((res) => setTimeout(res, stepDuration));
-      currentArr.push(valuesToAdd[v]);
-      setBoxes(
-        createBoxes(currentArr, currentArr.length + extraSpace, spacing)
-      );
-      setStatus(`✅ Added ${valuesToAdd[v]} at index ${currentArr.length - 1}`);
-    }
-
-    // wait before reset
-    await new Promise((res) => setTimeout(res, loopDelay));
-    resetToStart();
-
-    // wait again then restart loop
-    await new Promise((res) => setTimeout(res, 1000));
-    animateAppendWithExtra();
-  };
-
-  // Auto start on mount
-  useEffect(() => {
-    animateAppendWithExtra();
-    return () => {
-      animRef.current.cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [capacity, spacing]);
 
   return (
-    <div className="w-full h-screen bg-gray-50 flex flex-col items-center justify-center">
-      {/* ARButton to toggle AR mode */}
-      <ARButton />
-
-      {/* Overlay text status */}
-      <div className="absolute top-4 w-full text-center">
-        <p className="text-gray-800 font-mono text-lg bg-white/80 px-3 py-1 rounded-lg inline-block shadow">
-          {status}
-        </p>
-      </div>
-
-      {/* 3D AR Scene */}
+    <div className="w-full h-screen">
       <Canvas
-        camera={{ position: [0, 1.6, 3], fov: 50 }}
-        gl={{ xrCompatible: true }}
+        camera={{ position: [0, 2, 6], fov: 50 }}
+        gl={{ alpha: true }}
+        shadows
+        onCreated={({ gl }) => {
+          gl.xr.enabled = true;
+          if (navigator.xr) {
+            navigator.xr
+              .requestSession("immersive-ar", {
+                requiredFeatures: ["hit-test", "local-floor"],
+              })
+              .then((session) => {
+                gl.xr.setSession(session);
+              })
+              .catch((err) => console.error("❌ AR Session failed:", err));
+          }
+        }}
       >
         <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 10, 5]} intensity={0.8} />
+        <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
-        {boxes.map((b, i) => (
-          <Box
-            key={b.id}
-            value={b.value}
-            index={i}
-            position={[b.x, 0, -2]} // in front of user
-            opacity={b.opacity}
-          />
-        ))}
+        <Reticle>
+          {boxes.map((b, i) => (
+            <Box
+              key={b.id}
+              value={b.value}
+              index={i}
+              position={[b.x, 0, 0]}
+              opacity={b.opacity}
+            />
+          ))}
+        </Reticle>
       </Canvas>
     </div>
   );
 };
+
+function Reticle({ children }) {
+  const { gl } = useThree();
+  const reticleRef = useRef();
+  const [hitTestSource, setHitTestSource] = useState(null);
+  const [hitTestSourceRequested, setHitTestSourceRequested] = useState(false);
+  const [placed, setPlaced] = useState(false);
+  const [targetPos, setTargetPos] = useState(null);
+
+  useFrame(() => {
+    const session = gl.xr.getSession();
+    if (!session) return;
+    const frame = gl.xr.getFrame();
+    if (!frame) return;
+
+    if (!hitTestSourceRequested) {
+      session.requestReferenceSpace("viewer").then((refSpace) => {
+        session.requestHitTestSource({ space: refSpace }).then((source) => {
+          setHitTestSource(source);
+        });
+      });
+      setHitTestSourceRequested(true);
+    }
+
+    if (hitTestSource && !placed) {
+      const referenceSpace = gl.xr.getReferenceSpace();
+      const hits = frame.getHitTestResults(hitTestSource);
+
+      if (hits.length > 0) {
+        const hit = hits[0];
+        const pose = hit.getPose(referenceSpace);
+
+        reticleRef.current.visible = true;
+        reticleRef.current.position.set(
+          pose.transform.position.x,
+          pose.transform.position.y,
+          pose.transform.position.z
+        );
+        reticleRef.current.updateMatrixWorld(true);
+
+        // auto place on first valid surface
+        setPlaced(true);
+        setTargetPos(pose.transform.position);
+      } else {
+        reticleRef.current.visible = false;
+      }
+    }
+  });
+
+  return (
+    <group>
+      {/* Reticle ring */}
+      <mesh ref={reticleRef} rotation-x={-Math.PI / 2} visible={false}>
+        <ringGeometry args={[0.07, 0.1, 32]} />
+        <meshBasicMaterial color="yellow" />
+      </mesh>
+
+      {/* Place children on surface */}
+      {placed && targetPos && (
+        <group
+          position={[targetPos.x, targetPos.y, targetPos.z]}
+          scale={[0.1, 0.1, 0.1]}
+        >
+          {children}
+        </group>
+      )}
+    </group>
+  );
+}
 
 const Box = ({ value, index, position, opacity = 1 }) => {
   const size = [1.6, 1.2, 1];
