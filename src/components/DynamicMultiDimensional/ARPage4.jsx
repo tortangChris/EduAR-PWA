@@ -163,7 +163,7 @@ const ARPage4 = ({ rows = 3, cols = 3, depth = 3, spacing = 2.0 }) => {
           <Text
             position={[0, (rows / 2) * spacing + 2, 0]}
             fontSize={0.7}
-            color="black"
+            color="white"
             anchorX="center"
             anchorY="middle"
           >
@@ -172,7 +172,7 @@ const ARPage4 = ({ rows = 3, cols = 3, depth = 3, spacing = 2.0 }) => {
           <Text
             position={[-(cols / 2) * spacing - 2, 0, 0]}
             fontSize={0.7}
-            color="black"
+            color="white"
             anchorX="center"
             anchorY="middle"
             rotation={[0, 0, Math.PI / 2]}
@@ -182,7 +182,7 @@ const ARPage4 = ({ rows = 3, cols = 3, depth = 3, spacing = 2.0 }) => {
           <Text
             position={[(cols / 2) * spacing + 2, 0, 0]}
             fontSize={0.7}
-            color="black"
+            color="white"
             anchorX="center"
             anchorY="middle"
             rotation={[0, -Math.PI / 2, 0]}
