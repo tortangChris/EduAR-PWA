@@ -1,27 +1,21 @@
-// AutoAppendPage.jsx
-import React, { useRef, useState, useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Text } from "@react-three/drei";
+import React, { useRef, useState, useMemo, useEffect } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Text } from "@react-three/drei";
+import * as THREE from "three";
 
 const ARPage2 = ({
   data = [10, 20, 30, 40],
   spacing = 2.0,
-  stepDuration = 700,
+  stepDuration = 1200, // ms per step
   extraSpace = 2,
-  repeatDelay = 2000, // 2s delay after finish
 }) => {
   const initialData = useRef(data.slice());
-  const [boxes, setBoxes] = useState(() =>
-    createBoxes(
-      initialData.current,
-      initialData.current.length + extraSpace,
-      spacing
-    )
-  );
-  const animRef = useRef({ cancelled: false });
+  const [boxes, setBoxes] = useState([]);
   const [status, setStatus] = useState("");
+  const [loopTrigger, setLoopTrigger] = useState(0); // para ma-reset loop
 
-  function createBoxes(arr, capacityVal, spacingVal) {
+  // Create boxes helper
+  const createBoxes = (arr, capacityVal, spacingVal) => {
     const n = capacityVal;
     const mid = (n - 1) / 2;
     return Array.from({ length: n }).map((_, i) => ({
@@ -30,69 +24,80 @@ const ARPage2 = ({
       x: (i - mid) * spacingVal,
       opacity: i < arr.length ? 1 : 0.2,
     }));
-  }
-
-  // Reset state
-  const resetToStart = () => {
-    animRef.current.cancelled = true;
-    setBoxes(
-      createBoxes(
-        initialData.current,
-        initialData.current.length + extraSpace,
-        spacing
-      )
-    );
-    setStatus("");
   };
 
-  // Auto append animation loop
-  const animateAppendWithExtra = async () => {
-    animRef.current.cancelled = false;
-
+  // Animation loop (runs after placement)
+  useEffect(() => {
+    let cancelled = false;
     let currentArr = initialData.current.slice();
-    setBoxes(createBoxes(currentArr, currentArr.length + extraSpace, spacing));
-    setStatus("Appending values...");
-
-    const valuesToAdd = [50, 60];
-
-    for (let v = 0; v < valuesToAdd.length; v++) {
-      if (animRef.current.cancelled) return;
-      currentArr.push(valuesToAdd[v]);
+    const runAnimation = async () => {
       setBoxes(
         createBoxes(currentArr, currentArr.length + extraSpace, spacing)
       );
-      setStatus(`Added ${valuesToAdd[v]} at index ${currentArr.length - 1}`);
-      await new Promise((res) => setTimeout(res, stepDuration));
-    }
+      setStatus("Appending values...");
 
-    // wait 2s before restarting
-    setStatus("Operation complete. Restarting...");
-    await new Promise((res) => setTimeout(res, repeatDelay));
+      const valuesToAdd = [50, 60];
+      for (let v = 0; v < valuesToAdd.length; v++) {
+        if (cancelled) return;
+        currentArr.push(valuesToAdd[v]);
+        setBoxes(
+          createBoxes(currentArr, currentArr.length + extraSpace, spacing)
+        );
+        setStatus(`Added ${valuesToAdd[v]} at index ${currentArr.length - 1}`);
+        await new Promise((res) => setTimeout(res, stepDuration));
+      }
 
-    if (!animRef.current.cancelled) {
-      resetToStart();
-      animateAppendWithExtra(); // loop
-    }
-  };
+      setStatus("Done!");
+      await new Promise((res) => setTimeout(res, 2000));
 
-  // Run once on mount
-  useEffect(() => {
-    animateAppendWithExtra();
-    return () => {
-      animRef.current.cancelled = true;
+      if (!cancelled) {
+        setStatus("");
+        setLoopTrigger((t) => t + 1); // restart loop
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+    runAnimation();
+    return () => {
+      cancelled = true;
+    };
+  }, [loopTrigger]);
 
   return (
-    <div className="w-full h-[300px] flex flex-col items-center justify-center">
-      <div className="w-2/3 mb-2 text-center">
-        <div className="text-gray-800 font-mono text-sm">{status}</div>
-      </div>
-      <div className="w-full h-[75%]">
-        <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[5, 10, 5]} intensity={0.8} />
+    <div className="w-full h-screen">
+      <Canvas
+        camera={{ position: [0, 2, 6], fov: 50 }}
+        gl={{ alpha: true }}
+        shadows
+        onCreated={({ gl }) => {
+          gl.xr.enabled = true;
+          if (navigator.xr) {
+            navigator.xr
+              .requestSession("immersive-ar", {
+                requiredFeatures: ["hit-test", "local-floor"],
+              })
+              .then((session) => {
+                gl.xr.setSession(session);
+              })
+              .catch((err) => console.error("❌ AR Session failed:", err));
+          }
+        }}
+      >
+        <ambientLight intensity={0.4} />
+        <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
+
+        <Reticle>
+          {/* Status text above array */}
+          <Text
+            position={[0, 2.5, 0]}
+            fontSize={0.4}
+            anchorX="center"
+            anchorY="middle"
+            color="yellow"
+          >
+            {status}
+          </Text>
+
+          {/* Boxes */}
           {boxes.map((b, i) => (
             <Box
               key={b.id}
@@ -102,12 +107,95 @@ const ARPage2 = ({
               opacity={b.opacity}
             />
           ))}
-          <OrbitControls makeDefault />
-        </Canvas>
-      </div>
+        </Reticle>
+      </Canvas>
     </div>
   );
 };
+
+function Reticle({ children }) {
+  const { gl } = useThree();
+  const reticleRef = useRef();
+  const [hitTestSource, setHitTestSource] = useState(null);
+  const [hitTestSourceRequested, setHitTestSourceRequested] = useState(false);
+  const [placed, setPlaced] = useState(false);
+  const [targetPos, setTargetPos] = useState(null);
+  const [progress, setProgress] = useState(0);
+
+  useFrame((_, delta) => {
+    const session = gl.xr.getSession();
+    if (!session) return;
+    const frame = gl.xr.getFrame();
+    if (!frame) return;
+
+    if (!hitTestSourceRequested) {
+      session.requestReferenceSpace("viewer").then((refSpace) => {
+        session.requestHitTestSource({ space: refSpace }).then((source) => {
+          setHitTestSource(source);
+        });
+      });
+      setHitTestSourceRequested(true);
+    }
+
+    if (hitTestSource && !placed) {
+      const referenceSpace = gl.xr.getReferenceSpace();
+      const hits = frame.getHitTestResults(hitTestSource);
+
+      if (hits.length > 0) {
+        const hit = hits[0];
+        const pose = hit.getPose(referenceSpace);
+
+        reticleRef.current.visible = true;
+        reticleRef.current.position.set(
+          pose.transform.position.x,
+          pose.transform.position.y,
+          pose.transform.position.z
+        );
+        reticleRef.current.updateMatrixWorld(true);
+
+        setProgress((prev) => {
+          const next = Math.min(prev + delta / 2, 1); // 2s hold
+          if (next >= 1 && !placed) {
+            setPlaced(true);
+            setTargetPos(pose.transform.position);
+          }
+          return next;
+        });
+      } else {
+        reticleRef.current.visible = false;
+        setProgress(0);
+      }
+    }
+  });
+
+  return (
+    <group>
+      {/* Reticle ring */}
+      <mesh ref={reticleRef} rotation-x={-Math.PI / 2} visible={false}>
+        <ringGeometry args={[0.07, 0.1, 32]} />
+        <meshBasicMaterial color="yellow" />
+      </mesh>
+
+      {/* Progress indicator */}
+      {reticleRef.current && !placed && (
+        <mesh position={reticleRef.current.position} rotation-x={-Math.PI / 2}>
+          <ringGeometry args={[0.05, 0.09, 32, 1, 0, Math.PI * 2 * progress]} />
+          <meshBasicMaterial color="lime" transparent opacity={0.8} />
+        </mesh>
+      )}
+
+      {/* Place children */}
+      {placed && targetPos && (
+        <group
+          position={[targetPos.x, targetPos.y, targetPos.z]}
+          scale={[0.1, 0.1, 0.1]}
+        >
+          {children}
+        </group>
+      )}
+    </group>
+  );
+}
 
 const Box = ({ value, index, position, opacity = 1 }) => {
   const size = [1.6, 1.2, 1];
