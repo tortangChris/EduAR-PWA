@@ -1,16 +1,23 @@
-// ARPage1.jsx
-import React, { useMemo, useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useMemo } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
 
-const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
-  const positions = useMemo(() => {
-    const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [data, spacing]);
+const ARPage1 = ({ data = [10, 20, 30, 40], capacity = 6, spacing = 2.0 }) => {
+  const originalRef = useRef(data.slice());
 
-  const [placed, setPlaced] = useState(false);
+  const boxes = useMemo(() => {
+    const arr = originalRef.current;
+    const n = capacity;
+    const mid = (n - 1) / 2;
+    return Array.from({ length: n }).map((_, i) => ({
+      id: `b${i}`,
+      value: i < arr.length ? arr[i] : null,
+      x: (i - mid) * spacing,
+      opacity: i < arr.length ? 1 : 0.2,
+      isExtra: i >= arr.length,
+    }));
+  }, [capacity, spacing]);
 
   return (
     <div className="w-full h-screen">
@@ -20,8 +27,6 @@ const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
         shadows
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
-
-          // 🔹 Auto request immersive-ar session
           if (navigator.xr) {
             navigator.xr
               .requestSession("immersive-ar", {
@@ -30,41 +35,38 @@ const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
               .then((session) => {
                 gl.xr.setSession(session);
               })
-              .catch((err) => {
-                console.error("❌ Failed to start AR session:", err);
-              });
+              .catch((err) => console.error("❌ AR Session failed:", err));
           }
         }}
       >
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
-        <Reticle placed={placed} setPlaced={setPlaced}>
-          {/* Boxes row */}
-          {data.map((value, i) => (
-            <Box key={i} index={i} value={value} position={positions[i]} />
+        <Reticle>
+          {boxes.map((b, i) => (
+            <Box
+              key={b.id}
+              value={b.value}
+              index={i}
+              position={[b.x, 0, 0]}
+              opacity={b.opacity}
+            />
           ))}
-
-          {/* Shadow plane */}
-          <mesh rotation-x={-Math.PI / 2} receiveShadow>
-            <planeGeometry args={[10, 10]} />
-            <shadowMaterial opacity={0.3} />
-          </mesh>
         </Reticle>
       </Canvas>
     </div>
   );
 };
 
-function Reticle({ children, placed, setPlaced }) {
+function Reticle({ children }) {
   const { gl } = useThree();
   const reticleRef = useRef();
   const [hitTestSource, setHitTestSource] = useState(null);
   const [hitTestSourceRequested, setHitTestSourceRequested] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [placed, setPlaced] = useState(false);
   const [targetPos, setTargetPos] = useState(null);
 
-  useFrame((_, delta) => {
+  useFrame(() => {
     const session = gl.xr.getSession();
     if (!session) return;
     const frame = gl.xr.getFrame();
@@ -95,17 +97,11 @@ function Reticle({ children, placed, setPlaced }) {
         );
         reticleRef.current.updateMatrixWorld(true);
 
-        setProgress((prev) => {
-          const next = Math.min(prev + delta / 2, 1); // 2 sec hold
-          if (next >= 1 && !placed) {
-            setPlaced(true);
-            setTargetPos(pose.transform.position);
-          }
-          return next;
-        });
+        // auto place on first valid surface
+        setPlaced(true);
+        setTargetPos(pose.transform.position);
       } else {
         reticleRef.current.visible = false;
-        setProgress(0);
       }
     }
   });
@@ -118,15 +114,7 @@ function Reticle({ children, placed, setPlaced }) {
         <meshBasicMaterial color="yellow" />
       </mesh>
 
-      {/* Progress indicator */}
-      {reticleRef.current && !placed && (
-        <mesh position={reticleRef.current.position} rotation-x={-Math.PI / 2}>
-          <ringGeometry args={[0.05, 0.09, 32, 1, 0, Math.PI * 2 * progress]} />
-          <meshBasicMaterial color="lime" transparent opacity={0.8} />
-        </mesh>
-      )}
-
-      {/* Children placed at reticle */}
+      {/* Place children on surface */}
       {placed && targetPos && (
         <group
           position={[targetPos.x, targetPos.y, targetPos.z]}
@@ -139,32 +127,36 @@ function Reticle({ children, placed, setPlaced }) {
   );
 }
 
-const Box = ({ index, value, position = [0, 0, 0] }) => {
+const Box = ({ value, index, position, opacity = 1 }) => {
   const size = [1.6, 1.2, 1];
   return (
     <group position={position}>
       <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
         <boxGeometry args={size} />
-        <meshStandardMaterial color={index % 2 === 0 ? "#60a5fa" : "#34d399"} />
+        <meshStandardMaterial color="#60a5fa" transparent opacity={opacity} />
       </mesh>
-
-      <Text
-        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        fontSize={0.35}
-        anchorX="center"
-        anchorY="middle"
-      >
-        {String(value)}
-      </Text>
-
-      <Text
-        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        fontSize={0.2}
-        anchorX="center"
-        anchorY="middle"
-      >
-        {`[${index}]`}
-      </Text>
+      {value !== null && (
+        <>
+          <Text
+            position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
+            fontSize={0.35}
+            anchorX="center"
+            anchorY="middle"
+            color="#ffffff"
+          >
+            {value}
+          </Text>
+          <Text
+            position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
+            fontSize={0.2}
+            anchorX="center"
+            anchorY="middle"
+            color="#ffffff"
+          >
+            [{index}]
+          </Text>
+        </>
+      )}
     </group>
   );
 };
