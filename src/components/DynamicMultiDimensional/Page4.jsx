@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import content from "../../../public/markdown/DynamicPage4.md?raw";
 import { Scan } from "lucide-react";
-import VisualPage4 from "./VisualPage4";
+import ARPage4 from "./ARPage4";
+import VisualPage4 from "./ARPage4";
 
 const Page4 = () => {
   const [showWarning, setShowWarning] = useState(false);
+  const [showAR, setShowAR] = useState(false);
 
   const handleArClick = async () => {
     try {
@@ -15,6 +17,7 @@ const Page4 = () => {
       ) {
         console.log("✅ AR Mode Activated!");
         setShowWarning(false);
+        setShowAR(true);
       } else {
         throw new Error("AR not supported");
       }
@@ -26,6 +29,10 @@ const Page4 = () => {
       }, 2500);
     }
   };
+
+  if (showAR) {
+    return <ARPage4 />;
+  }
 
   return (
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(86vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">
