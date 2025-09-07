@@ -1,16 +1,10 @@
-## Skip List
+# Circular Linked List
 
-### Multi-level Linked List with Shortcuts
-
-A **Skip List** is a data structure that extends the concept of a linked list by adding **multiple levels of pointers (shortcuts)**.
-
-- Each higher level acts as an “express lane” to skip over multiple nodes, making searches faster.
-- At the base level, it functions like a normal linked list.
-
-**Key Points:**
-
-- Improves search time to `O(log n)` compared to `O(n)` in normal linked lists.
-- Balances efficiency and simplicity.
-- Commonly used in applications like databases and memory management.
-
-![Skip List Example](../photos/)
+- **Definition:** Last node points back to the **head**, forming a loop.
+- Can be **singly circular** (only Next points in loop) or **doubly circular**.
+- **Use Case:** Useful in scenarios requiring continuous traversal (e.g., round-robin scheduling).
+- **Example:**
+  ```
+  [10|Next] → [20|Next] → [30|Next]
+         ↑________________________↓
+  ```

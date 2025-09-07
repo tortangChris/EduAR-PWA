@@ -1,19 +1,14 @@
-## Circular Linked List
+# Singly Linked List
 
-### Nodes Form a Loop
+- **Definition:** Each node points to the **next** node only.
+- Traversal is **one-directional** (from head → tail).
+- **Operations:**
 
-A **Circular Linked List** is a variation of the linked list where:
+  - **Insert at Head/Tail:** O(1) at head, O(n) at tail.
+  - **Search:** O(n).
+  - **Delete:** O(n) (need to find previous node).
 
-- The **last node points back to the first node**, forming a circle.
-
-**Types:**
-
-- **Singly Circular Linked List**: last node points to the head.
-- **Doubly Circular Linked List**: last node points to head, and head’s previous points back to the tail.
-
-**Key Points:**
-
-- Useful for applications like round-robin scheduling.
-- Traversal can start from any node and still cover the entire list.
-
-![Circular Linked List Example](../photos/CircularLinkedList.gif)
+- **Example:**
+  ```
+  Head → [10|Next] → [20|Next] → [30|Next] → NULL
+  ```
