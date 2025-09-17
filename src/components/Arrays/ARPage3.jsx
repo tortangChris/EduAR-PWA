@@ -1,16 +1,15 @@
-// ARPage3_Search_Hardcoded.jsx
-import React, { useMemo, useState, useEffect, useRef } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import React, { useMemo, useState, useEffect } from "react";
+import { Canvas } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 
-const ARPage3_Search_Hardcoded = ({
+const ARPage3 = ({
   data = [10, 20, 30, 40, 50],
   spacing = 2.0,
   target = 40,
 }) => {
   const [activeIndex, setActiveIndex] = useState(null);
-  const [operationText, setOperationText] = useState("Waiting to place...");
-  const [placed, setPlaced] = useState(false);
+  const [operationText, setOperationText] = useState("Starting AR...");
+  const [placed, setPlaced] = useState(true); // ✅ always placed now
 
   // positions for boxes
   const positions = useMemo(() => {
@@ -63,7 +62,7 @@ const ARPage3_Search_Hardcoded = ({
           if (navigator.xr) {
             navigator.xr
               .requestSession("immersive-ar", {
-                requiredFeatures: ["hit-test", "local-floor"],
+                requiredFeatures: ["local-floor"], // ✅ no hit-test
               })
               .then((session) => {
                 gl.xr.setSession(session);
@@ -75,7 +74,8 @@ const ARPage3_Search_Hardcoded = ({
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
-        <Reticle placed={placed} setPlaced={setPlaced}>
+        {/* ✅ Fixed-position group instead of Reticle */}
+        <group position={[0, 0, -2]} scale={[0.1, 0.1, 0.1]}>
           {/* Operation text above */}
           {operationText && (
             <Text
@@ -105,94 +105,11 @@ const ARPage3_Search_Hardcoded = ({
             <planeGeometry args={[10, 10]} />
             <shadowMaterial opacity={0.3} />
           </mesh>
-        </Reticle>
+        </group>
       </Canvas>
     </div>
   );
 };
-
-function Reticle({ children, placed, setPlaced }) {
-  const { gl } = useThree();
-  const reticleRef = useRef();
-  const [hitTestSource, setHitTestSource] = useState(null);
-  const [hitTestSourceRequested, setHitTestSourceRequested] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [targetPos, setTargetPos] = useState(null);
-
-  useFrame((_, delta) => {
-    const session = gl.xr.getSession();
-    if (!session) return;
-    const frame = gl.xr.getFrame();
-    if (!frame) return;
-
-    if (!hitTestSourceRequested) {
-      session.requestReferenceSpace("viewer").then((refSpace) => {
-        session.requestHitTestSource({ space: refSpace }).then((source) => {
-          setHitTestSource(source);
-        });
-      });
-      setHitTestSourceRequested(true);
-    }
-
-    if (hitTestSource && !placed) {
-      const referenceSpace = gl.xr.getReferenceSpace();
-      const hits = frame.getHitTestResults(hitTestSource);
-
-      if (hits.length > 0) {
-        const hit = hits[0];
-        const pose = hit.getPose(referenceSpace);
-
-        reticleRef.current.visible = true;
-        reticleRef.current.position.set(
-          pose.transform.position.x,
-          pose.transform.position.y,
-          pose.transform.position.z
-        );
-        reticleRef.current.updateMatrixWorld(true);
-
-        setProgress((prev) => {
-          const next = Math.min(prev + delta / 2, 1);
-          if (next >= 1 && !placed) {
-            setPlaced(true);
-            setTargetPos(pose.transform.position);
-          }
-          return next;
-        });
-      } else {
-        reticleRef.current.visible = false;
-        setProgress(0);
-      }
-    }
-  });
-
-  return (
-    <group>
-      {/* Reticle ring */}
-      <mesh ref={reticleRef} rotation-x={-Math.PI / 2} visible={false}>
-        <ringGeometry args={[0.07, 0.1, 32]} />
-        <meshBasicMaterial color="yellow" />
-      </mesh>
-
-      {/* Progress ring */}
-      {reticleRef.current && !placed && (
-        <mesh position={reticleRef.current.position} rotation-x={-Math.PI / 2}>
-          <ringGeometry args={[0.05, 0.09, 32, 1, 0, Math.PI * 2 * progress]} />
-          <meshBasicMaterial color="lime" transparent opacity={0.8} />
-        </mesh>
-      )}
-
-      {/* Place children */}
-      {placed && targetPos && (
-        <group
-          position={[targetPos.x, targetPos.y, targetPos.z]}
-          scale={[0.1, 0.1, 0.1]}
-        >
-          {children}
-        </group>
-      )}
-    </group>
-  );
-}
 
 const Box = ({ index, value, position = [0, 0, 0], highlight }) => {
   const size = [1.6, 1.2, 1];
@@ -230,4 +147,4 @@ const Box = ({ index, value, position = [0, 0, 0], highlight }) => {
   );
 };
 
-export default ARPage3_Search_Hardcoded;
+export default ARPage3;
