@@ -1,12 +1,12 @@
 // ARPage5.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Text } from "@react-three/drei";
+import { Text } from "@react-three/drei";
 
 const ARPage5 = ({
   data = [10, 20, 30, 40, 50],
   spacing = 2.0,
-  deleteIndex = 2, // yung index ng ide-delete
+  deleteIndex = 2, // index to delete
   loopDelay = 3000,
 }) => {
   const [boxes, setBoxes] = useState(data);
@@ -14,15 +14,13 @@ const ARPage5 = ({
   const [highlightIndex, setHighlightIndex] = useState(null);
   const [phase, setPhase] = useState(0);
 
-  // positions based on count
+  // positions update based on count
   const positions = useMemo(() => {
     const mid = (boxes.length - 1) / 2;
     return boxes.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [boxes, spacing]);
 
   useEffect(() => {
-    let timer;
-
     const runSequence = async () => {
       setBoxes(data);
       setStatus(
@@ -30,44 +28,62 @@ const ARPage5 = ({
       );
       setHighlightIndex(deleteIndex);
 
-      // highlight target
       await delay(2000);
 
-      // remove target
       setHighlightIndex(null);
       setStatus(`Removing value ${data[deleteIndex]}...`);
       await delay(1000);
+
       const newArr = data.filter((_, i) => i !== deleteIndex);
       setBoxes(newArr);
 
-      // shift left
-      setStatus(`Shifting elements...`);
+      setStatus("Shifting elements...");
       await delay(2000);
 
-      // finalize
       setStatus("✅ Deletion complete!");
       await delay(loopDelay);
 
-      // reset loop
-      setPhase((p) => p + 1);
+      setPhase((p) => p + 1); // restart loop
     };
 
     runSequence();
-
-    return () => clearTimeout(timer);
   }, [phase, data, deleteIndex, loopDelay]);
 
   return (
-    <div className="w-full h-screen bg-gray-50 flex flex-col items-center justify-center">
-      {/* Status text */}
-      <div className="mb-4 text-lg font-mono text-gray-800">{status}</div>
+    <div className="w-full h-screen">
+      <Canvas
+        camera={{ position: [0, 2, 6], fov: 50 }}
+        gl={{ alpha: true }}
+        shadows
+        onCreated={({ gl }) => {
+          gl.xr.enabled = true;
+          if (navigator.xr) {
+            navigator.xr
+              .requestSession("immersive-ar", {
+                requiredFeatures: ["local-floor"], // ✅ no hit-test
+              })
+              .then((session) => gl.xr.setSession(session))
+              .catch((err) => console.error("❌ AR session failed:", err));
+          }
+        }}
+      >
+        <ambientLight intensity={0.4} />
+        <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-      {/* 3D Scene */}
-      <div className="w-full h-[70%]">
-        <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[5, 10, 5]} intensity={0.8} />
+        {/* ✅ Fixed group in front of user */}
+        <group position={[0, 1, -2]} scale={[0.1, 0.1, 0.1]}>
+          {/* Status text floating above */}
+          <Text
+            position={[0, 3, 0]}
+            fontSize={0.5}
+            anchorX="center"
+            anchorY="middle"
+            color="white"
+          >
+            {status}
+          </Text>
 
+          {/* Boxes */}
           {boxes.map((value, i) => (
             <Box
               key={i}
@@ -78,9 +94,13 @@ const ARPage5 = ({
             />
           ))}
 
-          <OrbitControls makeDefault />
-        </Canvas>
-      </div>
+          {/* Ground plane */}
+          <mesh rotation-x={-Math.PI / 2} receiveShadow>
+            <planeGeometry args={[10, 10]} />
+            <shadowMaterial opacity={0.3} />
+          </mesh>
+        </group>
+      </Canvas>
     </div>
   );
 };
