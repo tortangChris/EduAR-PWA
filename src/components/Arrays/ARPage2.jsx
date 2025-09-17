@@ -11,13 +11,13 @@ const ARPage2 = ({
   const [fadeValues, setFadeValues] = useState({});
   const [operationText, setOperationText] = useState("");
 
-  // positions for boxes
+  // positions for boxes (in front of camera)
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
+    return data.map((_, i) => [(i - mid) * spacing, 0, -3]); // z = -3 para lumabas sa harap
   }, [data, spacing]);
 
-  // looped access operation
+  // loop access animation
   useEffect(() => {
     let targetIndex = data.findIndex((v) => v === accessValue);
     if (targetIndex === -1) return;
@@ -57,14 +57,13 @@ const ARPage2 = ({
     };
 
     runAccess();
-
     return () => clearTimeout(loopTimeout);
   }, [data, accessValue]);
 
   return (
     <div className="w-full h-screen">
       <Canvas
-        camera={{ position: [0, 1.6, 4], fov: 50 }}
+        camera={{ position: [0, 1.6, 0], fov: 50 }}
         gl={{ alpha: true }}
         shadows
         onCreated={({ gl }) => {
@@ -72,7 +71,7 @@ const ARPage2 = ({
           if (navigator.xr) {
             navigator.xr
               .requestSession("immersive-ar", {
-                requiredFeatures: ["local-floor"], // ✅ no hit-test
+                requiredFeatures: ["local"], // no hit-test
               })
               .then((session) => {
                 gl.xr.setSession(session);
@@ -86,10 +85,10 @@ const ARPage2 = ({
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
-        {/* Operation text always above objects */}
+        {/* Operation text above boxes */}
         {operationText && (
           <Text
-            position={[0, 2, -2]} // ✅ fixed in front of user
+            position={[0, 2, -3]}
             fontSize={0.5}
             anchorX="center"
             anchorY="middle"
@@ -99,30 +98,28 @@ const ARPage2 = ({
           </Text>
         )}
 
-        {/* Boxes automatically placed in front */}
-        <group position={[0, 0, -2]} scale={[0.2, 0.2, 0.2]}>
-          {data.map((value, i) => (
-            <Box
-              key={i}
-              index={i}
-              value={value}
-              position={positions[i]}
-              fade={fadeValues[i] || 0}
-            />
-          ))}
+        {/* Boxes */}
+        {data.map((value, i) => (
+          <Box
+            key={i}
+            index={i}
+            value={value}
+            position={positions[i]}
+            fade={fadeValues[i] || 0}
+          />
+        ))}
 
-          {/* Shadow plane */}
-          <mesh rotation-x={-Math.PI / 2} receiveShadow position={[0, -0.1, 0]}>
-            <planeGeometry args={[10, 10]} />
-            <shadowMaterial opacity={0.3} />
-          </mesh>
-        </group>
+        {/* Shadow plane for realism */}
+        <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 0]} receiveShadow>
+          <planeGeometry args={[10, 10]} />
+          <shadowMaterial opacity={0.3} />
+        </mesh>
       </Canvas>
     </div>
   );
 };
 
-const Box = ({ index, value, position = [0, 0, 0], fade }) => {
+const Box = ({ index, value, position = [0, 0, -3], fade }) => {
   const size = [1.6, 1.2, 1];
   return (
     <group position={position}>
@@ -135,6 +132,7 @@ const Box = ({ index, value, position = [0, 0, 0], fade }) => {
         />
       </mesh>
 
+      {/* Value text */}
       <Text
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
         fontSize={0.35}
@@ -144,6 +142,7 @@ const Box = ({ index, value, position = [0, 0, 0], fade }) => {
         {String(value)}
       </Text>
 
+      {/* Index text */}
       <Text
         position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
         fontSize={0.2}
