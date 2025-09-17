@@ -1,6 +1,7 @@
 import { BookOpen } from "lucide-react"; // <- idagdag ito
 import ModulesContent from "../components/ModulesContent";
 import BottomNav from "../components/BottomNav";
+import ARSupportChecker from "./ARSupportChecker";
 
 const Modules = () => {
   return (
@@ -11,6 +12,7 @@ const Modules = () => {
           <h2 className="text-xl font-bold">Modules</h2>
         </div>
       </div>
+      <ARSupportChecker />
       <ModulesContent />
       <BottomNav />
     </div>
