@@ -2,6 +2,7 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
+import { Smartphone } from "lucide-react"; // sample icon
 
 const ARPage2_Access = ({
   data = [10, 20, 30, 40, 50],
@@ -12,6 +13,19 @@ const ARPage2_Access = ({
   const [fadeValues, setFadeValues] = useState({});
   const [operationText, setOperationText] = useState("");
   const [placed, setPlaced] = useState(false);
+
+  // AR session state
+  const [xrSupported, setXrSupported] = useState(false);
+  const [xrSession, setXrSession] = useState(null);
+
+  // check if AR is supported
+  useEffect(() => {
+    if (navigator.xr) {
+      navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
+        setXrSupported(supported);
+      });
+    }
+  }, []);
 
   // positions for boxes
   const positions = useMemo(() => {
@@ -29,15 +43,12 @@ const ARPage2_Access = ({
     let loopTimeout;
 
     const runAccess = () => {
-      // Step 1: show text
       setOperationText(`Access v=${accessValue}`);
       setActiveIndex(null);
 
-      // Step 2: wait 3s then highlight
       loopTimeout = setTimeout(() => {
         setActiveIndex(targetIndex);
 
-        // Step 3: fade highlight (2s)
         let start;
         const duration = 2000;
         const animate = (timestamp) => {
@@ -51,11 +62,10 @@ const ARPage2_Access = ({
           if (progress < 1) {
             requestAnimationFrame(animate);
           } else {
-            // Step 4: wait 3s then restart
             loopTimeout = setTimeout(() => {
               setFadeValues({});
               setActiveIndex(null);
-              runAccess(); // loop again
+              runAccess();
             }, 3000);
           }
         };
@@ -65,67 +75,102 @@ const ARPage2_Access = ({
     };
 
     runAccess();
-
     return () => clearTimeout(loopTimeout);
   }, [placed, data, accessValue]);
 
+  // start AR session
+  const startAR = () => {
+    if (!navigator.xr) return;
+    navigator.xr
+      .requestSession("immersive-ar", {
+        requiredFeatures: ["hit-test", "local-floor"],
+      })
+      .then((session) => {
+        setXrSession(session);
+      })
+      .catch((err) => console.error("❌ Failed to start AR session:", err));
+  };
+
+  // end AR session
+  const endAR = () => {
+    if (xrSession) {
+      xrSession.end();
+      setXrSession(null);
+    }
+  };
+
   return (
-    <div className="w-full h-screen">
-      <Canvas
-        camera={{ position: [0, 2, 6], fov: 50 }}
-        gl={{ alpha: true }}
-        shadows
-        onCreated={({ gl }) => {
-          gl.xr.enabled = true;
-          if (navigator.xr) {
-            navigator.xr
-              .requestSession("immersive-ar", {
-                requiredFeatures: ["hit-test", "local-floor"],
-              })
-              .then((session) => {
-                gl.xr.setSession(session);
-              })
-              .catch((err) => {
-                console.error("❌ Failed to start AR session:", err);
-              });
-          }
-        }}
-      >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
+    <div className="w-full h-screen flex flex-col">
+      {/* AR Control Button */}
+      <div className="p-2">
+        <button
+          onClick={xrSession ? endAR : startAR}
+          disabled={!xrSupported}
+          className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-white font-semibold 
+            ${
+              !xrSupported
+                ? "bg-gray-400 cursor-not-allowed"
+                : xrSession
+                ? "bg-red-500"
+                : "bg-blue-600 hover:bg-blue-700"
+            }
+          `}
+        >
+          <Smartphone className="w-5 h-5" />
+          {xrSession
+            ? "EXIT AR"
+            : xrSupported
+            ? "START AR"
+            : "AR NOT SUPPORTED"}
+        </button>
+      </div>
 
-        <Reticle placed={placed} setPlaced={setPlaced}>
-          {/* Operation text */}
-          {operationText && (
-            <Text
-              position={[0, 3, 0]}
-              fontSize={0.5}
-              anchorX="center"
-              anchorY="middle"
-              color="white"
-            >
-              {operationText}
-            </Text>
-          )}
+      {/* 3D Scene */}
+      <div className="flex-1">
+        <Canvas
+          camera={{ position: [0, 2, 6], fov: 50 }}
+          gl={{ alpha: true }}
+          shadows
+          onCreated={({ gl }) => {
+            gl.xr.enabled = true;
+            if (xrSession) {
+              gl.xr.setSession(xrSession);
+            }
+          }}
+        >
+          <ambientLight intensity={0.4} />
+          <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
-          {/* Boxes */}
-          {data.map((value, i) => (
-            <Box
-              key={i}
-              index={i}
-              value={value}
-              position={positions[i]}
-              fade={fadeValues[i] || 0}
-            />
-          ))}
+          <Reticle placed={placed} setPlaced={setPlaced}>
+            {operationText && (
+              <Text
+                position={[0, 3, 0]}
+                fontSize={0.5}
+                anchorX="center"
+                anchorY="middle"
+                color="white"
+              >
+                {operationText}
+              </Text>
+            )}
 
-          {/* Shadow plane */}
-          <mesh rotation-x={-Math.PI / 2} receiveShadow>
-            <planeGeometry args={[10, 10]} />
-            <shadowMaterial opacity={0.3} />
-          </mesh>
-        </Reticle>
-      </Canvas>
+            {data.map((value, i) => (
+              <Box
+                key={i}
+                index={i}
+                value={value}
+                position={positions[i]}
+                fade={fadeValues[i] || 0}
+              />
+            ))}
+
+            <mesh rotation-x={-Math.PI / 2} receiveShadow>
+              <planeGeometry args={[10, 10]} />
+              <shadowMaterial opacity={0.3} />
+            </mesh>
+          </Reticle>
+        </Canvas>
+      </div>
     </div>
   );
 };
@@ -186,13 +231,11 @@ function Reticle({ children, placed, setPlaced }) {
 
   return (
     <group>
-      {/* Reticle ring */}
       <mesh ref={reticleRef} rotation-x={-Math.PI / 2} visible={false}>
         <ringGeometry args={[0.07, 0.1, 32]} />
         <meshBasicMaterial color="yellow" />
       </mesh>
 
-      {/* Progress indicator */}
       {reticleRef.current && !placed && (
         <mesh position={reticleRef.current.position} rotation-x={-Math.PI / 2}>
           <ringGeometry args={[0.05, 0.09, 32, 1, 0, Math.PI * 2 * progress]} />
@@ -200,7 +243,6 @@ function Reticle({ children, placed, setPlaced }) {
         </mesh>
       )}
 
-      {/* Children placed at reticle */}
       {placed && targetPos && (
         <group
           position={[targetPos.x, targetPos.y, targetPos.z]}
@@ -226,7 +268,6 @@ const Box = ({ index, value, position = [0, 0, 0], fade }) => {
         />
       </mesh>
 
-      {/* Value text */}
       <Text
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
         fontSize={0.35}
@@ -236,7 +277,6 @@ const Box = ({ index, value, position = [0, 0, 0], fade }) => {
         {String(value)}
       </Text>
 
-      {/* Index text */}
       <Text
         position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
         fontSize={0.2}
