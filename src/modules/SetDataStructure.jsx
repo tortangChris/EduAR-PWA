@@ -8,6 +8,7 @@ import ProgressBar from "../components/common/ProgressBar";
 import { useModuleProgress } from "../services/useModuleProgress";
 
 import { logActivity } from "../services/activityService";
+import ARButton from "../components/Set/ARButton";
 
 const SetDataStructure = () => {
   const navigate = useNavigate();
@@ -53,7 +54,7 @@ const SetDataStructure = () => {
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
       <ModuleHeader />
-
+      <ARButton />
       <ProgressBar progress={progress} />
 
       {pages[currentPage]}

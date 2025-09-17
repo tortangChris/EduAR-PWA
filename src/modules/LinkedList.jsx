@@ -13,6 +13,7 @@ import PageAssessment from "../components/Linked List/PageAssessment";
 import { useModuleProgress } from "../services/useModuleProgress";
 
 import { logActivity } from "../services/activityService"; // 👈 import logger
+import ARButton from "../components/Linked List/ARButton";
 
 const LinkedList = () => {
   const navigate = useNavigate();
@@ -63,7 +64,7 @@ const LinkedList = () => {
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
       <ModuleHeader />
-
+      <ARButton />
       <ProgressBar progress={progress} />
 
       {pages[currentPage]}
