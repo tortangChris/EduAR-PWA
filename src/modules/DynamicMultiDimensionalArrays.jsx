@@ -15,7 +15,6 @@ import Page4 from "../components/DynamicMultiDimensional/Page4";
 import { useModuleProgress } from "../services/useModuleProgress";
 
 import { logActivity } from "../services/activityService"; // 👈 import logger
-import ARButton from "../components/DynamicMultiDimensional/ARButton";
 
 const DynamicMultiDimensional = () => {
   const navigate = useNavigate();
@@ -71,7 +70,6 @@ const DynamicMultiDimensional = () => {
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
       <ModuleHeader />
-      <ARButton />
       {/* <ProgressBar progress={progress} /> */}
 
       {pages[currentPage]}

@@ -14,7 +14,6 @@ import Page0 from "../components/Sorting/Page0";
 import Page4 from "../components/Sorting/Page4";
 
 import { logActivity } from "../services/activityService";
-import ARButton from "../components/Sorting/ARButton";
 
 const Sorting = () => {
   const navigate = useNavigate();
@@ -66,7 +65,6 @@ const Sorting = () => {
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
       <ModuleHeader />
-      <ARButton />
       {/* <ProgressBar progress={progress} /> */}
 
       {pages[currentPage]}
