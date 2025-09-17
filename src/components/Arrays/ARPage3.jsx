@@ -75,7 +75,7 @@ const ARPage3 = ({
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
         {/* ✅ Fixed-position group directly in front of the user */}
-        <group position={[0, 1.5, -2]} scale={[0.1, 0.1, 0.1]}>
+        <group position={[0, 1, -2]} scale={[0.1, 0.1, 0.1]}>
           {/* Operation text above */}
           {operationText && (
             <Text
