@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
+import React, { useMemo, useState, useEffect, useRef } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 
 const ARPage3 = ({
@@ -8,7 +8,8 @@ const ARPage3 = ({
   target = 40,
 }) => {
   const [activeIndex, setActiveIndex] = useState(null);
-  const [operationText, setOperationText] = useState("Starting search...");
+  const [operationText, setOperationText] = useState("Starting AR...");
+  const [placed] = useState(true); // ✅ always placed
 
   // positions for boxes
   const positions = useMemo(() => {
@@ -16,14 +17,15 @@ const ARPage3 = ({
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  // search steps simulation
   useEffect(() => {
+    if (!placed) return;
+
     let steps = [
-      { text: `🔍 Searching for v=${target}...`, index: null, delay: 2000 },
+      { text: "🔍 Searching for v=40...", index: null, delay: 2000 },
       { text: "Checking index 0...", index: 0, delay: 2000 },
       { text: "Checking index 1...", index: 1, delay: 2000 },
       { text: "Checking index 2...", index: 2, delay: 2000 },
-      { text: `✅ Found ${target} at index 3`, index: 3, delay: 2000 },
+      { text: "✅ Found 40 at index 3", index: 3, delay: 2000 },
       { text: "Restarting search...", index: null, delay: 3000 },
     ];
 
@@ -47,7 +49,7 @@ const ARPage3 = ({
     runStep();
 
     return () => clearTimeout(loop);
-  }, [target]);
+  }, [placed]);
 
   return (
     <div className="w-full h-screen">
@@ -72,21 +74,22 @@ const ARPage3 = ({
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
-        {/* Operation text */}
-        {operationText && (
-          <Text
-            position={[0, 3, -2]} // ✅ fixed in front
-            fontSize={0.5}
-            anchorX="center"
-            anchorY="middle"
-            color="white"
-          >
-            {operationText}
-          </Text>
-        )}
+        {/* ✅ Billboard Group */}
+        <BillboardGroup>
+          {/* Operation text above */}
+          {operationText && (
+            <Text
+              position={[0, 3, 0]}
+              fontSize={0.5}
+              anchorX="center"
+              anchorY="middle"
+              color="white"
+            >
+              {operationText}
+            </Text>
+          )}
 
-        {/* Boxes auto-spawn in front */}
-        <group position={[0, 0, -2]} scale={[0.1, 0.1, 0.1]}>
+          {/* Boxes */}
           {data.map((value, i) => (
             <Box
               key={i}
@@ -102,11 +105,35 @@ const ARPage3 = ({
             <planeGeometry args={[10, 10]} />
             <shadowMaterial opacity={0.3} />
           </mesh>
-        </group>
+        </BillboardGroup>
       </Canvas>
     </div>
   );
 };
+
+function BillboardGroup({ children }) {
+  const groupRef = useRef();
+  const { camera } = useThree();
+
+  useFrame(() => {
+    if (!groupRef.current) return;
+
+    // Position group 2 units in front of camera
+    const offset = camera
+      .getWorldDirection(new THREE.Vector3())
+      .multiplyScalar(2);
+    groupRef.current.position.copy(camera.position).add(offset);
+
+    // Rotate to face camera
+    groupRef.current.quaternion.copy(camera.quaternion);
+  });
+
+  return (
+    <group ref={groupRef} scale={[0.1, 0.1, 0.1]}>
+      {children}
+    </group>
+  );
+}
 
 const Box = ({ index, value, position = [0, 0, 0], highlight }) => {
   const size = [1.6, 1.2, 1];
