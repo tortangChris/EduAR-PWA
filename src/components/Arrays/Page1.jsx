@@ -4,6 +4,7 @@ import content from "../../../public/markdown/ArrayPage1.md?raw";
 import { Scan } from "lucide-react";
 import VisualPage1 from "./VisualPage1";
 import ARPage1 from "./ARPage1"; // 👈 direct import
+import ARButton from "./ARButton";
 
 const Page1 = () => {
   const [showWarning, setShowWarning] = useState(false);
@@ -36,6 +37,7 @@ const Page1 = () => {
 
   return (
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(76vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">
+      <ARButton />
       <div className="markdown-body">
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>
