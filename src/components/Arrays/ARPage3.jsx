@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import React, { useMemo, useState, useEffect } from "react";
+import { Canvas } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 
 const ARPage3 = ({
@@ -9,7 +9,7 @@ const ARPage3 = ({
 }) => {
   const [activeIndex, setActiveIndex] = useState(null);
   const [operationText, setOperationText] = useState("Starting AR...");
-  const [placed] = useState(true); // ✅ always placed
+  const [placed, setPlaced] = useState(true); // ✅ always placed now
 
   // positions for boxes
   const positions = useMemo(() => {
@@ -74,8 +74,8 @@ const ARPage3 = ({
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
-        {/* ✅ Billboard Group */}
-        <BillboardGroup>
+        {/* ✅ Fixed-position group directly in front of the user */}
+        <group position={[0, 1.5, -2]} scale={[0.1, 0.1, 0.1]}>
           {/* Operation text above */}
           {operationText && (
             <Text
@@ -105,35 +105,11 @@ const ARPage3 = ({
             <planeGeometry args={[10, 10]} />
             <shadowMaterial opacity={0.3} />
           </mesh>
-        </BillboardGroup>
+        </group>
       </Canvas>
     </div>
   );
 };
-
-function BillboardGroup({ children }) {
-  const groupRef = useRef();
-  const { camera } = useThree();
-
-  useFrame(() => {
-    if (!groupRef.current) return;
-
-    // Position group 2 units in front of camera
-    const offset = camera
-      .getWorldDirection(new THREE.Vector3())
-      .multiplyScalar(2);
-    groupRef.current.position.copy(camera.position).add(offset);
-
-    // Rotate to face camera
-    groupRef.current.quaternion.copy(camera.quaternion);
-  });
-
-  return (
-    <group ref={groupRef} scale={[0.1, 0.1, 0.1]}>
-      {children}
-    </group>
-  );
-}
 
 const Box = ({ index, value, position = [0, 0, 0], highlight }) => {
   const size = [1.6, 1.2, 1];
