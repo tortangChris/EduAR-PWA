@@ -55,7 +55,7 @@ const SetDataStructure = () => {
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
       <ModuleHeader />
       <ARButton />
-      <ProgressBar progress={progress} />
+      {/* <ProgressBar progress={progress} /> */}
 
       {pages[currentPage]}
 
