@@ -35,7 +35,7 @@ const Page1 = () => {
   }
 
   return (
-    <div className="bg-base-200 rounded-xl shadow-md h-[calc(80vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">
+    <div className="bg-base-200 rounded-xl shadow-md h-[calc(76vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">
       <div className="markdown-body">
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>
