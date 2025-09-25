@@ -1,13 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
-import { XR, Controllers, Hands, Interactive } from "@react-three/xr";
+import { XR, Interactive } from "@react-three/xr";
 
 const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   const [activeIndex, setActiveIndex] = useState(null);
   const [operationText, setOperationText] = useState("");
 
-  // positions for boxes
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
@@ -39,10 +38,9 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
           <ambientLight intensity={0.4} />
           <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
-          {/* Operation text above objects */}
           {operationText && (
             <Text
-              position={[0, 2, -3]} // ✅ fixed in front of user
+              position={[0, 2, -3]}
               fontSize={0.5}
               anchorX="center"
               anchorY="middle"
@@ -52,7 +50,6 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
             </Text>
           )}
 
-          {/* Boxes automatically placed in front */}
           <group position={[0, 0, -3]} scale={[0.2, 0.2, 0.2]}>
             {data.map((value, i) => (
               <Interactive
@@ -71,7 +68,6 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
               </Interactive>
             ))}
 
-            {/* Shadow plane */}
             <mesh
               rotation-x={-Math.PI / 2}
               receiveShadow
@@ -81,9 +77,6 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
               <shadowMaterial opacity={0.3} />
             </mesh>
           </group>
-
-          <Controllers />
-          <Hands />
         </XR>
       </Canvas>
     </div>
@@ -103,7 +96,6 @@ const Box = ({ index, value, position = [0, 0, 0], isActive }) => {
         />
       </mesh>
 
-      {/* Value label */}
       <Text
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
         fontSize={0.35}
@@ -113,7 +105,6 @@ const Box = ({ index, value, position = [0, 0, 0], isActive }) => {
         {String(value)}
       </Text>
 
-      {/* Index label */}
       <Text
         position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
         fontSize={0.2}
