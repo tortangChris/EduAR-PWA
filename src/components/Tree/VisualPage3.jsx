@@ -1,169 +1,273 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
+// VisualPage3.jsx
+import React from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Text } from "@react-three/drei";
-import { Play, Square, RotateCcw } from "lucide-react";
+import { OrbitControls, Line, Text } from "@react-three/drei";
 
-const VisualPage3 = ({
-  data = [10, 20, 30, 40, 50],
-  spacing = 2.0,
-  target = 40,
-}) => {
-  const [activeIndex, setActiveIndex] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState("Idle");
-  const intervalRef = useRef(null);
+// --- Helper Component for Node (Sphere + Label) ---
+const Node = ({ position, label, color = "orange" }) => (
+  <group position={position}>
+    <mesh>
+      <sphereGeometry args={[0.2, 32, 32]} />
+      <meshStandardMaterial color={color} />
+    </mesh>
+    {label && (
+      <Text
+        position={[0, 0.5, 0]}
+        fontSize={0.25}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {label}
+      </Text>
+    )}
+  </group>
+);
 
-  // positions for boxes along the X axis
-  const positions = useMemo(() => {
-    const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [data, spacing]);
+// --- Example Trees ---
+const GeneralTree = ({ position }) => (
+  <group position={position}>
+    <Node position={[0, 0, 0]} label="Root" color="blue" />
+    <Node position={[-1, -1, 0]} label="A" />
+    <Node position={[0, -1, 0]} label="B" />
+    <Node position={[1, -1, 0]} label="C" />
+    <Line
+      points={[
+        [0, 0, 0],
+        [-1, -1, 0],
+      ]}
+      color="white"
+      lineWidth={2}
+    />
+    <Line
+      points={[
+        [0, 0, 0],
+        [0, -1, 0],
+      ]}
+      color="white"
+      lineWidth={2}
+    />
+    <Line
+      points={[
+        [0, 0, 0],
+        [1, -1, 0],
+      ]}
+      color="white"
+      lineWidth={2}
+    />
+    <Text position={[0, 2, 0]} fontSize={0.4} color="yellow" anchorX="center">
+      General Tree
+    </Text>
+  </group>
+);
 
-  const handlePlay = () => {
-    if (isPlaying) return;
-    setProgress(0);
-    setActiveIndex(null);
-    setStatus("Starting search...");
-    setIsPlaying(true);
+const BinaryTree = ({ position }) => (
+  <group position={position}>
+    <Node position={[0, 0, 0]} label="Root" color="green" />
+    <Node position={[-1, -1, 0]} label="L" />
+    <Node position={[1, -1, 0]} label="R" />
+    <Line
+      points={[
+        [0, 0, 0],
+        [-1, -1, 0],
+      ]}
+      color="white"
+      lineWidth={2}
+    />
+    <Line
+      points={[
+        [0, 0, 0],
+        [1, -1, 0],
+      ]}
+      color="white"
+      lineWidth={2}
+    />
+    <Text position={[0, 2, 0]} fontSize={0.4} color="yellow" anchorX="center">
+      Binary Tree
+    </Text>
+  </group>
+);
 
-    let currentIndex = 0;
-    intervalRef.current = setInterval(() => {
-      setActiveIndex(currentIndex);
-      setStatus(`Checking index ${currentIndex}...`);
-      setProgress(((currentIndex + 1) / data.length) * 100);
+const FullBinaryTree = ({ position }) => (
+  <group position={position}>
+    <Node position={[0, 0, 0]} label="Root" color="red" />
+    <Node position={[-1, -1, 0]} label="L" />
+    <Node position={[1, -1, 0]} label="R" />
+    <Node position={[-1.5, -2, 0]} label="LL" />
+    <Node position={[-0.5, -2, 0]} label="LR" />
+    <Node position={[0.5, -2, 0]} label="RL" />
+    <Node position={[1.5, -2, 0]} label="RR" />
+    <Line
+      points={[
+        [0, 0, 0],
+        [-1, -1, 0],
+      ]}
+      color="white"
+    />
+    <Line
+      points={[
+        [0, 0, 0],
+        [1, -1, 0],
+      ]}
+      color="white"
+    />
+    <Line
+      points={[
+        [-1, -1, 0],
+        [-1.5, -2, 0],
+      ]}
+      color="white"
+    />
+    <Line
+      points={[
+        [-1, -1, 0],
+        [-0.5, -2, 0],
+      ]}
+      color="white"
+    />
+    <Line
+      points={[
+        [1, -1, 0],
+        [0.5, -2, 0],
+      ]}
+      color="white"
+    />
+    <Line
+      points={[
+        [1, -1, 0],
+        [1.5, -2, 0],
+      ]}
+      color="white"
+    />
+    <Text position={[0, 2, 0]} fontSize={0.4} color="yellow" anchorX="center">
+      Full Binary Tree
+    </Text>
+  </group>
+);
 
-      if (data[currentIndex] === target) {
-        setStatus(`✅ Found ${target} at index ${currentIndex}`);
-        clearInterval(intervalRef.current);
-        setIsPlaying(false);
-      } else if (currentIndex === data.length - 1) {
-        setStatus(`❌ ${target} not found`);
-        clearInterval(intervalRef.current);
-        setIsPlaying(false);
-      } else {
-        currentIndex++;
-      }
-    }, 1000);
-  };
+const CompleteBinaryTree = ({ position }) => (
+  <group position={position}>
+    <Node position={[0, 0, 0]} label="Root" color="purple" />
+    <Node position={[-1, -1, 0]} label="L" />
+    <Node position={[1, -1, 0]} label="R" />
+    <Node position={[-1.5, -2, 0]} label="LL" />
+    <Node position={[-0.5, -2, 0]} label="LR" />
+    <Node position={[0.5, -2, 0]} label="RL" />
+    {/* RR missing to show "complete" */}
+    <Line
+      points={[
+        [0, 0, 0],
+        [-1, -1, 0],
+      ]}
+      color="white"
+    />
+    <Line
+      points={[
+        [0, 0, 0],
+        [1, -1, 0],
+      ]}
+      color="white"
+    />
+    <Line
+      points={[
+        [-1, -1, 0],
+        [-1.5, -2, 0],
+      ]}
+      color="white"
+    />
+    <Line
+      points={[
+        [-1, -1, 0],
+        [-0.5, -2, 0],
+      ]}
+      color="white"
+    />
+    <Line
+      points={[
+        [1, -1, 0],
+        [0.5, -2, 0],
+      ]}
+      color="white"
+    />
+    <Text position={[0, 2, 0]} fontSize={0.4} color="yellow" anchorX="center">
+      Complete Binary Tree
+    </Text>
+  </group>
+);
 
-  const handleStop = () => {
-    clearInterval(intervalRef.current);
-    setIsPlaying(false);
-    setStatus("Stopped");
-  };
+const BST = ({ position }) => (
+  <group position={position}>
+    <Node position={[0, 0, 0]} label="8" color="orange" />
+    <Node position={[-1, -1, 0]} label="3" />
+    <Node position={[1, -1, 0]} label="10" />
+    <Node position={[-1.5, -2, 0]} label="1" />
+    <Node position={[-0.5, -2, 0]} label="6" />
+    <Node position={[1.5, -2, 0]} label="14" />
+    <Line
+      points={[
+        [0, 0, 0],
+        [-1, -1, 0],
+      ]}
+      color="white"
+    />
+    <Line
+      points={[
+        [0, 0, 0],
+        [1, -1, 0],
+      ]}
+      color="white"
+    />
+    <Line
+      points={[
+        [-1, -1, 0],
+        [-1.5, -2, 0],
+      ]}
+      color="white"
+    />
+    <Line
+      points={[
+        [-1, -1, 0],
+        [-0.5, -2, 0],
+      ]}
+      color="white"
+    />
+    <Line
+      points={[
+        [1, -1, 0],
+        [1.5, -2, 0],
+      ]}
+      color="white"
+    />
+    <Text position={[0, 2, 0]} fontSize={0.4} color="yellow" anchorX="center">
+      Binary Search Tree
+    </Text>
+  </group>
+);
 
-  const handleReset = () => {
-    clearInterval(intervalRef.current);
-    setIsPlaying(false);
-    setProgress(0);
-    setActiveIndex(null);
-    setStatus("Idle");
-  };
+// --- Main Page ---
+export default function VisualPage3() {
+  const radius = 10; // layo ng trees sa gitna
+  const trees = [
+    { comp: GeneralTree, angle: 0 },
+    { comp: BinaryTree, angle: (2 * Math.PI) / 5 },
+    { comp: FullBinaryTree, angle: (4 * Math.PI) / 5 },
+    { comp: CompleteBinaryTree, angle: (6 * Math.PI) / 5 },
+    { comp: BST, angle: (8 * Math.PI) / 5 },
+  ];
 
   return (
-    <div className="w-full h-[300px] flex flex-col items-center justify-center">
-      <div className="w-2/3 mb-4">
-        <div className="flex items-center gap-3 mb-2">
-          <button
-            onClick={handlePlay}
-            className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50"
-            disabled={isPlaying}
-          >
-            <Play size={20} />
-          </button>
-          <button
-            onClick={handleStop}
-            className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 disabled:opacity-50"
-            disabled={!isPlaying}
-          >
-            <Square size={20} />
-          </button>
-          <button
-            onClick={handleReset}
-            className="p-2 bg-gray-500 text-white rounded-full hover:bg-gray-600"
-          >
-            <RotateCcw size={20} />
-          </button>
-        </div>
-        <div className="w-full h-2 bg-gray-300 rounded">
-          <div
-            className="h-2 bg-green-500 rounded"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <div className="mt-2 text-gray-700 font-mono text-sm text-center">
-          {status}
-        </div>
-      </div>
+    <div className="w-screen h-screen">
+      <Canvas camera={{ position: [0, 2, 15], fov: 60 }}>
+        <ambientLight intensity={0.7} />
+        <directionalLight position={[5, 10, 5]} intensity={1} />
+        <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
 
-      {/* 3D Scene */}
-      <div className="w-full h-[60%]">
-        <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
-          {/* Lighting */}
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[5, 10, 5]} intensity={0.8} />
-
-          {/* Row of boxes */}
-          {data.map((value, i) => (
-            <Box
-              key={i}
-              index={i}
-              value={value}
-              position={positions[i]}
-              fade={activeIndex === i ? 1 : 0}
-            />
-          ))}
-
-          <OrbitControls makeDefault />
-        </Canvas>
-      </div>
+        {trees.map(({ comp: Tree, angle }, idx) => {
+          const x = radius * Math.cos(angle);
+          const z = radius * Math.sin(angle);
+          return <Tree key={idx} position={[x, 0, z]} />;
+        })}
+      </Canvas>
     </div>
   );
-};
-
-const Box = ({ index, value, position = [0, 0, 0], fade }) => {
-  const size = [1.6, 1.2, 1];
-
-  return (
-    <group position={position}>
-      {/* Box */}
-      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
-        <boxGeometry args={size} />
-        <meshStandardMaterial
-          color={index % 2 === 0 ? "#60a5fa" : "#34d399"}
-          emissive={fade ? "#facc15" : "#000000"}
-          emissiveIntensity={fade ? 0.9 : 0}
-        />
-      </mesh>
-
-      {/* Number shown on the front face (3D text) */}
-      <Text
-        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
-        fontSize={0.35}
-        textAlign="center"
-        anchorX="center"
-        anchorY="middle"
-        depthOffset={1}
-      >
-        {String(value)}
-      </Text>
-
-      {/* Index shown below the value on the front face */}
-      <Text
-        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
-        fontSize={0.2}
-        textAlign="center"
-        anchorX="center"
-        anchorY="middle"
-        depthOffset={1}
-      >
-        {`[${index}]`}
-      </Text>
-    </group>
-  );
-};
-
-export default VisualPage3;
+}

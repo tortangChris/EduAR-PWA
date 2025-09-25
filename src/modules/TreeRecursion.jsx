@@ -3,6 +3,12 @@ import { CheckCircle } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import ModuleHeader from "../components/ModuleHeader";
 import Empty from "../components/Empty";
+import Page0 from "../components/Tree/Page0";
+import Page1 from "../components/Tree/Page1";
+import Page2 from "../components/Tree/Page2";
+import Page3 from "../components/Tree/Page3";
+import Page4 from "../components/Tree/Page4";
+import Page5 from "../components/Tree/Page5";
 import ProgressBar from "../components/common/ProgressBar";
 
 import { useModuleProgress } from "../services/useModuleProgress";
@@ -13,7 +19,14 @@ const TreeRecursion = () => {
   const navigate = useNavigate();
   const { page } = useParams();
 
-  const pages = [<Empty />];
+  const pages = [
+    <Page0 />,
+    <Page1 />,
+    <Page2 />,
+    <Page3 />,
+    <Page4 />,
+    <Page5 />,
+  ];
 
   const totalPages = pages.length;
 

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import content from "../../../public/markdown/StackQueuePage4.md?raw";
+import content from "../../../public/markdown/TreePage4.md?raw";
 import { Scan } from "lucide-react";
 import VisualPage4 from "./VisualPage4";
 import ARPage4 from "./ARPage4";
