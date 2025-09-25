@@ -2,8 +2,13 @@ import React, { useMemo, useState, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 
-const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
+const ARPage2 = ({
+  data = [10, 20, 30, 40, 50],
+  spacing = 2.0,
+  accessValue = 30,
+}) => {
   const [activeIndex, setActiveIndex] = useState(null);
+  const [fadeValues, setFadeValues] = useState({});
   const [operationText, setOperationText] = useState("");
 
   // positions for boxes
@@ -12,17 +17,49 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  // kapag may napili
-  const handleSelect = (index, value) => {
-    setActiveIndex(index);
-    setOperationText(`Selected v=${value} at index [${index}]`);
+  // looped access operation
+  useEffect(() => {
+    let targetIndex = data.findIndex((v) => v === accessValue);
+    if (targetIndex === -1) return;
 
-    // auto-reset highlight after 2s
-    setTimeout(() => {
+    let loopTimeout;
+
+    const runAccess = () => {
+      setOperationText(`Access v=${accessValue}`);
       setActiveIndex(null);
-      setOperationText("");
-    }, 2000);
-  };
+
+      loopTimeout = setTimeout(() => {
+        setActiveIndex(targetIndex);
+
+        let start;
+        const duration = 2000;
+        const animate = (timestamp) => {
+          if (!start) start = timestamp;
+          const elapsed = timestamp - start;
+          const progress = Math.min(elapsed / duration, 1);
+          const fade = 1 - progress;
+
+          setFadeValues({ [targetIndex]: fade });
+
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          } else {
+            loopTimeout = setTimeout(() => {
+              setFadeValues({});
+              setActiveIndex(null);
+              runAccess();
+            }, 3000);
+          }
+        };
+
+        requestAnimationFrame(animate);
+      }, 3000);
+    };
+
+    runAccess();
+
+    return () => clearTimeout(loopTimeout);
+  }, [data, accessValue]);
 
   return (
     <div className="w-full h-screen">
@@ -35,7 +72,7 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
           if (navigator.xr) {
             navigator.xr
               .requestSession("immersive-ar", {
-                requiredFeatures: ["local-floor"],
+                requiredFeatures: ["local-floor"], // ✅ no hit-test
               })
               .then((session) => {
                 gl.xr.setSession(session);
@@ -49,10 +86,10 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
-        {/* Operation text above objects */}
+        {/* Operation text always above objects */}
         {operationText && (
           <Text
-            position={[0, 2, -3]}
+            position={[0, 2, -3]} // ✅ fixed in front of user
             fontSize={0.5}
             anchorX="center"
             anchorY="middle"
@@ -62,7 +99,7 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
           </Text>
         )}
 
-        {/* Boxes na pwede i-tap */}
+        {/* Boxes automatically placed in front */}
         <group position={[0, 0, -3]} scale={[0.2, 0.2, 0.2]}>
           {data.map((value, i) => (
             <Box
@@ -70,8 +107,7 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
               index={i}
               value={value}
               position={positions[i]}
-              isActive={activeIndex === i}
-              onSelect={() => handleSelect(i, value)}
+              fade={fadeValues[i] || 0}
             />
           ))}
 
@@ -86,21 +122,16 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   );
 };
 
-const Box = ({ index, value, position = [0, 0, 0], isActive, onSelect }) => {
+const Box = ({ index, value, position = [0, 0, 0], fade }) => {
   const size = [1.6, 1.2, 1];
   return (
     <group position={position}>
-      <mesh
-        castShadow
-        receiveShadow
-        position={[0, size[1] / 2, 0]}
-        onClick={onSelect} // ✅ user tap/click selection
-      >
+      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
         <boxGeometry args={size} />
         <meshStandardMaterial
           color={index % 2 === 0 ? "#60a5fa" : "#34d399"}
-          emissive={isActive ? "#facc15" : "black"} // ✅ highlight if active
-          emissiveIntensity={isActive ? 1 : 0}
+          emissive="#facc15"
+          emissiveIntensity={fade}
         />
       </mesh>
 
