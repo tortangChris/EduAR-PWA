@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
+import { XR, Controllers, Hands, Interactive } from "@react-three/xr";
 
 const ARPage2 = ({
   data = [10, 20, 30, 40, 50],
@@ -72,7 +73,7 @@ const ARPage2 = ({
           if (navigator.xr) {
             navigator.xr
               .requestSession("immersive-ar", {
-                requiredFeatures: ["local-floor"], // ✅ no hit-test
+                requiredFeatures: ["local-floor"],
               })
               .then((session) => {
                 gl.xr.setSession(session);
@@ -83,40 +84,56 @@ const ARPage2 = ({
           }
         }}
       >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
+        <XR>
+          <ambientLight intensity={0.4} />
+          <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
-        {/* Operation text always above objects */}
-        {operationText && (
-          <Text
-            position={[0, 2, -3]} // ✅ fixed in front of user
-            fontSize={0.5}
-            anchorX="center"
-            anchorY="middle"
-            color="white"
-          >
-            {operationText}
-          </Text>
-        )}
+          {/* Operation text always above objects */}
+          {operationText && (
+            <Text
+              position={[0, 2, -3]} // ✅ fixed in front of user
+              fontSize={0.5}
+              anchorX="center"
+              anchorY="middle"
+              color="white"
+            >
+              {operationText}
+            </Text>
+          )}
 
-        {/* Boxes automatically placed in front */}
-        <group position={[0, 0, -3]} scale={[0.2, 0.2, 0.2]}>
-          {data.map((value, i) => (
-            <Box
-              key={i}
-              index={i}
-              value={value}
-              position={positions[i]}
-              fade={fadeValues[i] || 0}
-            />
-          ))}
+          {/* Boxes automatically placed in front */}
+          <group position={[0, 0, -3]} scale={[0.2, 0.2, 0.2]}>
+            {data.map((value, i) => (
+              <Interactive
+                key={i}
+                onSelect={() => {
+                  setActiveIndex(i);
+                  setOperationText(`Selected v=${value}`);
+                }}
+              >
+                <Box
+                  index={i}
+                  value={value}
+                  position={positions[i]}
+                  fade={fadeValues[i] || (i === activeIndex ? 0.8 : 0)}
+                />
+              </Interactive>
+            ))}
 
-          {/* Shadow plane */}
-          <mesh rotation-x={-Math.PI / 2} receiveShadow position={[0, -0.1, 0]}>
-            <planeGeometry args={[10, 10]} />
-            <shadowMaterial opacity={0.3} />
-          </mesh>
-        </group>
+            {/* Shadow plane */}
+            <mesh
+              rotation-x={-Math.PI / 2}
+              receiveShadow
+              position={[0, -0.1, 0]}
+            >
+              <planeGeometry args={[10, 10]} />
+              <shadowMaterial opacity={0.3} />
+            </mesh>
+          </group>
+
+          <Controllers />
+          <Hands />
+        </XR>
       </Canvas>
     </div>
   );
