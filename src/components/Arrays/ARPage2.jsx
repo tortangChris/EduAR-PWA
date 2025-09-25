@@ -1,7 +1,6 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
-import * as THREE from "three";
+import React, { useMemo, useState } from "react";
+import { Canvas } from "@react-three/fiber";
+import { Text, OrbitControls } from "@react-three/drei";
 
 const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   const [activeIndex, setActiveIndex] = useState(null);
@@ -13,35 +12,27 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
+  const handleSelect = (index, value) => {
+    setActiveIndex(index);
+    setOperationText(`Selected v=${value} at [${index}]`);
+
+    // reset highlight after 2s
+    setTimeout(() => {
+      setActiveIndex(null);
+      setOperationText("");
+    }, 2000);
+  };
+
   return (
     <div className="w-full h-screen">
-      <Canvas
-        camera={{ position: [0, 1.6, 4], fov: 50 }}
-        gl={{ alpha: true }}
-        shadows
-        onCreated={({ gl }) => {
-          gl.xr.enabled = true;
-          if (navigator.xr) {
-            navigator.xr
-              .requestSession("immersive-ar", {
-                requiredFeatures: ["local-floor"], // ✅ no hit-test
-              })
-              .then((session) => {
-                gl.xr.setSession(session);
-              })
-              .catch((err) => {
-                console.error("❌ Failed to start AR session:", err);
-              });
-          }
-        }}
-      >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
+      <Canvas shadows camera={{ position: [0, 2, 5], fov: 50 }}>
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[5, 10, 5]} castShadow />
 
-        {/* Operation text always above objects */}
+        {/* Operation text */}
         {operationText && (
           <Text
-            position={[0, 2, -3]} // ✅ fixed in front of user
+            position={[0, 2, -3]}
             fontSize={0.5}
             anchorX="center"
             anchorY="middle"
@@ -60,6 +51,7 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
               value={value}
               position={positions[i]}
               isActive={activeIndex === i}
+              onSelect={handleSelect}
             />
           ))}
 
@@ -70,17 +62,14 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
           </mesh>
         </group>
 
-        {/* Tap detection controls */}
-        <TapControls
-          setActiveIndex={setActiveIndex}
-          setOperationText={setOperationText}
-        />
+        {/* Controls (optional) */}
+        <OrbitControls />
       </Canvas>
     </div>
   );
 };
 
-const Box = ({ index, value, position = [0, 0, 0], isActive }) => {
+const Box = ({ index, value, position = [0, 0, 0], isActive, onSelect }) => {
   const size = [1.6, 1.2, 1];
   return (
     <group position={position}>
@@ -88,7 +77,7 @@ const Box = ({ index, value, position = [0, 0, 0], isActive }) => {
         castShadow
         receiveShadow
         position={[0, size[1] / 2, 0]}
-        userData={{ index, value }} // ✅ para ma-detect ng raycaster
+        onPointerDown={() => onSelect(index, value)} // ✅ Direct tap/click handler
       >
         <boxGeometry args={size} />
         <meshStandardMaterial
@@ -119,47 +108,6 @@ const Box = ({ index, value, position = [0, 0, 0], isActive }) => {
       </Text>
     </group>
   );
-};
-
-const TapControls = ({ setActiveIndex, setOperationText }) => {
-  const { gl, camera, scene } = useThree();
-  const raycaster = useRef(new THREE.Raycaster());
-
-  useEffect(() => {
-    const session = gl.xr.getSession();
-    if (!session) return;
-
-    const onSelect = () => {
-      const viewerPose = gl.xr.getCamera(camera);
-      if (!viewerPose) return;
-
-      const origin = new THREE.Vector3();
-      const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(
-        viewerPose.quaternion
-      );
-
-      raycaster.current.set(origin, direction);
-
-      const intersects = raycaster.current.intersectObjects(
-        scene.children,
-        true
-      );
-      if (intersects.length > 0) {
-        const first = intersects[0].object;
-        const { index, value } = first.userData;
-
-        if (index !== undefined) {
-          setActiveIndex(index);
-          setOperationText(`Selected v=${value} at [${index}]`);
-        }
-      }
-    };
-
-    session.addEventListener("select", onSelect);
-    return () => session.removeEventListener("select", onSelect);
-  }, [gl, camera, scene, setActiveIndex, setOperationText]);
-
-  return null;
 };
 
 export default ARPage2;
