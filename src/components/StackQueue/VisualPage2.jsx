@@ -1,61 +1,77 @@
-import React, { useMemo, useState, useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
+import React, { useState, useEffect, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 
-const VisualPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
-  const [activeIndex, setActiveIndex] = useState(null);
-  const [fadeValues, setFadeValues] = useState({});
+const VisualPage2 = ({ spacing = 1.5 }) => {
+  const [stack, setStack] = useState([]);
+  const [explanation, setExplanation] = useState(
+    "Stack visualization starting..."
+  );
+  const [step, setStep] = useState(0);
 
-  // positions for boxes along the X axis
-  const positions = useMemo(() => {
-    const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [data, spacing]);
-
+  // Loop through operations automatically
   useEffect(() => {
-    if (activeIndex !== null) {
-      setFadeValues((prev) => ({ ...prev, [activeIndex]: 1 }));
-
-      let start;
-      const duration = 2000;
-
-      const animate = (timestamp) => {
-        if (!start) start = timestamp;
-        const elapsed = timestamp - start;
-        const progress = Math.min(elapsed / duration, 1);
-        const fade = 1 - progress;
-
-        setFadeValues((prev) => ({ ...prev, [activeIndex]: fade }));
-
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        } else {
-          setActiveIndex(null);
-        }
-      };
-
-      requestAnimationFrame(animate);
+    let timer;
+    if (step === 0) {
+      // initial stack
+      setStack([
+        { value: 10, id: Math.random() },
+        { value: 20, id: Math.random() },
+        { value: 30, id: Math.random() },
+      ]);
+      setExplanation("Initial Stack: [Bottom] 10, 20, 30 [Top]");
+      timer = setTimeout(() => setStep(1), 2000);
+    } else if (step === 1) {
+      // Push 40
+      setStack((prev) => [...prev, { value: 40, id: Math.random() }]);
+      setExplanation("➡️ PUSH 40: placed on top.");
+      timer = setTimeout(() => setStep(2), 2000);
+    } else if (step === 2) {
+      // Peek top
+      setExplanation("👀 PEEK: Top item is 40.");
+      timer = setTimeout(() => setStep(3), 2000);
+    } else if (step === 3) {
+      // Pop top
+      setStack((prev) => prev.slice(0, -1));
+      setExplanation("❌ POP: removed 40 from top.");
+      timer = setTimeout(() => setStep(4), 2000);
+    } else if (step === 4) {
+      // Restart after 3s
+      setExplanation("⏳ Loop complete. Restarting in 3s...");
+      timer = setTimeout(() => setStep(0), 3000);
     }
-  }, [activeIndex]);
+    return () => clearTimeout(timer);
+  }, [step]);
 
   return (
-    <div className="w-full h-[300px]">
-      <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
-        {/* Lighting */}
-        <ambientLight intensity={0.4} />
+    <div className="w-full h-[500px]">
+      <Canvas camera={{ position: [6, 6, 12], fov: 50 }}>
+        <ambientLight intensity={0.6} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* Row of boxes */}
-        {data.map((value, i) => (
-          <Box
-            key={i}
+        {stack.map((item, i) => (
+          <AnimatedBox
+            key={item.id}
             index={i}
-            value={value}
-            position={positions[i]}
-            fade={fadeValues[i] || 0}
-            onClick={() => setActiveIndex(i)}
+            value={item.value}
+            targetY={i * spacing}
+            isTop={i === stack.length - 1}
           />
         ))}
+
+        {/* Explanation floating in 3D */}
+        <Text
+          position={[6, 4, 0]}
+          fontSize={0.45}
+          maxWidth={6}
+          lineHeight={1.2}
+          textAlign="left"
+          color="yellow"
+          anchorX="left"
+          anchorY="top"
+        >
+          {explanation}
+        </Text>
 
         <OrbitControls makeDefault />
       </Canvas>
@@ -63,51 +79,74 @@ const VisualPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   );
 };
 
-const Box = ({ index, value, position = [0, 0, 0], fade, onClick }) => {
-  // box size
-  const size = [1.6, 1.2, 1];
+const AnimatedBox = ({ index, value, targetY, isTop }) => {
+  const meshRef = useRef();
+  const size = [2, 1, 1.5];
+
+  const position = useRef([0, targetY + 5, 0]);
+  const velocity = useRef(-0.15);
+  const settled = useRef(false);
+
+  useFrame(() => {
+    if (meshRef.current && !settled.current) {
+      position.current[1] += velocity.current;
+      velocity.current -= 0.01;
+
+      if (position.current[1] <= targetY) {
+        position.current[1] = targetY;
+        velocity.current *= -0.3;
+        if (Math.abs(velocity.current) < 0.02) {
+          settled.current = true;
+        }
+      }
+      meshRef.current.position.set(...position.current);
+    }
+  });
 
   return (
-    <group position={position}>
-      <mesh
-        castShadow
-        receiveShadow
-        position={[0, size[1] / 2, 0]}
-        onClick={onClick}
-      >
+    <group ref={meshRef} position={position.current}>
+      {/* Box */}
+      <mesh castShadow receiveShadow>
         <boxGeometry args={size} />
         <meshStandardMaterial
-          color={index % 2 === 0 ? "#60a5fa" : "#34d399"}
-          emissive="#facc15"
-          emissiveIntensity={fade}
+          color={isTop ? "#f87171" : "#60a5fa"}
+          emissive={isTop ? "red" : "black"}
+          emissiveIntensity={isTop ? 0.6 : 0}
         />
       </mesh>
 
-      {/* Number shown on the front face (3D text) */}
+      {/* Value text */}
       <Text
-        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
+        position={[0, size[1] / 2 + 0.05, size[2] / 2 + 0.01]}
         fontSize={0.35}
-        textAlign="center"
         anchorX="center"
         anchorY="middle"
-        depthOffset={1}
       >
         {String(value)}
       </Text>
 
-      {/* Index shown below the value on the front face */}
+      {/* Index */}
       <Text
-        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
+        position={[0, -0.3, size[2] / 2 + 0.01]}
         fontSize={0.2}
-        textAlign="center"
         anchorX="center"
         anchorY="middle"
-        depthOffset={1}
       >
         {`[${index}]`}
       </Text>
+
+      {/* Top label */}
+      {isTop && (
+        <Text
+          position={[size[0] / 1.5 + 0.5, size[1] / 2, 0]}
+          fontSize={0.25}
+          color="yellow"
+          anchorX="left"
+          anchorY="middle"
+        >
+          TOP
+        </Text>
+      )}
     </group>
   );
 };

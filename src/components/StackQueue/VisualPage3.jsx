@@ -1,167 +1,164 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
-import { Canvas } from "@react-three/fiber";
+import React, { useState, useEffect, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
-import { Play, Square, RotateCcw } from "lucide-react";
 
-const VisualPage3 = ({
-  data = [10, 20, 30, 40, 50],
-  spacing = 2.0,
-  target = 40,
-}) => {
-  const [activeIndex, setActiveIndex] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState("Idle");
-  const intervalRef = useRef(null);
+const VisualPage3 = ({ spacing = 2 }) => {
+  const [queue, setQueue] = useState([]);
+  const [explanation, setExplanation] = useState(
+    "Queue visualization starting..."
+  );
+  const [step, setStep] = useState(0);
 
-  // positions for boxes along the X axis
-  const positions = useMemo(() => {
-    const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [data, spacing]);
-
-  const handlePlay = () => {
-    if (isPlaying) return;
-    setProgress(0);
-    setActiveIndex(null);
-    setStatus("Starting search...");
-    setIsPlaying(true);
-
-    let currentIndex = 0;
-    intervalRef.current = setInterval(() => {
-      setActiveIndex(currentIndex);
-      setStatus(`Checking index ${currentIndex}...`);
-      setProgress(((currentIndex + 1) / data.length) * 100);
-
-      if (data[currentIndex] === target) {
-        setStatus(`✅ Found ${target} at index ${currentIndex}`);
-        clearInterval(intervalRef.current);
-        setIsPlaying(false);
-      } else if (currentIndex === data.length - 1) {
-        setStatus(`❌ ${target} not found`);
-        clearInterval(intervalRef.current);
-        setIsPlaying(false);
-      } else {
-        currentIndex++;
-      }
-    }, 1000);
-  };
-
-  const handleStop = () => {
-    clearInterval(intervalRef.current);
-    setIsPlaying(false);
-    setStatus("Stopped");
-  };
-
-  const handleReset = () => {
-    clearInterval(intervalRef.current);
-    setIsPlaying(false);
-    setProgress(0);
-    setActiveIndex(null);
-    setStatus("Idle");
-  };
+  // Loop through queue operations automatically
+  useEffect(() => {
+    let timer;
+    if (step === 0) {
+      // initial queue
+      setQueue([
+        { value: "A", id: Math.random() },
+        { value: "B", id: Math.random() },
+        { value: "C", id: Math.random() },
+      ]);
+      setExplanation("Initial Queue: [Front] A, B, C [Rear]");
+      timer = setTimeout(() => setStep(1), 2000);
+    } else if (step === 1) {
+      // Enqueue D
+      setQueue((prev) => [...prev, { value: "D", id: Math.random() }]);
+      setExplanation("➡️ ENQUEUE D: added to the rear.");
+      timer = setTimeout(() => setStep(2), 2000);
+    } else if (step === 2) {
+      // Peek front
+      setExplanation("👀 FRONT of queue: A.");
+      timer = setTimeout(() => setStep(3), 2000);
+    } else if (step === 3) {
+      // Dequeue front
+      setQueue((prev) => prev.slice(1));
+      setExplanation("❌ DEQUEUE: removed A from the front.");
+      timer = setTimeout(() => setStep(4), 2000);
+    } else if (step === 4) {
+      // Restart after 3s
+      setExplanation("⏳ Loop complete. Restarting in 3s...");
+      timer = setTimeout(() => setStep(0), 3000);
+    }
+    return () => clearTimeout(timer);
+  }, [step]);
 
   return (
-    <div className="w-full h-[300px] flex flex-col items-center justify-center">
-      <div className="w-2/3 mb-4">
-        <div className="flex items-center gap-3 mb-2">
-          <button
-            onClick={handlePlay}
-            className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50"
-            disabled={isPlaying}
-          >
-            <Play size={20} />
-          </button>
-          <button
-            onClick={handleStop}
-            className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 disabled:opacity-50"
-            disabled={!isPlaying}
-          >
-            <Square size={20} />
-          </button>
-          <button
-            onClick={handleReset}
-            className="p-2 bg-gray-500 text-white rounded-full hover:bg-gray-600"
-          >
-            <RotateCcw size={20} />
-          </button>
-        </div>
-        <div className="w-full h-2 bg-gray-300 rounded">
-          <div
-            className="h-2 bg-green-500 rounded"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <div className="mt-2 text-gray-700 font-mono text-sm text-center">
-          {status}
-        </div>
-      </div>
+    <div className="w-full h-[500px]">
+      <Canvas camera={{ position: [8, 6, 12], fov: 50 }}>
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-      {/* 3D Scene */}
-      <div className="w-full h-[60%]">
-        <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
-          {/* Lighting */}
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[5, 10, 5]} intensity={0.8} />
+        {queue.map((item, i) => (
+          <AnimatedBox
+            key={item.id}
+            index={i}
+            value={item.value}
+            targetX={i * spacing}
+            isFront={i === 0}
+            isRear={i === queue.length - 1}
+          />
+        ))}
 
-          {/* Row of boxes */}
-          {data.map((value, i) => (
-            <Box
-              key={i}
-              index={i}
-              value={value}
-              position={positions[i]}
-              fade={activeIndex === i ? 1 : 0}
-            />
-          ))}
+        {/* Explanation floating in 3D */}
+        <Text
+          position={[6, 4, 0]}
+          fontSize={0.45}
+          maxWidth={6}
+          lineHeight={1.2}
+          textAlign="left"
+          color="yellow"
+          anchorX="left"
+          anchorY="top"
+        >
+          {explanation}
+        </Text>
 
-          <OrbitControls makeDefault />
-        </Canvas>
-      </div>
+        <OrbitControls makeDefault />
+      </Canvas>
     </div>
   );
 };
 
-const Box = ({ index, value, position = [0, 0, 0], fade }) => {
-  const size = [1.6, 1.2, 1];
+const AnimatedBox = ({ index, value, targetX, isFront, isRear }) => {
+  const meshRef = useRef();
+  const size = [1.5, 1, 1.5];
+
+  const position = useRef([targetX, 5, 0]);
+  const velocity = useRef(-0.15);
+  const settled = useRef(false);
+
+  useFrame(() => {
+    if (meshRef.current && !settled.current) {
+      position.current[1] += velocity.current;
+      velocity.current -= 0.01;
+
+      if (position.current[1] <= 0) {
+        position.current[1] = 0;
+        velocity.current *= -0.3;
+        if (Math.abs(velocity.current) < 0.02) {
+          settled.current = true;
+        }
+      }
+      meshRef.current.position.set(...position.current);
+    }
+  });
 
   return (
-    <group position={position}>
+    <group ref={meshRef} position={position.current}>
       {/* Box */}
-      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
+      <mesh castShadow receiveShadow>
         <boxGeometry args={size} />
         <meshStandardMaterial
-          color={index % 2 === 0 ? "#60a5fa" : "#34d399"}
-          emissive={fade ? "#facc15" : "#000000"}
-          emissiveIntensity={fade ? 0.9 : 0}
+          color={isFront ? "#34d399" : isRear ? "#f87171" : "#60a5fa"}
+          emissive={isFront ? "green" : isRear ? "red" : "black"}
+          emissiveIntensity={isFront || isRear ? 0.6 : 0}
         />
       </mesh>
 
-      {/* Number shown on the front face (3D text) */}
+      {/* Value text */}
       <Text
-        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
+        position={[0, size[1] / 2 + 0.05, size[2] / 2 + 0.01]}
         fontSize={0.35}
-        textAlign="center"
         anchorX="center"
         anchorY="middle"
-        depthOffset={1}
       >
         {String(value)}
       </Text>
 
-      {/* Index shown below the value on the front face */}
+      {/* Index */}
       <Text
-        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
+        position={[0, -0.3, size[2] / 2 + 0.01]}
         fontSize={0.2}
-        textAlign="center"
         anchorX="center"
         anchorY="middle"
-        depthOffset={1}
       >
         {`[${index}]`}
       </Text>
+
+      {/* Front / Rear labels */}
+      {isFront && (
+        <Text
+          position={[-size[0] / 1.5 - 0.5, size[1] / 2, 0]}
+          fontSize={0.25}
+          color="yellow"
+          anchorX="right"
+          anchorY="middle"
+        >
+          FRONT
+        </Text>
+      )}
+      {isRear && (
+        <Text
+          position={[size[0] / 1.5 + 0.5, size[1] / 2, 0]}
+          fontSize={0.25}
+          color="yellow"
+          anchorX="left"
+          anchorY="middle"
+        >
+          REAR
+        </Text>
+      )}
     </group>
   );
 };
