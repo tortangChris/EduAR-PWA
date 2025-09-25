@@ -1,15 +1,10 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import { XR, Controllers, Hands, Interactive } from "@react-three/xr";
 
-const ARPage2 = ({
-  data = [10, 20, 30, 40, 50],
-  spacing = 2.0,
-  accessValue = 30,
-}) => {
+const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   const [activeIndex, setActiveIndex] = useState(null);
-  const [fadeValues, setFadeValues] = useState({});
   const [operationText, setOperationText] = useState("");
 
   // positions for boxes
@@ -17,50 +12,6 @@ const ARPage2 = ({
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
-
-  // looped access operation
-  useEffect(() => {
-    let targetIndex = data.findIndex((v) => v === accessValue);
-    if (targetIndex === -1) return;
-
-    let loopTimeout;
-
-    const runAccess = () => {
-      setOperationText(`Access v=${accessValue}`);
-      setActiveIndex(null);
-
-      loopTimeout = setTimeout(() => {
-        setActiveIndex(targetIndex);
-
-        let start;
-        const duration = 2000;
-        const animate = (timestamp) => {
-          if (!start) start = timestamp;
-          const elapsed = timestamp - start;
-          const progress = Math.min(elapsed / duration, 1);
-          const fade = 1 - progress;
-
-          setFadeValues({ [targetIndex]: fade });
-
-          if (progress < 1) {
-            requestAnimationFrame(animate);
-          } else {
-            loopTimeout = setTimeout(() => {
-              setFadeValues({});
-              setActiveIndex(null);
-              runAccess();
-            }, 3000);
-          }
-        };
-
-        requestAnimationFrame(animate);
-      }, 3000);
-    };
-
-    runAccess();
-
-    return () => clearTimeout(loopTimeout);
-  }, [data, accessValue]);
 
   return (
     <div className="w-full h-screen">
@@ -88,7 +39,7 @@ const ARPage2 = ({
           <ambientLight intensity={0.4} />
           <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
-          {/* Operation text always above objects */}
+          {/* Operation text above objects */}
           {operationText && (
             <Text
               position={[0, 2, -3]} // ✅ fixed in front of user
@@ -108,14 +59,14 @@ const ARPage2 = ({
                 key={i}
                 onSelect={() => {
                   setActiveIndex(i);
-                  setOperationText(`Selected v=${value}`);
+                  setOperationText(`Access v=${value}`);
                 }}
               >
                 <Box
                   index={i}
                   value={value}
                   position={positions[i]}
-                  fade={fadeValues[i] || (i === activeIndex ? 0.8 : 0)}
+                  isActive={activeIndex === i}
                 />
               </Interactive>
             ))}
@@ -139,19 +90,20 @@ const ARPage2 = ({
   );
 };
 
-const Box = ({ index, value, position = [0, 0, 0], fade }) => {
+const Box = ({ index, value, position = [0, 0, 0], isActive }) => {
   const size = [1.6, 1.2, 1];
   return (
-    <group position={position}>
+    <group position={position} scale={isActive ? 1.2 : 1}>
       <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
         <boxGeometry args={size} />
         <meshStandardMaterial
-          color={index % 2 === 0 ? "#60a5fa" : "#34d399"}
-          emissive="#facc15"
-          emissiveIntensity={fade}
+          color={isActive ? "#f87171" : index % 2 === 0 ? "#60a5fa" : "#34d399"}
+          emissive={isActive ? "#facc15" : "#000000"}
+          emissiveIntensity={isActive ? 0.8 : 0}
         />
       </mesh>
 
+      {/* Value label */}
       <Text
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
         fontSize={0.35}
@@ -161,6 +113,7 @@ const Box = ({ index, value, position = [0, 0, 0], fade }) => {
         {String(value)}
       </Text>
 
+      {/* Index label */}
       <Text
         position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
         fontSize={0.2}
