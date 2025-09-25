@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { Text, OrbitControls } from "@react-three/drei";
+import { Text } from "@react-three/drei";
+import { XR } from "@react-three/xr";
 
 const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   const [activeIndex, setActiveIndex] = useState(null);
@@ -16,7 +17,7 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
     setActiveIndex(index);
     setOperationText(`Selected v=${value} at [${index}]`);
 
-    // reset highlight after 2s
+    // reset after 2s
     setTimeout(() => {
       setActiveIndex(null);
       setOperationText("");
@@ -25,45 +26,65 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
 
   return (
     <div className="w-full h-screen">
-      <Canvas shadows camera={{ position: [0, 2, 5], fov: 50 }}>
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[5, 10, 5]} castShadow />
+      <Canvas
+        shadows
+        camera={{ position: [0, 2, 5], fov: 50 }}
+        gl={{ antialias: true, alpha: true }}
+        onCreated={({ gl }) => {
+          gl.xr.enabled = true;
+          if (navigator.xr) {
+            navigator.xr
+              .requestSession("immersive-ar", {
+                requiredFeatures: ["local-floor"],
+              })
+              .then((session) => {
+                gl.xr.setSession(session);
+              })
+              .catch((err) => console.error("❌ Failed to start AR:", err));
+          }
+        }}
+      >
+        <XR>
+          <ambientLight intensity={0.5} />
+          <directionalLight position={[5, 10, 5]} castShadow />
 
-        {/* Operation text */}
-        {operationText && (
-          <Text
-            position={[0, 2, -3]}
-            fontSize={0.5}
-            anchorX="center"
-            anchorY="middle"
-            color="white"
-          >
-            {operationText}
-          </Text>
-        )}
+          {/* Operation text */}
+          {operationText && (
+            <Text
+              position={[0, 2, -3]}
+              fontSize={0.5}
+              anchorX="center"
+              anchorY="middle"
+              color="white"
+            >
+              {operationText}
+            </Text>
+          )}
 
-        {/* Boxes */}
-        <group position={[0, 0, -3]} scale={[0.2, 0.2, 0.2]}>
-          {data.map((value, i) => (
-            <Box
-              key={i}
-              index={i}
-              value={value}
-              position={positions[i]}
-              isActive={activeIndex === i}
-              onSelect={handleSelect}
-            />
-          ))}
+          {/* Boxes */}
+          <group position={[0, 0, -3]} scale={[0.2, 0.2, 0.2]}>
+            {data.map((value, i) => (
+              <Box
+                key={i}
+                index={i}
+                value={value}
+                position={positions[i]}
+                isActive={activeIndex === i}
+                onSelect={handleSelect}
+              />
+            ))}
 
-          {/* Shadow plane */}
-          <mesh rotation-x={-Math.PI / 2} receiveShadow position={[0, -0.1, 0]}>
-            <planeGeometry args={[10, 10]} />
-            <shadowMaterial opacity={0.3} />
-          </mesh>
-        </group>
-
-        {/* Controls (optional) */}
-        <OrbitControls />
+            {/* Shadow plane */}
+            <mesh
+              rotation-x={-Math.PI / 2}
+              receiveShadow
+              position={[0, -0.1, 0]}
+            >
+              <planeGeometry args={[10, 10]} />
+              <shadowMaterial opacity={0.3} />
+            </mesh>
+          </group>
+        </XR>
       </Canvas>
     </div>
   );
@@ -77,7 +98,7 @@ const Box = ({ index, value, position = [0, 0, 0], isActive, onSelect }) => {
         castShadow
         receiveShadow
         position={[0, size[1] / 2, 0]}
-        onPointerDown={() => onSelect(index, value)} // ✅ Direct tap/click handler
+        onPointerDown={() => onSelect(index, value)} // ✅ tap works in AR
       >
         <boxGeometry args={size} />
         <meshStandardMaterial
@@ -87,7 +108,6 @@ const Box = ({ index, value, position = [0, 0, 0], isActive, onSelect }) => {
         />
       </mesh>
 
-      {/* Value text */}
       <Text
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
         fontSize={0.35}
@@ -97,7 +117,6 @@ const Box = ({ index, value, position = [0, 0, 0], isActive, onSelect }) => {
         {String(value)}
       </Text>
 
-      {/* Index text */}
       <Text
         position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
         fontSize={0.2}
