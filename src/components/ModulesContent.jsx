@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { X, Lock, CheckCircle, Loader2, Loader, Clock } from "lucide-react";
+import { X, Lock, CheckCircle, Clock } from "lucide-react";
 import {
   loadProgress,
   finishModule,
@@ -24,7 +24,7 @@ const ModulesContent = () => {
     setModulesData(loadProgress());
   }, []);
 
-  // Update finished module based on route (not index)
+  // Update finished module based on route
   useEffect(() => {
     if (location.state?.route && modulesData.length > 0) {
       const key = normalizeRouteKey(location.state.route);
@@ -55,14 +55,14 @@ const ModulesContent = () => {
     if (!isUnlocked(modulesData, index)) return null;
     if (module.progress === 100) {
       return (
-        <span className="flex items-center gap-1 text-green-600 text-xs font-semibold">
-          <CheckCircle className="w-4 h-4" /> Done
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-600 text-xs font-semibold">
+          <CheckCircle className="w-3 h-3" /> Done
         </span>
       );
     }
     return (
-      <span className="flex items-center gap-1 text-red-400 text-xs font-medium">
-        <Clock className="w-4 h-4" /> In Progress
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-600 text-xs font-medium">
+        <Clock className="w-3 h-3" /> In Progress
       </span>
     );
   };
@@ -70,9 +70,9 @@ const ModulesContent = () => {
   return (
     <div className="relative">
       {showError && (
-        <div className="alert alert-error shadow-lg fixed top-4 right-4 z-50 w-[20rem] animate-fade-in">
-          <div className="flex items-center justify-between w-full">
-            <span>{errorMessage}</span>
+        <div className="fixed top-4 right-4 z-50 w-[20rem] animate-slide-in">
+          <div className="flex items-center justify-between bg-red-500/90 text-white rounded-xl shadow-lg px-4 py-3 border-l-4 border-red-700">
+            <span className="text-sm">{errorMessage}</span>
             <button onClick={() => setShowError(false)}>
               <X className="w-4 h-4" />
             </button>
@@ -80,34 +80,36 @@ const ModulesContent = () => {
         </div>
       )}
 
-      <div className="bg-base-200 rounded-xl shadow-md h-[calc(100vh-6.5rem)] overflow-y-auto p-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="bg-base-200 rounded-2xl shadow-md h-[calc(100vh-6.5rem)] overflow-y-auto p-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
           {modulesData.map((module, index) => (
             <button
               key={normalizeRouteKey(module.route)}
               onClick={() => handleClick(module, index)}
-              className={`flex flex-col items-start justify-between rounded-lg p-2 shadow transition-all duration-150
+              className={`flex flex-col items-start justify-between rounded-2xl p-3 shadow-md transition-all duration-200
                 ${
                   isUnlocked(modulesData, index)
-                    ? "cursor-pointer bg-white dark:bg-neutral hover:ring-2 hover:ring-primary hover:scale-[1.02]"
+                    ? "cursor-pointer bg-white dark:bg-neutral hover:ring-2 hover:ring-primary hover:scale-[1.03]"
                     : "cursor-not-allowed bg-gray-100 dark:bg-base-300 opacity-70"
                 }`}
             >
-              <div className="w-full aspect-square flex items-center justify-center bg-gray-200 rounded-md overflow-hidden relative">
+              {/* Image */}
+              <div className="w-full aspect-square flex items-center justify-center bg-base-300 rounded-xl overflow-hidden relative">
                 <img
                   src={module.image}
                   alt={module.title}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-cover"
                 />
                 {!isUnlocked(modulesData, index) && (
-                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center rounded-md">
-                    <Lock className="w-6 h-6 text-white" />
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center rounded-xl">
+                    <Lock className="w-7 h-7 text-white" />
                   </div>
                 )}
               </div>
 
-              <div className="w-full flex flex-col mt-2 px-1">
-                <span className="font-semibold text-left text-primary text-sm mb-1">
+              {/* Text & Status */}
+              <div className="w-full flex flex-col mt-3 px-1">
+                <span className="font-semibold text-left text-primary text-sm mb-2 line-clamp-2">
                   {module.title}
                 </span>
                 {getStatus(module, index)}
