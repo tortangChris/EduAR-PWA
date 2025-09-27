@@ -1,27 +1,36 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Save } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const PersonalContent = () => {
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
 
   const storedUser = JSON.parse(localStorage.getItem("user")) || {
     username: "User's Name",
     email: "user123@gmail.com",
-    image: null,
+    avatar: null,
   };
 
   const [name, setName] = useState(storedUser.username);
-  const [email, setEmail] = useState(storedUser.email);
-  const [image, setImage] = useState(storedUser.image || null);
+  const [email] = useState(storedUser.email);
+  const [avatar, setAvatar] = useState(storedUser.avatar);
 
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
 
-  const handleSaveClick = () => {
-    setShowSaveModal(true);
-  };
+  // Avatars from public/icons folder
+  const avatars = [
+    "/icons/icon1.png",
+    "/icons/icon2.png",
+    "/icons/icon3.png",
+    "/icons/icon4.png",
+    "/icons/icon5.png",
+    "/icons/icon6.png",
+    "/icons/icon7.png",
+  ];
+
+  const handleSaveClick = () => setShowSaveModal(true);
 
   const handleConfirmSave = () => {
     setShowSaveModal(false);
@@ -30,73 +39,52 @@ const PersonalContent = () => {
       ...storedUser,
       username: name,
       email: email,
-      image: image,
+      avatar: avatar,
     };
 
-    // Save to localStorage (para gumana sa login at settings)
     localStorage.setItem("user", JSON.stringify(updatedUser));
-
     console.log("Information saved:", updatedUser);
     navigate("/settings");
   };
 
-  const handleCancelSave = () => {
-    setShowSaveModal(false);
-  };
+  const handleCancelSave = () => setShowSaveModal(false);
 
-  const handleDiscardClick = () => {
-    setShowDiscardModal(true);
-  };
+  const handleDiscardClick = () => setShowDiscardModal(true);
 
   const handleConfirmDiscard = () => {
     setShowDiscardModal(false);
-    // Reset to last saved state
     setName(storedUser.username);
-    setEmail(storedUser.email);
-    setImage(storedUser.image || null);
+    setAvatar(storedUser.avatar);
     console.log("Changes discarded.");
     navigate("/settings");
   };
 
-  const handleCancelDiscard = () => {
-    setShowDiscardModal(false);
-  };
+  const handleCancelDiscard = () => setShowDiscardModal(false);
 
-  const handleImageClick = () => {
-    fileInputRef.current.click();
-  };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const imgUrl = URL.createObjectURL(file);
-      setImage(imgUrl);
-    }
+  const handleChooseAvatar = (selected) => {
+    setAvatar(selected);
+    setShowAvatarModal(false);
   };
 
   return (
     <>
-      <div className="bg-base-200 rounded-2xl shadow-xl p-8 max-w-full mx-auto mt-10 space-y-6">
-        <div className="flex justify-center">
-          <div className="avatar cursor-pointer" onClick={handleImageClick}>
+      <div className="bg-base-200 rounded-2xl shadow-xl p-8 max-w-full mx-auto mt-2 space-y-6">
+        {/* Avatar Section */}
+        <div className="flex flex-col items-center gap-4">
+          <div className="avatar">
             <div className="w-32 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
-              <img
-                src={
-                  image || "https://via.placeholder.com/150?text=Upload+Image"
-                }
-                alt="User"
-              />
+              <img src={avatar || "/icons/icon1.png"} alt="User Avatar" />
             </div>
           </div>
-          <input
-            type="file"
-            accept="image/*"
-            ref={fileInputRef}
-            onChange={handleImageChange}
-            style={{ display: "none" }}
-          />
+          <button
+            className="btn btn-outline btn-primary btn-sm"
+            onClick={() => setShowAvatarModal(true)}
+          >
+            Choose Avatar
+          </button>
         </div>
 
+        {/* Username */}
         <div className="form-control w-full">
           <label className="label">
             <span className="label-text font-semibold">Username</span>
@@ -109,6 +97,7 @@ const PersonalContent = () => {
           />
         </div>
 
+        {/* Gmail (disabled) */}
         <div className="form-control w-full">
           <label className="label">
             <span className="label-text font-semibold">Gmail</span>
@@ -121,6 +110,7 @@ const PersonalContent = () => {
           />
         </div>
 
+        {/* Save / Discard */}
         <div className="pt-4 space-y-2">
           <button
             className="btn btn-success gap-2 w-full justify-center"
@@ -137,6 +127,7 @@ const PersonalContent = () => {
         </div>
       </div>
 
+      {/* Save Modal */}
       {showSaveModal && (
         <dialog id="confirm_modal" className="modal modal-open">
           <div className="modal-box">
@@ -154,6 +145,7 @@ const PersonalContent = () => {
         </dialog>
       )}
 
+      {/* Discard Modal */}
       {showDiscardModal && (
         <dialog id="discard_modal" className="modal modal-open">
           <div className="modal-box">
@@ -167,6 +159,36 @@ const PersonalContent = () => {
               </button>
               <button className="btn btn-error" onClick={handleConfirmDiscard}>
                 Discard Changes
+              </button>
+            </div>
+          </div>
+        </dialog>
+      )}
+
+      {/* Avatar Modal */}
+      {showAvatarModal && (
+        <dialog id="avatar_modal" className="modal modal-open">
+          <div className="modal-box max-w-lg">
+            <h3 className="font-bold text-lg mb-4">Choose Your Avatar</h3>
+            <div className="grid grid-cols-3 gap-4">
+              {avatars.map((a, idx) => (
+                <div
+                  key={idx}
+                  className="cursor-pointer avatar"
+                  onClick={() => handleChooseAvatar(a)}
+                >
+                  <div className="w-20 rounded-full ring hover:ring-primary">
+                    <img src={a} alt={`Avatar ${idx + 1}`} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="modal-action">
+              <button
+                className="btn btn-outline"
+                onClick={() => setShowAvatarModal(false)}
+              >
+                Close
               </button>
             </div>
           </div>
