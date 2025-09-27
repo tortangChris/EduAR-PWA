@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import SettingsPersonalNav from "./SettingsPersonalNav";
+import { Palette, Shield, HelpCircle, LogOut, Trash2 } from "lucide-react";
 
 const SettingsContent = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -11,68 +13,60 @@ const SettingsContent = () => {
     navigate("/auth/login");
   };
 
-  const handleDeleteClick = () => {
-    setIsDeleteModalOpen(true);
-  };
-
   const handleConfirmDelete = () => {
     localStorage.clear();
     setIsDeleteModalOpen(false);
-    console.log("Account deleted successfully.");
     navigate("/auth/login");
-  };
-
-  const handleCancelDelete = () => {
-    setIsDeleteModalOpen(false);
-  };
-
-  const handleLogoutClick = () => {
-    setIsLogoutModalOpen(true);
-  };
-
-  const handleCancelLogout = () => {
-    setIsLogoutModalOpen(false);
-  };
-
-  const handleConfirmLogout = () => {
-    setIsLogoutModalOpen(false);
-    handleLogout();
   };
 
   return (
     <>
-      <div className="bg-base-200 rounded-xl shadow-md overflow-y-auto p-4 space-y-4">
-        <div className="bg-white dark:bg-neutral rounded-lg p-4 shadow space-y-2">
-          <h2 className="text-lg font-semibold text-primary">Theme</h2>
-          <div className="flex gap-4">
-            <button className="btn btn-sm w-full">System</button>
+      <div className="bg-base-200 rounded-2xl shadow-md overflow-y-auto p-4 space-y-4">
+        {/* Profile card */}
+        <SettingsPersonalNav />
+
+        {/* Theme */}
+        <div className="bg-base-100 rounded-xl p-4 shadow space-y-3">
+          <div className="flex items-center gap-2 text-primary">
+            <Palette className="w-5 h-5" />
+            <h2 className="text-lg font-semibold">Theme</h2>
           </div>
+          <button className="btn btn-sm w-full">System</button>
+        </div>
 
-          <div className="divider"></div>
-
-          <h2 className="text-lg font-semibold text-primary">
-            Privacy & Security
-          </h2>
+        {/* Privacy & Security */}
+        <div className="bg-base-100 rounded-xl p-4 shadow space-y-3">
+          <div className="flex items-center gap-2 text-primary">
+            <Shield className="w-5 h-5" />
+            <h2 className="text-lg font-semibold">Privacy & Security</h2>
+          </div>
           <button className="btn btn-sm w-full">Change Password</button>
+        </div>
 
-          <div className="divider"></div>
-
-          <h2 className="text-lg font-semibold text-primary">Help & Support</h2>
+        {/* Help & Support */}
+        <div className="bg-base-100 rounded-xl p-4 shadow space-y-3">
+          <div className="flex items-center gap-2 text-primary">
+            <HelpCircle className="w-5 h-5" />
+            <h2 className="text-lg font-semibold">Help & Support</h2>
+          </div>
           <button className="btn btn-sm w-full">FAQs</button>
           <button className="btn btn-sm w-full">Contact Support</button>
           <button className="btn btn-sm w-full">Send Feedback</button>
         </div>
 
-        {/* Buttons */}
-        <div className="max-w-xs mx-auto mt-4 space-y-2">
-          <button onClick={handleLogoutClick} className="btn btn-error w-full">
-            Logout
+        {/* Danger zone */}
+        <div className="space-y-2 pt-2 border-t border-base-300">
+          <button
+            onClick={() => setIsLogoutModalOpen(true)}
+            className="btn btn-error w-full flex items-center gap-2"
+          >
+            <LogOut className="w-4 h-4" /> Logout
           </button>
           <button
-            onClick={handleDeleteClick}
-            className="btn btn-outline btn-warning w-full"
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="btn btn-outline btn-warning w-full flex items-center gap-2"
           >
-            Delete Account
+            <Trash2 className="w-4 h-4" /> Delete Account
           </button>
         </div>
       </div>
@@ -80,14 +74,19 @@ const SettingsContent = () => {
       {/* Logout Modal */}
       {isLogoutModalOpen && (
         <dialog id="logout_modal" className="modal modal-open">
-          <div className="modal-box">
-            <h3 className="font-bold text-lg text-error">Logout</h3>
+          <div className="modal-box border-t-4 border-error">
+            <h3 className="font-bold text-lg text-error flex items-center gap-2">
+              <LogOut className="w-5 h-5" /> Logout
+            </h3>
             <p className="py-4">Are you sure you want to log out?</p>
             <div className="modal-action">
-              <button className="btn btn-outline" onClick={handleCancelLogout}>
+              <button
+                className="btn btn-outline"
+                onClick={() => setIsLogoutModalOpen(false)}
+              >
                 Cancel
               </button>
-              <button className="btn btn-error" onClick={handleConfirmLogout}>
+              <button className="btn btn-error" onClick={handleLogout}>
                 Logout
               </button>
             </div>
@@ -98,14 +97,19 @@ const SettingsContent = () => {
       {/* Delete Account Modal */}
       {isDeleteModalOpen && (
         <dialog id="delete_modal" className="modal modal-open">
-          <div className="modal-box">
-            <h3 className="font-bold text-lg text-warning">Delete Account</h3>
+          <div className="modal-box border-t-4 border-warning">
+            <h3 className="font-bold text-lg text-warning flex items-center gap-2">
+              <Trash2 className="w-5 h-5" /> Delete Account
+            </h3>
             <p className="py-4">
-              Are you sure you want to permanently delete your account? This
-              will log you out immediately and cannot be undone.
+              Are you sure you want to permanently delete your account? <br />
+              This cannot be undone.
             </p>
             <div className="modal-action">
-              <button className="btn btn-outline" onClick={handleCancelDelete}>
+              <button
+                className="btn btn-outline"
+                onClick={() => setIsDeleteModalOpen(false)}
+              >
                 Cancel
               </button>
               <button className="btn btn-warning" onClick={handleConfirmDelete}>
