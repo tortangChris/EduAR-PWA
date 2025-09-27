@@ -28,35 +28,32 @@ const SignUp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary to-accent flex flex-col justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-indigo-600 to-purple-900 flex flex-col justify-between">
       {/* Logo and Title */}
       <div className="text-center pt-10 relative flex flex-col items-center">
-        <div className="absolute w-30 h-30 rounded-full border-3 border-dotted border-white animate-spin-slow"></div>
-
         <img
-          src="/icons/eduar1.png"
+          src="/icons/EduARLogo.png"
           alt="EduAR Logo"
-          className="mx-auto w-35 h-30 mb-3 relative z-10"
+          className="mx-auto w-42 h-42 mb-2 relative z-10"
         />
-        <h1 className="text-2xl font-bold text-white relative z-10">EduAR</h1>
       </div>
 
-      <div className="w-full bg-base-100 shadow-xl rounded-t-3xl px-6 py-8 h-[70vh]">
-        <h2 className="text-3xl font-bold text-center mt-3 mb-10 font-serif">
+      <div className="w-full bg-base-100 rounded-t-3xl px-6 py-8 h-[70vh] shadow-[0_-12px_30px_-5px_rgba(0,0,0,0.5)]">
+        <h2 className="text-3xl font-bold text-center mb-10 font-serif text-indigo-600">
           Create Account
         </h2>
 
-        <form onSubmit={handleSignUp} className="space-y-4">
+        <form onSubmit={handleSignUp} className="space-y-5">
           <div className="form-control">
             <label className="label">
-              <span className="label-text">Username</span>
+              <span className="label-text font-medium">Username</span>
             </label>
             <input
               type="text"
               placeholder="Enter username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50"
+              className="input input-bordered w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary"
               required
               disabled={loading}
             />
@@ -64,14 +61,14 @@ const SignUp = () => {
 
           <div className="form-control">
             <label className="label">
-              <span className="label-text">Gmail</span>
+              <span className="label-text font-medium">Gmail</span>
             </label>
             <input
               type="email"
               placeholder="name@gmail.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50"
+              className="input input-bordered w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary"
               required
               disabled={loading}
             />
@@ -79,14 +76,14 @@ const SignUp = () => {
 
           <div className="form-control">
             <label className="label">
-              <span className="label-text">Password</span>
+              <span className="label-text font-medium">Password</span>
             </label>
             <input
               type="password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50"
+              className="input input-bordered w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary"
               required
               disabled={loading}
             />
@@ -94,14 +91,14 @@ const SignUp = () => {
 
           <button
             type="submit"
-            className="btn btn-primary w-full mt-2"
+            className="btn btn-primary w-full mt-2 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200"
             disabled={loading}
           >
             {loading ? "Signing Up..." : "Sign Up"}
           </button>
         </form>
 
-        <p className="text-sm text-center mt-6">
+        <p className="text-sm text-center mt-6 text-gray-600">
           Already have an account?{" "}
           <button
             type="button"
@@ -113,16 +110,6 @@ const SignUp = () => {
           </button>
         </p>
       </div>
-
-      <style>{`
-        @keyframes spin-slow {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        .animate-spin-slow {
-          animation: spin-slow 8s linear infinite;
-        }
-      `}</style>
     </div>
   );
 };

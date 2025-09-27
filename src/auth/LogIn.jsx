@@ -44,33 +44,33 @@ const LogIn = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary to-accent flex flex-col justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-indigo-600 to-purple-900 flex flex-col justify-between">
       {/* Logo and Title */}
       <div className="text-center pt-10 relative flex flex-col items-center">
-        <div className="absolute w-30 h-30 rounded-full border-3 border-dotted border-white animate-spin-slow"></div>
+        {/* <div className="absolute w-30 h-30 rounded-full border-3 border-dotted border-white animate-spin-slow"></div> */}
 
         <img
-          src="/icons/eduar1.png"
+          src="/icons/EduARLogo.png"
           alt="EduAR Logo"
-          className="mx-auto w-35 h-30 mb-3 relative z-10"
+          className="mx-auto w-42 h-42 mb-2 relative z-10"
         />
-        <h1 className="text-2xl font-bold text-white relative z-10">EduAR</h1>
+        {/* <h1 className="text-3xl font-bold text-white relative z-10">EduAR</h1> */}
       </div>
 
-      <div className="w-full bg-base-100 shadow-xl rounded-t-3xl px-6 py-8 h-[70vh]">
-        <h2 className="text-3xl font-bold text-center mt-3 mb-10 font-serif">
+      <div className="w-full bg-base-100 rounded-t-3xl px-6 py-8 h-[70vh] shadow-[0_-12px_30px_-5px_rgba(0,0,0,0.5)]">
+        <h2 className="text-3xl font-bold text-center mb-10 font-serif text-indigo-600">
           Welcome Back
         </h2>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div className="form-control">
             <label className="label">
-              <span className="label-text">Gmail</span>
+              <span className="label-text font-medium">Gmail</span>
             </label>
             <input
               type="email"
               placeholder="username@gmail.com"
-              className={`input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50 ${
+              className={`input input-bordered w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary ${
                 emailError ? "input-error" : ""
               }`}
               required
@@ -85,12 +85,12 @@ const LogIn = () => {
 
           <div className="form-control">
             <label className="label">
-              <span className="label-text">Password</span>
+              <span className="label-text font-medium">Password</span>
             </label>
             <input
               type="password"
               placeholder="••••••••"
-              className={`input input-bordered w-full focus:outline-none focus:ring-1 focus:border-primary/50 ${
+              className={`input input-bordered w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary ${
                 passwordError ? "input-error" : ""
               }`}
               required
@@ -111,14 +111,14 @@ const LogIn = () => {
 
           <button
             type="submit"
-            className="btn btn-primary w-full mt-2"
+            className="btn btn-primary w-full mt-2 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200"
             disabled={loading}
           >
             {loading ? "Logging in..." : "Log In"}
           </button>
         </form>
 
-        <p className="text-sm text-center mt-6">
+        <p className="text-sm text-center mt-6 text-gray-600">
           Don't have an account?{" "}
           <button
             type="button"
@@ -130,16 +130,6 @@ const LogIn = () => {
           </button>
         </p>
       </div>
-
-      <style>{`
-        @keyframes spin-slow {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        .animate-spin-slow {
-          animation: spin-slow 8s linear infinite;
-        }
-      `}</style>
     </div>
   );
 };
