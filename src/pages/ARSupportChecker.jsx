@@ -4,23 +4,19 @@ import { Info } from "lucide-react";
 const statusConfig = {
   supported: {
     short: "AR Supported: Ready for immersive AR experiences.",
-    // message: "This device is ready for immersive AR experiences.",
     dot: "bg-green-500",
   },
   unsupported: {
     short: "AR Not Supported: Unavailable access AR experiences.",
-    // message: "This browser or device does not support WebXR.",
     dot: "bg-red-500",
   },
   error: {
     short:
       "Error Checking: An error occurred while checking for AR compatibility.",
-    // message: "An error occurred while checking for AR compatibility.",
     dot: "bg-yellow-500",
   },
   checking: {
     short: "Checking... Please wait a moment.",
-    // message: "Please wait a moment.",
     dot: "bg-gray-400",
   },
 };
@@ -32,32 +28,46 @@ const ARSupportChecker = () => {
 
   useEffect(() => {
     const checkARSupport = async () => {
-      if (!navigator.xr) {
-        setSupportStatus("unsupported");
-        setTooltipOpen(true); // auto show warning
-        return;
-      }
       try {
+        if (!navigator.xr) {
+          setSupportStatus("unsupported");
+          setTooltipOpen(true);
+          return;
+        }
+
         const isSupported = await navigator.xr.isSessionSupported(
           "immersive-ar"
         );
-        if (isSupported) {
+
+        // Extra check: camera access for more reliable detection
+        let hasCamera = false;
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+          });
+          hasCamera = true;
+          stream.getTracks().forEach((track) => track.stop());
+        } catch (err) {
+          hasCamera = false;
+        }
+
+        if (isSupported && hasCamera) {
           setSupportStatus("supported");
         } else {
           setSupportStatus("unsupported");
-          setTooltipOpen(true); // auto show warning
+          setTooltipOpen(true);
         }
       } catch (error) {
         console.error("Error checking for AR support:", error);
         setSupportStatus("error");
-        setTooltipOpen(true); // auto show warning
+        setTooltipOpen(true);
       }
     };
 
     checkARSupport();
   }, []);
 
-  // Close tooltip when clicking outside
+  // Close tooltip when clicking outside (support touch)
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (tooltipRef.current && !tooltipRef.current.contains(event.target)) {
@@ -65,7 +75,11 @@ const ARSupportChecker = () => {
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
   }, []);
 
   const currentStatus = statusConfig[supportStatus] || statusConfig.checking;
@@ -97,9 +111,7 @@ const ARSupportChecker = () => {
             <span
               className={`w-2 h-8 rounded-full ${currentStatus.dot}`}
             ></span>
-            {currentStatus.icon}
             <span>{currentStatus.short}</span>
-            {/* <p className="ml-2">{currentStatus.message}</p> */}
           </div>
 
           <div className="mt-2 text-right">
@@ -112,7 +124,7 @@ const ARSupportChecker = () => {
           </div>
 
           {/* Tooltip arrow */}
-          <div className="absolute -top-1.5 right-1 w-4 h-4 bg-gray-800 rotate-55"></div>
+          <div className="absolute -top-1.5 right-1 w-4 h-4 bg-gray-800 rotate-45"></div>
         </div>
       </div>
     </div>
