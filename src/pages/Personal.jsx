@@ -21,7 +21,7 @@ const Personal = () => {
           </div>
 
           <div>
-            <h2 className="text-xl font-bold">Personal Information</h2>
+            <h2 className="text-xl font-bold">Edit Personal Account</h2>
             {/* <p className="text-sm text-gray-500">{username}</p> */}
           </div>
         </div>
