@@ -3,24 +3,25 @@ import { Info } from "lucide-react";
 
 const statusConfig = {
   supported: {
-    title: "AR is Supported",
-    message: "This device is ready for immersive AR experiences.",
-    classes: "bg-green-50 border-green-200 text-green-800",
+    short: "AR Supported: Ready for immersive AR experiences.",
+    // message: "This device is ready for immersive AR experiences.",
+    dot: "bg-green-500",
   },
   unsupported: {
-    title: "AR is Not Supported",
-    message: "This browser or device does not support WebXR.",
-    classes: "bg-red-50 border-red-200 text-red-800",
+    short: "AR Not Supported: Unavailable access AR experiences.",
+    // message: "This browser or device does not support WebXR.",
+    dot: "bg-red-500",
   },
   error: {
-    title: "Error Checking Support",
-    message: "An error occurred while checking for AR compatibility.",
-    classes: "bg-yellow-50 border-yellow-200 text-yellow-800",
+    short:
+      "Error Checking: An error occurred while checking for AR compatibility.",
+    // message: "An error occurred while checking for AR compatibility.",
+    dot: "bg-yellow-500",
   },
   checking: {
-    title: "Checking AR Compatibility...",
-    message: "Please wait a moment.",
-    classes: "bg-gray-50 border-gray-200 text-gray-700",
+    short: "Checking... Please wait a moment.",
+    // message: "Please wait a moment.",
+    dot: "bg-gray-400",
   },
 };
 
@@ -33,16 +34,23 @@ const ARSupportChecker = () => {
     const checkARSupport = async () => {
       if (!navigator.xr) {
         setSupportStatus("unsupported");
+        setTooltipOpen(true); // auto show warning
         return;
       }
       try {
         const isSupported = await navigator.xr.isSessionSupported(
           "immersive-ar"
         );
-        setSupportStatus(isSupported ? "supported" : "unsupported");
+        if (isSupported) {
+          setSupportStatus("supported");
+        } else {
+          setSupportStatus("unsupported");
+          setTooltipOpen(true); // auto show warning
+        }
       } catch (error) {
         console.error("Error checking for AR support:", error);
         setSupportStatus("error");
+        setTooltipOpen(true); // auto show warning
       }
     };
 
@@ -57,40 +65,54 @@ const ARSupportChecker = () => {
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const currentStatus = statusConfig[supportStatus] || statusConfig.checking;
-  const { title, message, classes } = currentStatus;
-
-  const baseContainerClasses =
-    "flex items-center justify-between p-3 border rounded-lg shadow-sm transition-colors duration-300";
 
   return (
-    <div className={`${baseContainerClasses} ${classes}`}>
-      <h3 className="font-semibold text-base">{title}</h3>
-
-      {/* Info icon on the right side */}
+    <div className="flex items-center gap-2 text-sm">
+      {/* Tooltip with Info */}
       <div className="relative" ref={tooltipRef}>
         <button
           type="button"
           onClick={() => setTooltipOpen(!tooltipOpen)}
-          className="cursor-pointer"
+          className="cursor-pointer hover:text-primary transition"
         >
-          <Info size={18} />
+          <Info size={16} />
         </button>
 
         {/* Tooltip */}
         <div
-          className={`
-            absolute right-0 mt-2 w-56 p-2 text-xs text-white 
-            bg-gray-800 rounded-md shadow-lg transition-opacity z-10
-            ${tooltipOpen ? "opacity-100" : "opacity-0 pointer-events-none"}
+          className={`absolute right-0 mt-2 w-60 p-3 text-xs text-white 
+            bg-gray-800 rounded-lg shadow-lg transition-all duration-200 z-10
+            ${
+              tooltipOpen
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 -translate-y-1 pointer-events-none"
+            }
           `}
         >
-          {message}
+          <div className="flex items-center gap-2 text-sm">
+            <span
+              className={`w-2 h-8 rounded-full ${currentStatus.dot}`}
+            ></span>
+            {currentStatus.icon}
+            <span>{currentStatus.short}</span>
+            {/* <p className="ml-2">{currentStatus.message}</p> */}
+          </div>
+
+          <div className="mt-2 text-right">
+            <button
+              onClick={() => setTooltipOpen(false)}
+              className="px-2 py-1 w-full text-xs bg-primary text-white rounded hover:bg-primary/80 transition"
+            >
+              OK
+            </button>
+          </div>
+
+          {/* Tooltip arrow */}
+          <div className="absolute -top-1.5 right-1 w-4 h-4 bg-gray-800 rotate-55"></div>
         </div>
       </div>
     </div>
