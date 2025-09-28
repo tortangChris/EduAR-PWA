@@ -37,7 +37,7 @@ const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   return (
     <div className="w-full h-screen">
       <Canvas
-        camera={{ position: [0, 1.6, 4], fov: 50 }}
+        camera={{ position: [0, 2, 6], fov: 50 }}
         gl={{ alpha: true }}
         shadows
         onCreated={({ gl }) => {
@@ -62,8 +62,8 @@ const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
           <FadeInText
             text="This is an Array"
             show={timeStep >= 0}
-            position={[0, 2, -3]}
-            fontSize={0.6}
+            position={[0, 1.8, -3]}
+            fontSize={0.4} // smaller, matches box scale
             color="white"
           />
         )}
@@ -89,28 +89,30 @@ const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
           </mesh>
         </group>
 
-        {/* Arrows + Labels */}
+        {/* Arrow + Label for Values */}
         {timeStep >= 5 && (
           <>
-            <FadeInArrow from={[-6, 0.5, -3]} to={[-4, 0.5, -3]} />
+            <FadeInArrow from={[-6, 1.1, -3]} to={[-4, 1.1, -3]} />
             <FadeInText
               text="Elements / Values"
               show={timeStep >= 5}
-              position={[-6, 0.5, -3]}
-              fontSize={0.35}
+              position={[-6, 1.3, -3]}
+              fontSize={0.25}
               color="orange"
               anchorX="right"
             />
           </>
         )}
+
+        {/* Arrow + Label for Indices */}
         {timeStep >= 10 && (
           <>
-            <FadeInArrow from={[-6, -0.5, -3]} to={[-3.5, -0.5, -3]} />
+            <FadeInArrow from={[-6, 0.5, -3]} to={[-3.5, 0.5, -3]} />
             <FadeInText
               text="Indices"
               show={timeStep >= 10}
-              position={[-6, -0.5, -3]}
-              fontSize={0.35}
+              position={[-6, 0.7, -3]}
+              fontSize={0.25}
               color="yellow"
               anchorX="right"
             />
@@ -225,11 +227,12 @@ const Box = ({
           emissiveIntensity={isActive ? 1 : 0}
         />
       </mesh>
+
       <FadeInText
         show
         text={String(value)}
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        fontSize={0.35}
+        fontSize={0.25}
         color="white"
       />
       {showIndex && (
@@ -237,7 +240,7 @@ const Box = ({
           show
           text={`[${index}]`}
           position={[0, -0.3, size[2] / 2 + 0.01]}
-          fontSize={0.25}
+          fontSize={0.2}
           color="yellow"
         />
       )}
