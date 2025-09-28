@@ -1,13 +1,11 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Text } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Text } from "@react-three/drei";
 import * as THREE from "three";
-import { XR } from "@react-three/xr";
 import useSound from "use-sound";
-
 import dingSfx from "/sounds/ding.mp3";
 
-const VisualPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
+const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   const [timeStep, setTimeStep] = useState(0);
   const [lastStage, setLastStage] = useState(-1);
   const [activeIndex, setActiveIndex] = useState(null);
@@ -30,25 +28,18 @@ const VisualPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
     }
   }, [timeStep, lastStage, playDing]);
 
+  // positions
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  const handleSelect = (index) => {
-    setActiveIndex(index);
-    playDing();
-
-    setTimeout(() => {
-      setActiveIndex(null);
-    }, 2000);
-  };
-
   return (
-    <div className="w-full h-[400px]">
+    <div className="w-full h-screen">
       <Canvas
+        camera={{ position: [0, 1.6, 4], fov: 50 }}
+        gl={{ alpha: true }}
         shadows
-        camera={{ position: [0, 4, 12], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
           if (navigator.xr) {
@@ -57,78 +48,77 @@ const VisualPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
                 requiredFeatures: ["local-floor"],
               })
               .then((session) => gl.xr.setSession(session))
-              .catch((err) => console.error("❌ Failed to start AR:", err));
+              .catch((err) =>
+                console.error("Failed to start AR session:", err)
+              );
           }
         }}
       >
-        <XR>
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[5, 10, 5]} intensity={0.8} />
+        <ambientLight intensity={0.4} />
+        <directionalLight position={[5, 10, 5]} intensity={0.8} castShadow />
 
-          {/* Timeline-based text */}
+        {/* Timeline Text */}
+        {timeStep >= 0 && (
           <FadeInText
-            show={timeStep >= 0}
             text="This is an Array"
-            position={[0, 3, -3]}
+            show={timeStep >= 0}
+            position={[0, 2, -3]}
             fontSize={0.6}
             color="white"
           />
+        )}
 
-          {/* Boxes */}
+        {/* Boxes */}
+        <group position={[0, 0, -3]} scale={[0.2, 0.2, 0.2]}>
           {timeStep >= 3 &&
             data.map((value, i) => (
               <Box
                 key={i}
                 index={i}
                 value={value}
-                position={positions[i].map((p) => p)}
+                position={positions[i]}
                 showIndex={timeStep >= 8}
                 isActive={activeIndex === i}
-                onSelect={handleSelect}
               />
             ))}
 
-          {/* Arrow + Labels */}
-          {timeStep >= 5 && (
-            <>
-              <FadeInArrow from={[-6, 0.5, -3]} to={[-4, 0.5, -3]} />
-              <FadeInText
-                show={timeStep >= 5}
-                text="Elements / Values"
-                position={[-6, 0.5, -3]}
-                fontSize={0.35}
-                color="orange"
-                anchorX="right"
-              />
-            </>
-          )}
-
-          {timeStep >= 10 && (
-            <>
-              <FadeInArrow from={[-6, -0.5, -3]} to={[-3.5, -0.5, -3]} />
-              <FadeInText
-                show={timeStep >= 10}
-                text="Indices"
-                position={[-6, -0.5, -3]}
-                fontSize={0.35}
-                color="yellow"
-                anchorX="right"
-              />
-            </>
-          )}
-
           {/* Shadow plane */}
-          <mesh
-            rotation-x={-Math.PI / 2}
-            position={[0, -0.1, -3]}
-            receiveShadow
-          >
-            <planeGeometry args={[20, 20]} />
+          <mesh rotation-x={-Math.PI / 2} receiveShadow position={[0, -0.1, 0]}>
+            <planeGeometry args={[10, 10]} />
             <shadowMaterial opacity={0.3} />
           </mesh>
+        </group>
 
-          <OrbitControls makeDefault />
-        </XR>
+        {/* Arrows + Labels */}
+        {timeStep >= 5 && (
+          <>
+            <FadeInArrow from={[-6, 0.5, -3]} to={[-4, 0.5, -3]} />
+            <FadeInText
+              text="Elements / Values"
+              show={timeStep >= 5}
+              position={[-6, 0.5, -3]}
+              fontSize={0.35}
+              color="orange"
+              anchorX="right"
+            />
+          </>
+        )}
+        {timeStep >= 10 && (
+          <>
+            <FadeInArrow from={[-6, -0.5, -3]} to={[-3.5, -0.5, -3]} />
+            <FadeInText
+              text="Indices"
+              show={timeStep >= 10}
+              position={[-6, -0.5, -3]}
+              fontSize={0.35}
+              color="yellow"
+              anchorX="right"
+            />
+          </>
+        )}
+
+        {/* Tap Controls */}
+        <TapControls setActiveIndex={setActiveIndex} />
       </Canvas>
     </div>
   );
@@ -181,7 +171,6 @@ const FadeInText = ({
 const FadeInArrow = ({ from, to }) => {
   const ref = useRef();
   const opacity = useRef(0);
-
   const dir = new THREE.Vector3(
     to[0] - from[0],
     to[1] - from[1],
@@ -195,11 +184,10 @@ const FadeInArrow = ({ from, to }) => {
 
   useFrame(() => {
     opacity.current = Math.min(opacity.current + 0.05, 1);
-    if (ref.current) {
+    if (ref.current)
       ref.current.setColor(
         new THREE.Color(`rgba(255,255,255,${opacity.current})`)
       );
-    }
   });
 
   return (
@@ -218,17 +206,17 @@ const Box = ({
   value,
   position = [0, 0, 0],
   showIndex = false,
-  isActive,
-  onSelect,
+  isActive = false,
 }) => {
   const size = [1.6, 1.2, 1];
+
   return (
     <group position={position}>
       <mesh
         castShadow
         receiveShadow
         position={[0, size[1] / 2, 0]}
-        onPointerDown={() => onSelect(index)}
+        userData={{ index, value }}
       >
         <boxGeometry args={size} />
         <meshStandardMaterial
@@ -237,20 +225,16 @@ const Box = ({
           emissiveIntensity={isActive ? 1 : 0}
         />
       </mesh>
-
-      {/* Value */}
       <FadeInText
-        show={true}
+        show
         text={String(value)}
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
         fontSize={0.35}
         color="white"
       />
-
-      {/* Index */}
       {showIndex && (
         <FadeInText
-          show={true}
+          show
           text={`[${index}]`}
           position={[0, -0.3, size[2] / 2 + 0.01]}
           fontSize={0.25}
@@ -261,4 +245,41 @@ const Box = ({
   );
 };
 
-export default VisualPage1;
+// === TapControls ===
+const TapControls = ({ setActiveIndex }) => {
+  const { gl, camera, scene } = useThree();
+  const raycaster = useRef(new THREE.Raycaster());
+
+  useEffect(() => {
+    const session = gl.xr.getSession();
+    if (!session) return;
+
+    const onSelect = () => {
+      const viewerPose = gl.xr.getCamera(camera);
+      if (!viewerPose) return;
+
+      const origin = new THREE.Vector3();
+      const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(
+        viewerPose.quaternion
+      );
+      raycaster.current.set(origin, direction);
+
+      const intersects = raycaster.current.intersectObjects(
+        scene.children,
+        true
+      );
+      if (intersects.length > 0) {
+        const first = intersects[0].object;
+        const { index } = first.userData;
+        if (index !== undefined) setActiveIndex(index);
+      }
+    };
+
+    session.addEventListener("select", onSelect);
+    return () => session.removeEventListener("select", onSelect);
+  }, [gl, camera, scene, setActiveIndex]);
+
+  return null;
+};
+
+export default ARPage1;
