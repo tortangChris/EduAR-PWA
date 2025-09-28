@@ -127,13 +127,16 @@ const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
 // Box component with fade-in value and index
 const Box = ({ index, value, position = [0, 0, 0], showIndex = false }) => {
   const size = [1.6, 1.2, 1];
+
   return (
     <group position={position}>
+      {/* Box */}
       <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
         <boxGeometry args={size} />
         <meshStandardMaterial color={index % 2 === 0 ? "#60a5fa" : "#34d399"} />
       </mesh>
 
+      {/* Value */}
       <Text
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
         fontSize={0.35}
@@ -144,11 +147,13 @@ const Box = ({ index, value, position = [0, 0, 0], showIndex = false }) => {
         {String(value)}
       </Text>
 
+      {/* Index (aligned like labels) */}
       {showIndex && (
         <Text
-          position={[0, -0.3, size[2] / 2 + 0.01]}
+          position={[0, -0.3, size[2] / 2 + 0.01]} // slightly below the box
+          rotation={[0, 0, 0]} // same orientation as labels
           fontSize={0.25}
-          anchorX="center"
+          anchorX="right"
           anchorY="middle"
           color="yellow"
         >
