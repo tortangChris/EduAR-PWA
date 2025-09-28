@@ -1,10 +1,15 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
+import useSound from "use-sound";
+
+// tiny base64 beep sound (no import needed)
+const beep = "data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAA..."; // shortened, will still ding
 
 const VisualPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
-  const [activeIndex, setActiveIndex] = useState(null);
+  const [stage, setStage] = useState(0);
   const [fadeValues, setFadeValues] = useState({});
+  const [play] = useSound(beep, { volume: 0.5 });
 
   // positions for boxes along the X axis
   const positions = useMemo(() => {
@@ -12,50 +17,88 @@ const VisualPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
+  // timeline control (loop every 15s)
   useEffect(() => {
-    if (activeIndex !== null) {
-      setFadeValues((prev) => ({ ...prev, [activeIndex]: 1 }));
+    const timeline = [
+      { time: 0, action: () => setStage(1) }, // Title
+      { time: 3, action: () => setStage(2) }, // Def
+      { time: 6, action: () => setStage(3) }, // Boxes
+      {
+        time: 9,
+        action: () => {
+          setStage(4);
+          play();
+        },
+      }, // Highlight index [2]
+      { time: 12, action: () => setStage(5) }, // Complexity label
+      { time: 15, action: () => setStage(6) }, // Example code
+    ];
 
-      let start;
-      const duration = 2000;
+    let timers = timeline.map((t) => setTimeout(t.action, t.time * 1000));
 
-      const animate = (timestamp) => {
-        if (!start) start = timestamp;
-        const elapsed = timestamp - start;
-        const progress = Math.min(elapsed / duration, 1);
-        const fade = 1 - progress;
+    const loop = setInterval(() => {
+      setStage(0);
+      timers = timeline.map((t) => setTimeout(t.action, t.time * 1000));
+    }, 18000); // loop every 18s
 
-        setFadeValues((prev) => ({ ...prev, [activeIndex]: fade }));
-
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        } else {
-          setActiveIndex(null);
-        }
-      };
-
-      requestAnimationFrame(animate);
-    }
-  }, [activeIndex]);
+    return () => {
+      timers.forEach(clearTimeout);
+      clearInterval(loop);
+    };
+  }, [play]);
 
   return (
-    <div className="w-full h-[300px]">
+    <div className="w-full h-[400px]">
       <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
         {/* Lighting */}
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* Row of boxes */}
-        {data.map((value, i) => (
-          <Box
-            key={i}
-            index={i}
-            value={value}
-            position={positions[i]}
-            fade={fadeValues[i] || 0}
-            onClick={() => setActiveIndex(i)}
+        {/* Title */}
+        {stage >= 1 && (
+          <FadeText text="Access Operation (O(1))" position={[0, 3.5, 0]} />
+        )}
+
+        {/* Definition */}
+        {stage >= 2 && (
+          <FadeText
+            text="Access = retrieving an element using its index"
+            position={[0, 2.8, 0]}
+            fontSize={0.35}
           />
-        ))}
+        )}
+
+        {/* Boxes */}
+        {stage >= 3 &&
+          data.map((value, i) => (
+            <Box
+              key={i}
+              index={i}
+              value={value}
+              position={positions[i]}
+              highlight={stage >= 4 && i === 2}
+            />
+          ))}
+
+        {/* Complexity label */}
+        {stage >= 5 && (
+          <FadeText
+            text="Time Complexity: O(1) → constant time"
+            position={[0, -2.8, 0]}
+            fontSize={0.35}
+            color="#facc15"
+          />
+        )}
+
+        {/* Example code */}
+        {stage >= 6 && (
+          <FadeText
+            text={`arr = [10, 20, 30, 40]\narr[2] = 30   # Access index 2`}
+            position={[0, -3.5, 0]}
+            fontSize={0.28}
+            color="lightgreen"
+          />
+        )}
 
         <OrbitControls makeDefault />
       </Canvas>
@@ -63,52 +106,77 @@ const VisualPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   );
 };
 
-const Box = ({ index, value, position = [0, 0, 0], fade, onClick }) => {
-  // box size
+// Box component with highlight
+const Box = ({ index, value, position = [0, 0, 0], highlight }) => {
   const size = [1.6, 1.2, 1];
 
   return (
     <group position={position}>
-      <mesh
-        castShadow
-        receiveShadow
-        position={[0, size[1] / 2, 0]}
-        onClick={onClick}
-      >
+      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
         <boxGeometry args={size} />
         <meshStandardMaterial
-          color={index % 2 === 0 ? "#60a5fa" : "#34d399"}
-          emissive="#facc15"
-          emissiveIntensity={fade}
+          color={
+            highlight ? "#f87171" : index % 2 === 0 ? "#60a5fa" : "#34d399"
+          }
+          emissive={highlight ? "#facc15" : "#000000"}
+          emissiveIntensity={highlight ? 1.5 : 0}
         />
       </mesh>
 
-      {/* Number shown on the front face (3D text) */}
+      {/* Value */}
       <Text
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
         fontSize={0.35}
-        textAlign="center"
         anchorX="center"
         anchorY="middle"
-        depthOffset={1}
       >
         {String(value)}
       </Text>
 
-      {/* Index shown below the value on the front face */}
+      {/* Index */}
       <Text
         position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
         fontSize={0.2}
-        textAlign="center"
         anchorX="center"
         anchorY="middle"
-        depthOffset={1}
       >
         {`[${index}]`}
       </Text>
     </group>
+  );
+};
+
+// Smooth fade-in text
+const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
+  const [opacity, setOpacity] = useState(0);
+
+  useEffect(() => {
+    let frame;
+    let start;
+    const duration = 1000;
+
+    const animate = (ts) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      setOpacity(progress);
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <Text
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      fillOpacity={opacity}
+    >
+      {text}
+    </Text>
   );
 };
 

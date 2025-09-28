@@ -1,168 +1,276 @@
+// VisualPage3.jsx
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
-import { Play, Square, RotateCcw } from "lucide-react";
+import * as THREE from "three";
+import useSound from "use-sound";
+import dingSfx from "/sounds/ding.mp3"; // put ding.mp3 in public/sounds/
 
-const VisualPage3 = ({
-  data = [10, 20, 30, 40, 50],
-  spacing = 2.0,
-  target = 40,
-}) => {
-  const [activeIndex, setActiveIndex] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState("Idle");
-  const intervalRef = useRef(null);
+const VisualPage3 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
+  const [stage, setStage] = useState(0);
+  const [highlightIndex, setHighlightIndex] = useState(null);
+  const [statusText, setStatusText] = useState("");
+  const [play] = useSound(dingSfx, { volume: 0.5 });
 
-  // positions for boxes along the X axis
+  // compute box positions
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  const handlePlay = () => {
-    if (isPlaying) return;
-    setProgress(0);
-    setActiveIndex(null);
-    setStatus("Starting search...");
-    setIsPlaying(true);
+  // timeline (loop every 25s)
+  useEffect(() => {
+    const timeline = [
+      {
+        time: 0,
+        action: () => {
+          setStage(1);
+          setStatusText("");
+          play();
+        },
+      }, // Title
+      {
+        time: 3,
+        action: () => {
+          setStage(2);
+          play();
+        },
+      }, // Definition
+      {
+        time: 6,
+        action: () => {
+          setStage(3);
+          play();
+        },
+      }, // Boxes
+      {
+        time: 9,
+        action: () => {
+          setHighlightIndex(0);
+          setStatusText("Checking index 0...");
+          play();
+        },
+      },
+      {
+        time: 10.5,
+        action: () => {
+          setHighlightIndex(1);
+          setStatusText("Checking index 1...");
+          play();
+        },
+      },
+      {
+        time: 12,
+        action: () => {
+          setHighlightIndex(2);
+          setStatusText("Found at index 2!");
+          play();
+          setStage(4);
+        },
+      },
+      {
+        time: 18,
+        action: () => {
+          setStage(5);
+          play();
+        },
+      }, // Complexity
+      {
+        time: 20,
+        action: () => {
+          setStage(6);
+          play();
+        },
+      }, // Example
+    ];
 
-    let currentIndex = 0;
-    intervalRef.current = setInterval(() => {
-      setActiveIndex(currentIndex);
-      setStatus(`Checking index ${currentIndex}...`);
-      setProgress(((currentIndex + 1) / data.length) * 100);
+    let timers = timeline.map((t) => setTimeout(t.action, t.time * 1000));
 
-      if (data[currentIndex] === target) {
-        setStatus(`✅ Found ${target} at index ${currentIndex}`);
-        clearInterval(intervalRef.current);
-        setIsPlaying(false);
-      } else if (currentIndex === data.length - 1) {
-        setStatus(`❌ ${target} not found`);
-        clearInterval(intervalRef.current);
-        setIsPlaying(false);
-      } else {
-        currentIndex++;
-      }
-    }, 1000);
-  };
+    const loop = setInterval(() => {
+      setStage(0);
+      setHighlightIndex(null);
+      setStatusText("");
+      timers.forEach(clearTimeout);
+      timers = timeline.map((t) => setTimeout(t.action, t.time * 1000));
+    }, 25000);
 
-  const handleStop = () => {
-    clearInterval(intervalRef.current);
-    setIsPlaying(false);
-    setStatus("Stopped");
-  };
-
-  const handleReset = () => {
-    clearInterval(intervalRef.current);
-    setIsPlaying(false);
-    setProgress(0);
-    setActiveIndex(null);
-    setStatus("Idle");
-  };
+    return () => {
+      timers.forEach(clearTimeout);
+      clearInterval(loop);
+    };
+  }, [play]);
 
   return (
-    <div className="w-full h-[300px] flex flex-col items-center justify-center">
-      <div className="w-2/3 mb-4">
-        <div className="flex items-center gap-3 mb-2">
-          <button
-            onClick={handlePlay}
-            className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50"
-            disabled={isPlaying}
-          >
-            <Play size={20} />
-          </button>
-          <button
-            onClick={handleStop}
-            className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 disabled:opacity-50"
-            disabled={!isPlaying}
-          >
-            <Square size={20} />
-          </button>
-          <button
-            onClick={handleReset}
-            className="p-2 bg-gray-500 text-white rounded-full hover:bg-gray-600"
-          >
-            <RotateCcw size={20} />
-          </button>
-        </div>
-        <div className="w-full h-2 bg-gray-300 rounded">
-          <div
-            className="h-2 bg-green-500 rounded"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <div className="mt-2 text-gray-700 font-mono text-sm text-center">
-          {status}
-        </div>
-      </div>
+    <div className="w-full h-[440px]">
+      <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
+        <ambientLight intensity={0.45} />
+        <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-      {/* 3D Scene */}
-      <div className="w-full h-[60%]">
-        <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
-          {/* Lighting */}
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[5, 10, 5]} intensity={0.8} />
+        {/* Title */}
+        <FadeInText
+          show={stage >= 1}
+          text="Search Operation (O(n))"
+          position={[0, 3.5, 0]}
+          fontSize={0.6}
+          color="white"
+        />
 
-          {/* Row of boxes */}
-          {data.map((value, i) => (
+        {/* Definition */}
+        <FadeInText
+          show={stage >= 2}
+          text="Searching = looking for an element in the array"
+          position={[0, 2.9, 0]}
+          fontSize={0.32}
+          color="#ffd166"
+        />
+
+        {/* Boxes */}
+        {stage >= 3 &&
+          data.map((value, i) => (
             <Box
               key={i}
               index={i}
               value={value}
               position={positions[i]}
-              fade={activeIndex === i ? 1 : 0}
+              highlight={highlightIndex === i && stage < 4}
+              found={highlightIndex === i && stage >= 4}
             />
           ))}
 
-          <OrbitControls makeDefault />
-        </Canvas>
-      </div>
+        {/* Status label (checking/found) */}
+        <FadeInText
+          show={!!statusText}
+          text={statusText}
+          position={[0, -1.5, 0]}
+          fontSize={0.35}
+          color="#ffba08"
+        />
+
+        {/* Complexity label */}
+        <FadeInText
+          show={stage >= 5}
+          text="Time Complexity: O(n) → proportional to array size"
+          position={[0, -2.6, 0]}
+          fontSize={0.34}
+          color="#facc15"
+        />
+
+        {/* Example code */}
+        <FadeInText
+          show={stage >= 6}
+          text={`arr = [10, 20, 30, 40]\nSearch 30 → Found at index 2 after checking 3 elements`}
+          position={[0, -3.4, 0]}
+          fontSize={0.28}
+          color="#9be7a2"
+        />
+
+        <OrbitControls makeDefault />
+      </Canvas>
     </div>
   );
 };
 
-const Box = ({ index, value, position = [0, 0, 0], fade }) => {
+/* ---------- Box component ---------- */
+const Box = ({ index, value, position = [0, 0, 0], highlight, found }) => {
+  const meshRef = useRef();
   const size = [1.6, 1.2, 1];
+
+  useFrame(() => {
+    if (!meshRef.current) return;
+    const mat = meshRef.current.material;
+    const baseColor = new THREE.Color("#60a5fa"); // same color for all
+    const targetColor = found
+      ? new THREE.Color("#4ade80")
+      : highlight
+      ? new THREE.Color("#f87171")
+      : baseColor;
+    const targetEmissive = highlight || found ? 0.9 : 0;
+
+    mat.color.lerp(targetColor, 0.12);
+    mat.emissive = mat.emissive || new THREE.Color(0x000000);
+    mat.emissive.lerp(new THREE.Color(targetColor), 0.12);
+    mat.emissiveIntensity = THREE.MathUtils.lerp(
+      mat.emissiveIntensity || 0,
+      targetEmissive,
+      0.12
+    );
+  });
 
   return (
     <group position={position}>
-      {/* Box */}
-      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
+      <mesh
+        ref={meshRef}
+        castShadow
+        receiveShadow
+        position={[0, size[1] / 2, 0]}
+      >
         <boxGeometry args={size} />
         <meshStandardMaterial
-          color={index % 2 === 0 ? "#60a5fa" : "#34d399"}
-          emissive={fade ? "#facc15" : "#000000"}
-          emissiveIntensity={fade ? 0.9 : 0}
+          color={"#60a5fa"}
+          emissive={"#000000"}
+          emissiveIntensity={0}
         />
       </mesh>
 
-      {/* Number shown on the front face (3D text) */}
       <Text
         position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
         fontSize={0.35}
-        textAlign="center"
         anchorX="center"
         anchorY="middle"
-        depthOffset={1}
       >
         {String(value)}
       </Text>
 
-      {/* Index shown below the value on the front face */}
       <Text
         position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
         fontSize={0.2}
-        textAlign="center"
         anchorX="center"
         anchorY="middle"
-        depthOffset={1}
       >
         {`[${index}]`}
       </Text>
     </group>
+  );
+};
+
+/* ---------- Fade-in Text ---------- */
+const FadeInText = ({
+  show = false,
+  text = "",
+  position = [0, 0, 0],
+  fontSize = 0.5,
+  color = "white",
+}) => {
+  const ref = useRef();
+  const opacity = useRef(0);
+  const scale = useRef(0.85);
+
+  useFrame(() => {
+    if (show) {
+      opacity.current = Math.min(opacity.current + 0.05, 1);
+      scale.current = Math.min(scale.current + 0.03, 1);
+    } else {
+      opacity.current = Math.max(opacity.current - 0.06, 0);
+      scale.current = Math.max(scale.current - 0.04, 0.85);
+    }
+    if (ref.current && ref.current.material) {
+      ref.current.material.transparent = true;
+      ref.current.material.opacity = opacity.current;
+      ref.current.scale.set(scale.current, scale.current, scale.current);
+    }
+  });
+
+  return (
+    <Text
+      ref={ref}
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+    >
+      {text}
+    </Text>
   );
 };
 
