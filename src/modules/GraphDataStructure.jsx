@@ -13,6 +13,7 @@ import ProgressBar from "../components/common/ProgressBar";
 import { useModuleProgress } from "../services/useModuleProgress";
 
 import { logActivity } from "../services/activityService";
+import Page6 from "../components/Graph/Page6";
 
 const GraphDataStructure = () => {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ const GraphDataStructure = () => {
     <Page3 />,
     <Page4 />,
     <Page5 />,
+    <Page6 />,
   ];
 
   const totalPages = pages.length;
