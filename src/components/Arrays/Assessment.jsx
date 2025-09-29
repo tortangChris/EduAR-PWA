@@ -84,8 +84,8 @@ const Assessment = () => {
   const mid = (questions[currentQ].choices.length - 1) / 2;
 
   return (
-    <div className="w-full h-[500px]">
-      <Canvas camera={{ position: [0, 3, 8], fov: 50 }}>
+    <div className="w-full h-[300px]">
+      <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 

@@ -4,7 +4,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import ModuleHeader from "../components/ModuleHeader";
 import ProgressBar from "../components/common/ProgressBar";
 
-import Week4 from "../components/Arrays/Week4";
 import Page0 from "../components/Arrays/Page0";
 import Page1 from "../components/Arrays/Page1";
 import Page2 from "../components/Arrays/Page2";
@@ -14,6 +13,7 @@ import Page5 from "../components/Arrays/Page5";
 
 import { useModuleProgress } from "../services/useModuleProgress";
 import { logActivity } from "../services/activityService";
+import Page6 from "../components/Arrays/Page6";
 
 const Arrays = () => {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ const Arrays = () => {
     <Page3 />,
     <Page4 />,
     <Page5 />,
-    <Week4 />,
+    <Page6 />,
   ];
   const totalPages = pages.length;
 
