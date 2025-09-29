@@ -13,18 +13,13 @@ import PageAssessment from "../components/Linked List/PageAssessment";
 import { useModuleProgress } from "../services/useModuleProgress";
 
 import { logActivity } from "../services/activityService"; // 👈 import logger
+import Page5 from "../components/Linked List/Page5";
 
 const LinkedList = () => {
   const navigate = useNavigate();
   const { page } = useParams();
 
-  const pages = [
-    <Page1 />,
-    <Page2 />,
-    <Page3 />,
-    <Page4 />,
-    <PageAssessment />,
-  ];
+  const pages = [<Page1 />, <Page2 />, <Page3 />, <Page4 />, <Page5 />];
   const totalPages = pages.length;
 
   const pageIndex = Math.min((Number(page) || 1) - 1, totalPages - 1);
