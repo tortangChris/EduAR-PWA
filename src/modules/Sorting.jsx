@@ -14,6 +14,7 @@ import Page0 from "../components/Sorting/Page0";
 import Page4 from "../components/Sorting/Page4";
 
 import { logActivity } from "../services/activityService";
+import Page5 from "../components/Sorting/Page5";
 
 const Sorting = () => {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ const Sorting = () => {
     <Page2 />,
     <Page3 />,
     <Page4 />,
-    <PageAssessment />,
+    <Page5 />,
   ];
   const totalPages = pages.length;
 
