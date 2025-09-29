@@ -14,6 +14,7 @@ import ProgressBar from "../components/common/ProgressBar";
 import { useModuleProgress } from "../services/useModuleProgress";
 
 import { logActivity } from "../services/activityService";
+import Page6 from "../components/Tree/Page6";
 
 const TreeRecursion = () => {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ const TreeRecursion = () => {
     <Page3 />,
     <Page4 />,
     <Page5 />,
+    <Page6 />,
   ];
 
   const totalPages = pages.length;
