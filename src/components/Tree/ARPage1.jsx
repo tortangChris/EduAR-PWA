@@ -153,6 +153,10 @@ const Box = ({ index, value, position = [0, 0, 0] }) => {
         fontSize={0.35}
         anchorX="center"
         anchorY="middle"
+        color="white"
+        outlineWidth={0.02}
+        outlineColor="black"
+        fontWeight="bold"
       >
         {String(value)}
       </Text>
@@ -162,6 +166,10 @@ const Box = ({ index, value, position = [0, 0, 0] }) => {
         fontSize={0.2}
         anchorX="center"
         anchorY="middle"
+        color="yellow"
+        outlineWidth={0.015}
+        outlineColor="black"
+        fontWeight="bold"
       >
         {`[${index}]`}
       </Text>
