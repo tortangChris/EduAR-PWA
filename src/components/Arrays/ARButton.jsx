@@ -12,11 +12,12 @@ const ARButton = ({ currentPage }) => {
 
   // i-map page → ARPage
   const pageToAR = {
-    2: <ARPage1 />,
-    3: <ARPage2 />,
-    4: <ARPage3 />,
-    5: <ARPage4 />,
-    6: <ARPage5 />,
+    0: <ARPage1 />,
+    1: <ARPage1 />,
+    2: <ARPage2 />,
+    3: <ARPage3 />,
+    4: <ARPage4 />,
+    5: <ARPage5 />,
   };
 
   useEffect(() => {
