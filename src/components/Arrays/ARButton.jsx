@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { Lock, Unlock } from "lucide-react";
-import ARPage1 from "./ARPage1"; // 👈 direct import
+import ARPage1 from "./ARPage1";
+import ARPage2 from "./ARPage2";
+import ARPage3 from "./ARPage3";
+import ARPage4 from "./ARPage4";
+import ARPage5 from "./ARPage5";
 
-const ARButton = () => {
-  const [isSupported, setIsSupported] = useState(null); // null = checking
-  const [startAR, setStartAR] = useState(false); // to track if user confirmed
+const ARButton = ({ currentPage }) => {
+  const [isSupported, setIsSupported] = useState(null);
+  const [startAR, setStartAR] = useState(false);
+
+  // i-map page → ARPage
+  const pageToAR = {
+    2: <ARPage1 />,
+    3: <ARPage2 />,
+    4: <ARPage3 />,
+    5: <ARPage4 />,
+    6: <ARPage5 />,
+  };
 
   useEffect(() => {
     const checkARSupport = async () => {
@@ -24,9 +37,14 @@ const ARButton = () => {
     checkARSupport();
   }, []);
 
-  if (startAR) {
-    // ✅ kapag confirmed click at supported, open ARPage1
-    return <ARPage1 />;
+  // kung nag-start na si AR at may match na page → render ARPage
+  if (startAR && pageToAR[currentPage]) {
+    return pageToAR[currentPage];
+  }
+
+  // wala sa page range (2–6) → wag mag-render ng button
+  if (!pageToAR[currentPage]) {
+    return null;
   }
 
   if (isSupported === null) {
@@ -44,7 +62,7 @@ const ARButton = () => {
   return (
     <button
       disabled={!isSupported}
-      onClick={() => setStartAR(true)} // 👈 trigger render ng ARPage1
+      onClick={() => setStartAR(true)}
       className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium shadow-sm transition 
         ${
           isSupported
