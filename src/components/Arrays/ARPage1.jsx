@@ -66,6 +66,9 @@ const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
               anchorX="center"
               anchorY="middle"
               color="white"
+              fontWeight="bold"
+              strokeColor="black"
+              strokeWidth={0.02}
             >
               This is an Array
             </Text>
@@ -93,6 +96,9 @@ const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
                 color="orange"
                 anchorX="right"
                 anchorY="middle"
+                fontWeight="bold"
+                strokeColor="black"
+                strokeWidth={0.015}
               >
                 Elements / Values
               </Text>
@@ -107,6 +113,9 @@ const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
                 color="yellow"
                 anchorX="right"
                 anchorY="middle"
+                fontWeight="bold"
+                strokeColor="black"
+                strokeWidth={0.015}
               >
                 Indices
               </Text>
@@ -143,6 +152,9 @@ const Box = ({ index, value, position = [0, 0, 0], showIndex = false }) => {
         anchorX="center"
         anchorY="middle"
         color="white"
+        fontWeight="bold"
+        strokeColor="black"
+        strokeWidth={0.015}
       >
         {String(value)}
       </Text>
@@ -151,11 +163,14 @@ const Box = ({ index, value, position = [0, 0, 0], showIndex = false }) => {
       {showIndex && (
         <Text
           position={[0, -0.3, size[2] / 2 + 0.01]} // slightly below the box
-          rotation={[0, 0, 0]} // same orientation as labels
+          rotation={[0, 0, 0]}
           fontSize={0.25}
           anchorX="right"
           anchorY="middle"
           color="yellow"
+          fontWeight="bold"
+          strokeColor="black"
+          strokeWidth={0.01}
         >
           [{index}]
         </Text>
