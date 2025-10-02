@@ -52,7 +52,7 @@ const ARPage5 = ({
   return (
     <div className="w-full h-screen">
       <Canvas
-        camera={{ position: [0, 2, 6], fov: 50 }}
+        camera={{ position: [0, 2, 4], fov: 50 }}
         gl={{ alpha: true }}
         shadows
         onCreated={({ gl }) => {

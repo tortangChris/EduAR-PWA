@@ -57,7 +57,7 @@ const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
         {/* Fixed AR group */}
-        <group position={[0, 1, -2]} scale={[0.1, 0.1, 0.1]}>
+        <group position={[0, 1, 0]} scale={[0.1, 0.1, 0.1]}>
           {/* Main text */}
           {timeStep >= 0 && (
             <Text
