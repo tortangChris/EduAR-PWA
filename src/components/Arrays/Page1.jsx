@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import ReactMarkdown from "react-markdown";
-import content from "../../../public/markdown/ArrayPage1.md?raw";
 import VisualPage1 from "./VisualPage1";
 import ARButton from "./ARButton";
 import { useModuleProgress } from "../../services/useModuleProgress"; // 👈 import FSM hook
+import ArrayPage01 from "./Contents/ArrayPage01";
 
 const Page1 = () => {
   const [showWarning, setShowWarning] = useState(false);
@@ -14,13 +13,9 @@ const Page1 = () => {
 
   return (
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(82vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">
-      {/* ✅ ipasa currentPage */}
       <ARButton currentPage={currentPage} />
 
-      <div className="markdown-body">
-        <ReactMarkdown>{content}</ReactMarkdown>
-      </div>
-
+      <ArrayPage01 />
       <div className="w-full h-[300px] bg-gray-900 rounded-xl flex items-center justify-center relative">
         <VisualPage1 />
       </div>
