@@ -1,6 +1,6 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
-import content from "../../../public/markdown/ArrayPage0.md?raw";
+import content from "../../../public/markdown/StackQueuePage0.md?raw";
 
 const Page0 = () => {
   return (
