@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import ReactMarkdown from "react-markdown";
-import content from "../../../public/markdown/LinkedListPage4.md?raw";
 import { Scan } from "lucide-react";
 import VisualPage4 from "./VisualPage4";
 import ARPage4 from "./ARPage4";
+import LinkedListPage04 from "./Contents/LinkedListPage04";
 
 const Page4 = () => {
   const [showWarning, setShowWarning] = useState(false);
@@ -36,9 +35,7 @@ const Page4 = () => {
 
   return (
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(80vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">
-      <div className="markdown-body">
-        <ReactMarkdown>{content}</ReactMarkdown>
-      </div>
+      <LinkedListPage04 />
 
       <div className="w-full h-[300px] bg-gray-900 rounded-xl flex items-center justify-center relative">
         <VisualPage4 />

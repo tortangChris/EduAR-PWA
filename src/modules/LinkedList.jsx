@@ -8,18 +8,16 @@ import Page1 from "../components/Linked List/Page1";
 import Page2 from "../components/Linked List/Page2";
 import Page3 from "../components/Linked List/Page3";
 import Page4 from "../components/Linked List/Page4";
-import PageAssessment from "../components/Linked List/PageAssessment";
 
 import { useModuleProgress } from "../services/useModuleProgress";
 
 import { logActivity } from "../services/activityService"; // 👈 import logger
-import Page5 from "../components/Linked List/Page5";
-
+import Page0 from "../components/Linked List/Page0";
 const LinkedList = () => {
   const navigate = useNavigate();
   const { page } = useParams();
 
-  const pages = [<Page1 />, <Page2 />, <Page3 />, <Page4 />, <Page5 />];
+  const pages = [<Page0 />, <Page1 />, <Page2 />, <Page3 />, <Page4 />];
   const totalPages = pages.length;
 
   const pageIndex = Math.min((Number(page) || 1) - 1, totalPages - 1);
