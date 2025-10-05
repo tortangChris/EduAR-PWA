@@ -86,7 +86,7 @@ const AssessmentARInteractive = () => {
   return (
     <div className="w-full h-screen">
       <Canvas
-        camera={{ position: [0, 2, 6], fov: 55 }} // ✅ moved slightly farther
+        camera={{ position: [0, 2, 10], fov: 55 }} // ✅ moved slightly farther
         gl={{ alpha: true }}
         shadows
         onCreated={({ gl }) => {
