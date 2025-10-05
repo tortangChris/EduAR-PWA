@@ -5,7 +5,6 @@ import ARPage2 from "./ARPage2";
 import ARPage3 from "./ARPage3";
 import ARPage4 from "./ARPage4";
 import ARPage5 from "./ARPage5";
-import AssessmentAR from "./AssessmentAR";
 
 const ARButton = ({ currentPage }) => {
   const [isSupported, setIsSupported] = useState(null);
@@ -13,7 +12,7 @@ const ARButton = ({ currentPage }) => {
 
   // i-map page → ARPage
   const pageToAR = {
-    0: <AssessmentAR />,
+    0: <ARPage1 />,
     1: <ARPage1 />,
     2: <ARPage2 />,
     3: <ARPage3 />,
