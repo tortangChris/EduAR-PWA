@@ -8,26 +8,9 @@ import wrongSfx from "/sounds/wrong.mp3";
 
 const AssessmentARInteractive = () => {
   return (
-    <div className="w-full h-screen relative">
-      {/* ✅ Crosshair pointer in center */}
-      <div
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: "20px",
-          height: "20px",
-          border: "2px solid white",
-          borderRadius: "50%",
-          pointerEvents: "none",
-          zIndex: 10,
-          opacity: 0.8,
-        }}
-      ></div>
-
+    <div className="w-full h-screen">
       <Canvas
-        camera={{ position: [0, 1.5, 7], fov: 55 }}
+        camera={{ position: [0, 1.5, 10], fov: 60 }}
         gl={{ alpha: true }}
         shadows
         onCreated={({ gl }) => {
@@ -50,9 +33,6 @@ const AssessmentARInteractive = () => {
   );
 };
 
-// ======================
-//  SCENE CONTENT
-// ======================
 const AssessmentScene = () => {
   const questions = [
     {
@@ -80,14 +60,17 @@ const AssessmentScene = () => {
   const [playCorrect] = useSound(correctSfx, { volume: 0.5 });
   const [playWrong] = useSound(wrongSfx, { volume: 0.5 });
   const choiceRefs = useRef([]);
-  const raycaster = useRef(new THREE.Raycaster());
-  const pointer = useRef(new THREE.Vector2(0, 0)); // center of screen
   const { camera } = useThree();
+  const raycaster = useRef(new THREE.Raycaster());
 
-  // ✅ Tap detection (crosshair always center)
+  // ✅ Add invisible ray from camera center on tap
   useEffect(() => {
     const handleTap = () => {
-      raycaster.current.setFromCamera(pointer.current, camera);
+      const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(
+        camera.quaternion
+      );
+      raycaster.current.set(camera.position, direction);
+
       const intersects = raycaster.current.intersectObjects(
         choiceRefs.current.map((ref) => ref.meshRef.current),
         true
@@ -119,42 +102,43 @@ const AssessmentScene = () => {
     }, 2000);
   };
 
-  // 👇 Slightly closer spacing between objects
   const spacing = 2.5;
   const mid = (questions[currentQ].choices.length - 1) / 2;
-
   choiceRefs.current = [];
 
   return (
-    <group position={[0, 1, -5]} scale={[0.12, 0.12, 0.12]}>
+    <group position={[0, 1, -10]} scale={[0.15, 0.15, 0.15]}>
+      {/* ✅ 3D crosshair visible in AR */}
+      <mesh position={[0, 0, -5]}>
+        <ringGeometry args={[0.05, 0.07, 32]} />
+        <meshBasicMaterial color="white" transparent opacity={0.9} />
+      </mesh>
+
+      {/* Question indicator */}
       <Text
-        position={[0, 22, 0]}
+        position={[0, 25, 0]}
         fontSize={2.5}
         color="yellow"
         anchorX="center"
         anchorY="middle"
-        fontWeight="bold"
-        strokeColor="black"
-        strokeWidth={0.08}
       >
         {`Question ${currentQ + 1} of ${questions.length}`}
       </Text>
 
+      {/* Question text */}
       <Text
-        position={[0, 16, 0]}
+        position={[0, 17, 0]}
         fontSize={3}
         color="white"
         anchorX="center"
         anchorY="middle"
         maxWidth={80}
         lineHeight={1.3}
-        fontWeight="bold"
-        strokeColor="black"
-        strokeWidth={0.08}
       >
         {questions[currentQ].question}
       </Text>
 
+      {/* Choices */}
       {questions[currentQ].choices.map((choice, i) => (
         <Choice
           key={i}
@@ -170,9 +154,6 @@ const AssessmentScene = () => {
   );
 };
 
-// ======================
-//  CHOICE BOX COMPONENT
-// ======================
 const Choice = ({
   refCallback,
   geometry,
@@ -212,9 +193,6 @@ const Choice = ({
         color="white"
         anchorX="center"
         anchorY="middle"
-        fontWeight="bold"
-        strokeColor="black"
-        strokeWidth={0.05}
       >
         {label}
       </Text>
