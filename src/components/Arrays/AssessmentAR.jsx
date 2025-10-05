@@ -6,13 +6,12 @@ import useSound from "use-sound";
 import correctSfx from "/sounds/correct.mp3";
 import wrongSfx from "/sounds/wrong.mp3";
 
-const AssessmentAR = () => {
+const AssessmentARInteractive = () => {
   return (
     <div className="w-full h-screen">
       <Canvas
-        camera={{ position: [0, 2, 12], fov: 55 }}
+        camera={{ position: [0, 1.5, 4.5], fov: 60 }}
         gl={{ alpha: true }}
-        shadows
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
           if (navigator.xr) {
@@ -25,53 +24,41 @@ const AssessmentAR = () => {
           }
         }}
       >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
+        <ambientLight intensity={0.7} />
+        <directionalLight position={[2, 4, 3]} intensity={1.2} />
 
-        {/* 👇 Core AR Scene */}
-        <AssessmentScene />
+        <ARScene />
       </Canvas>
     </div>
   );
 };
 
-// ======================
-//  INSIDE CANVAS SCENE
-// ======================
-const AssessmentScene = () => {
+const ARScene = () => {
+  const [currentQ, setCurrentQ] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(null);
+  const [flash, setFlash] = useState(false);
+
+  const [playCorrect] = useSound(correctSfx, { volume: 0.5 });
+  const [playWrong] = useSound(wrongSfx, { volume: 0.5 });
+
+  const { camera } = useThree();
+  const raycaster = useRef(new THREE.Raycaster());
+  const pointer = useRef(new THREE.Vector2());
+  const choiceRefs = useRef([]);
+
   const questions = [
     {
       question:
         "Accessing an element in an array by index has what time complexity?",
       choices: [
-        { label: "O(1)", type: "cube", isCorrect: true },
-        { label: "O(n)", type: "cube", isCorrect: false },
-        { label: "O(log n)", type: "cube", isCorrect: false },
-      ],
-    },
-    {
-      question:
-        "Deleting an element from the beginning of an array has what complexity?",
-      choices: [
-        { label: "O(1)", type: "cube", isCorrect: false },
-        { label: "O(n)", type: "cube", isCorrect: true },
-        { label: "O(log n)", type: "cube", isCorrect: false },
+        { label: "O(1)", isCorrect: true },
+        { label: "O(n)", isCorrect: false },
+        { label: "O(log n)", isCorrect: false },
       ],
     },
   ];
 
-  const [currentQ, setCurrentQ] = useState(0);
-  const [selectedIndex, setSelectedIndex] = useState(null);
-  const [pointerPos, setPointerPos] = useState(null);
-  const [playCorrect] = useSound(correctSfx, { volume: 0.5 });
-  const [playWrong] = useSound(wrongSfx, { volume: 0.5 });
-
-  const choiceRefs = useRef([]);
-  const raycaster = useRef(new THREE.Raycaster());
-  const pointer = useRef(new THREE.Vector2());
-  const { camera, scene } = useThree();
-
-  // ✅ Tap detection (with pointer mark)
+  // ✅ Tap detection
   useEffect(() => {
     const handleTap = (event) => {
       const x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -80,24 +67,25 @@ const AssessmentScene = () => {
 
       raycaster.current.setFromCamera(pointer.current, camera);
       const intersects = raycaster.current.intersectObjects(
-        choiceRefs.current.map((ref) => ref.meshRef.current),
-        true
+        choiceRefs.current.map((ref) => ref.current),
+        false
       );
 
-      // show pointer marker in AR space
-      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-      const intersectionPoint = new THREE.Vector3();
-      raycaster.current.ray.intersectPlane(plane, intersectionPoint);
-      setPointerPos(intersectionPoint);
-      setTimeout(() => setPointerPos(null), 600); // fade pointer after 0.6s
+      // flash crosshair briefly
+      setFlash(true);
+      setTimeout(() => setFlash(false), 200);
 
       if (intersects.length > 0) {
-        const tappedObject = intersects[0].object;
-        const tappedIndex = choiceRefs.current.findIndex(
-          (ref) => ref.meshRef.current === tappedObject
+        const idx = choiceRefs.current.findIndex(
+          (ref) => ref.current === intersects[0].object
         );
-        if (tappedIndex >= 0) {
-          handleSelect(questions[currentQ].choices[tappedIndex], tappedIndex);
+        if (idx !== -1) {
+          const choice = questions[currentQ].choices[idx];
+          setSelectedIndex(idx);
+          if (choice.isCorrect) playCorrect();
+          else playWrong();
+
+          setTimeout(() => setSelectedIndex(null), 1000);
         }
       }
     };
@@ -106,35 +94,22 @@ const AssessmentScene = () => {
     return () => window.removeEventListener("pointerdown", handleTap);
   }, [currentQ]);
 
-  const handleSelect = (choice, index) => {
-    setSelectedIndex(index);
-    if (choice.isCorrect) playCorrect();
-    else playWrong();
+  choiceRefs.current = questions[currentQ].choices.map(() => React.createRef());
 
-    setTimeout(() => {
-      setSelectedIndex(null);
-      setCurrentQ((prev) => (prev + 1) % questions.length);
-    }, 2000);
-  };
-
-  const spacing = 3;
+  const spacing = 5;
   const mid = (questions[currentQ].choices.length - 1) / 2;
 
-  choiceRefs.current = [];
-
   return (
-    <group position={[0, 1, 0]} scale={[0.12, 0.12, 0.12]}>
+    <group position={[0, 1, -6]} scale={[0.12, 0.12, 0.12]}>
       <Text
         position={[0, 22, 0]}
-        fontSize={2.5}
+        fontSize={3}
         color="yellow"
         anchorX="center"
         anchorY="middle"
         fontWeight="bold"
-        strokeColor="black"
-        strokeWidth={0.08}
       >
-        {`Question ${currentQ + 1} of ${questions.length}`}
+        Question {currentQ + 1}
       </Text>
 
       <Text
@@ -145,86 +120,63 @@ const AssessmentScene = () => {
         anchorY="middle"
         maxWidth={80}
         lineHeight={1.3}
-        fontWeight="bold"
-        strokeColor="black"
-        strokeWidth={0.08}
       >
         {questions[currentQ].question}
       </Text>
 
-      {questions[currentQ].choices.map((choice, i) => (
-        <Choice
+      {questions[currentQ].choices.map((c, i) => (
+        <mesh
           key={i}
-          refCallback={(ref) => (choiceRefs.current[i] = ref)}
-          geometry={choice.type}
-          position={[(i - mid) * spacing * 6, 0, 0]}
-          label={choice.label}
-          isCorrect={choice.isCorrect}
-          selected={selectedIndex === i}
-        />
+          ref={choiceRefs.current[i]}
+          position={[(i - mid) * spacing * 10, 0, 0]}
+          scale={selectedIndex === i ? 1.4 : 1}
+        >
+          <boxGeometry args={[6, 6, 6]} />
+          <meshStandardMaterial
+            color={
+              selectedIndex === i ? (c.isCorrect ? "green" : "red") : "#60a5fa"
+            }
+            emissive={
+              selectedIndex === i ? (c.isCorrect ? "green" : "red") : "black"
+            }
+          />
+          <Text
+            position={[0, 7, 0]}
+            fontSize={2.5}
+            color="white"
+            anchorX="center"
+            anchorY="middle"
+          >
+            {c.label}
+          </Text>
+        </mesh>
       ))}
 
-      {/* ✅ White pointer marker */}
-      {pointerPos && (
-        <mesh position={pointerPos}>
-          <sphereGeometry args={[0.05, 16, 16]} />
-          <meshBasicMaterial color="white" />
-        </mesh>
-      )}
+      {/* ✅ Crosshair marker at screen center */}
+      <Crosshair flash={flash} />
     </group>
   );
 };
 
-// ======================
-//  CHOICE BOX COMPONENT
-// ======================
-const Choice = ({
-  refCallback,
-  geometry,
-  position,
-  label,
-  isCorrect,
-  selected,
-}) => {
-  const meshRef = useRef();
+// ==================
+// Crosshair Component
+// ==================
+const Crosshair = ({ flash }) => {
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    if (refCallback) refCallback({ meshRef });
-  }, [refCallback]);
-
-  useEffect(() => {
-    if (meshRef.current) {
-      meshRef.current.material.emissive.set(
-        selected ? (isCorrect ? "green" : "red") : "black"
-      );
-      meshRef.current.scale.setScalar(selected ? 1.2 : 1);
+    if (flash) {
+      setVisible(false);
+      setTimeout(() => setVisible(true), 150);
     }
-  }, [selected]);
+  }, [flash]);
 
-  return (
-    <group position={position}>
-      <mesh ref={meshRef} castShadow receiveShadow>
-        {geometry === "cube" ? (
-          <boxGeometry args={[6, 6, 6]} />
-        ) : (
-          <sphereGeometry args={[3.5, 32, 32]} />
-        )}
-        <meshStandardMaterial color="#60a5fa" />
-      </mesh>
-      <Text
-        position={[0, 7, 0]}
-        fontSize={2.5}
-        color="white"
-        anchorX="center"
-        anchorY="middle"
-        fontWeight="bold"
-        strokeColor="black"
-        strokeWidth={0.05}
-      >
-        {label}
-      </Text>
-    </group>
-  );
+  return visible ? (
+    <mesh position={[0, 0, -2]}>
+      <ringGeometry args={[0.02, 0.03, 32]} />
+      <meshBasicMaterial color="white" />
+    </mesh>
+  ) : null;
 };
 
-export default AssessmentAR;
+export default AssessmentARInteractive;
