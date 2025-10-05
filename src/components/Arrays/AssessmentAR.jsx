@@ -6,7 +6,7 @@ import useSound from "use-sound";
 import correctSfx from "/sounds/correct.mp3";
 import wrongSfx from "/sounds/wrong.mp3";
 
-const AssessmentARInteractive = () => {
+const AssessmentAR = () => {
   return (
     <div className="w-full h-screen">
       <Canvas
@@ -256,4 +256,4 @@ const Choice = ({
   );
 };
 
-export default AssessmentARInteractive;
+export default AssessmentAR;
