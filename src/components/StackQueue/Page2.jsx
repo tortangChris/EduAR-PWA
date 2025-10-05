@@ -5,6 +5,7 @@ import { Scan } from "lucide-react";
 import ARPage2 from "./ARPage2";
 import VisualPage2 from "./VisualPage2";
 import ARButton from "./ARButton";
+import StackQueuePage02 from "./Contents/StackQueuePage02";
 
 const Page2 = () => {
   const [showWarning, setShowWarning] = useState(false);
@@ -39,9 +40,7 @@ const Page2 = () => {
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(82vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">
       <ARButton />
 
-      <div className="markdown-body">
-        <ReactMarkdown>{content}</ReactMarkdown>
-      </div>
+      <StackQueuePage02 />
 
       <div className="w-full h-[300px] bg-gray-900 rounded-xl flex items-center justify-center relative">
         <VisualPage2 />
