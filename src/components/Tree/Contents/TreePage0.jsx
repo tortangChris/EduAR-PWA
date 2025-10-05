@@ -1,9 +1,9 @@
 import React from "react";
 
-const StackQueuePage0 = () => {
+const TreePage0 = () => {
   return (
     <div className="bg-base-200 rounded-xl shadow-md p-6 space-y-4 text-left">
-      <h1 className="text-2xl font-bold">Stacks & Queues</h1>
+      <h1 className="text-2xl font-bold">Tree Data Structure</h1>
       <hr className="my-2" />
 
       <h2 className="text-xl font-semibold">🔹 Progression Flow</h2>
@@ -16,7 +16,8 @@ const StackQueuePage0 = () => {
         </li>
         <li>
           <strong>Unlock next module:</strong> Passed the Assessment → module
-          marked complete → then <strong>Module 5 (Tree Data Structure)</strong>{" "}
+          marked complete → then{" "}
+          <strong>Module 6 (Graph Data Structure and Operations)</strong>{" "}
           unlocks.
         </li>
       </ul>
@@ -24,4 +25,4 @@ const StackQueuePage0 = () => {
   );
 };
 
-export default StackQueuePage0;
+export default TreePage0;

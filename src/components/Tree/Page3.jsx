@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import ReactMarkdown from "react-markdown";
-import content from "../../../public/markdown/TreePage3.md?raw";
 import { Scan } from "lucide-react";
 import ARPage3 from "./ARPage3";
 import VisualPage3 from "./VisualPage3";
 import ARButton from "./ARButton";
+import TreePage03 from "./Contents/TreePage03";
 
 const Page3 = () => {
   const [showWarning, setShowWarning] = useState(false);
@@ -39,9 +38,7 @@ const Page3 = () => {
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(82vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">
       <ARButton />
 
-      <div className="markdown-body">
-        <ReactMarkdown>{content}</ReactMarkdown>
-      </div>
+      <TreePage03 />
 
       <div className="w-full h-[300px] bg-gray-900 rounded-xl flex items-center justify-center relative">
         <VisualPage3 />
