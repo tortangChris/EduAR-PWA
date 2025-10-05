@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import useSound from "use-sound";
@@ -19,46 +19,11 @@ const AssessmentARInteractive = () => {
     },
     {
       question:
-        "Inserting an element at the end of an array (without resizing) has what complexity?",
-      choices: [
-        { label: "O(1)", type: "sphere", isCorrect: true },
-        { label: "O(n)", type: "sphere", isCorrect: false },
-        { label: "O(log n)", type: "sphere", isCorrect: false },
-      ],
-    },
-    {
-      question:
         "Deleting an element from the beginning of an array has what complexity?",
       choices: [
         { label: "O(1)", type: "cube", isCorrect: false },
         { label: "O(n)", type: "cube", isCorrect: true },
         { label: "O(log n)", type: "cube", isCorrect: false },
-      ],
-    },
-    {
-      question:
-        "Inserting an element in the middle of an array has what complexity?",
-      choices: [
-        { label: "O(1)", type: "sphere", isCorrect: false },
-        { label: "O(n)", type: "sphere", isCorrect: true },
-        { label: "O(log n)", type: "sphere", isCorrect: false },
-      ],
-    },
-    {
-      question:
-        "Searching for an element by value in an unsorted array has what complexity?",
-      choices: [
-        { label: "O(1)", type: "cube", isCorrect: false },
-        { label: "O(n)", type: "cube", isCorrect: true },
-        { label: "O(log n)", type: "cube", isCorrect: false },
-      ],
-    },
-    {
-      question: "Accessing the last element in an array has what complexity?",
-      choices: [
-        { label: "O(1)", type: "sphere", isCorrect: true },
-        { label: "O(n)", type: "sphere", isCorrect: false },
-        { label: "O(log n)", type: "sphere", isCorrect: false },
       ],
     },
   ];
@@ -68,12 +33,44 @@ const AssessmentARInteractive = () => {
   const [playCorrect] = useSound(correctSfx, { volume: 0.5 });
   const [playWrong] = useSound(wrongSfx, { volume: 0.5 });
 
+  const choiceRefs = useRef([]);
+  const raycaster = useRef(new THREE.Raycaster());
+  const pointer = useRef(new THREE.Vector2());
+  const { camera, scene } = useThree();
+
+  // ✅ Handle tap on screen (mobile AR)
+  useEffect(() => {
+    const handleTap = (event) => {
+      const x = (event.clientX / window.innerWidth) * 2 - 1;
+      const y = -(event.clientY / window.innerHeight) * 2 + 1;
+      pointer.current.set(x, y);
+
+      raycaster.current.setFromCamera(pointer.current, camera);
+      const intersects = raycaster.current.intersectObjects(
+        choiceRefs.current.map((ref) => ref.meshRef.current),
+        true
+      );
+
+      if (intersects.length > 0) {
+        const tappedObject = intersects[0].object;
+        const tappedIndex = choiceRefs.current.findIndex(
+          (ref) => ref.meshRef.current === tappedObject
+        );
+        if (tappedIndex >= 0) {
+          handleSelect(questions[currentQ].choices[tappedIndex], tappedIndex);
+        }
+      }
+    };
+
+    window.addEventListener("pointerdown", handleTap);
+    return () => window.removeEventListener("pointerdown", handleTap);
+  });
+
   const handleSelect = (choice, index) => {
     setSelectedIndex(index);
     if (choice.isCorrect) playCorrect();
     else playWrong();
 
-    // Move to next question after 2 seconds
     setTimeout(() => {
       setSelectedIndex(null);
       setCurrentQ((prev) => (prev + 1) % questions.length);
@@ -83,10 +80,13 @@ const AssessmentARInteractive = () => {
   const spacing = 3;
   const mid = (questions[currentQ].choices.length - 1) / 2;
 
+  // Clear previous refs
+  choiceRefs.current = [];
+
   return (
     <div className="w-full h-screen">
       <Canvas
-        camera={{ position: [0, 2, 10], fov: 55 }} // ✅ moved slightly farther
+        camera={{ position: [0, 2, 12], fov: 55 }}
         gl={{ alpha: true }}
         shadows
         onCreated={({ gl }) => {
@@ -100,17 +100,11 @@ const AssessmentARInteractive = () => {
               .catch((err) => console.error("❌ AR session failed:", err));
           }
         }}
-        onPointerDown={(e) => {
-          const object = e.intersections[0]?.object;
-          if (object && object.userData.onSelect) object.userData.onSelect();
-        }}
       >
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
-        {/* AR Group */}
-        <group position={[0, 1, -2]} scale={[0.12, 0.12, 0.12]}>
-          {/* Question Number */}
+        <group position={[0, 1, 0]} scale={[0.12, 0.12, 0.12]}>
           <Text
             position={[0, 22, 0]}
             fontSize={2.5}
@@ -124,7 +118,6 @@ const AssessmentARInteractive = () => {
             {`Question ${currentQ + 1} of ${questions.length}`}
           </Text>
 
-          {/* Question Text */}
           <Text
             position={[0, 16, 0]}
             fontSize={3}
@@ -140,80 +133,49 @@ const AssessmentARInteractive = () => {
             {questions[currentQ].question}
           </Text>
 
-          {/* Choices */}
           {questions[currentQ].choices.map((choice, i) => (
-            <ChoiceInteractive
+            <Choice
               key={i}
+              refCallback={(ref) => (choiceRefs.current[i] = ref)}
               geometry={choice.type}
               position={[(i - mid) * spacing * 6, 0, 0]}
               label={choice.label}
               isCorrect={choice.isCorrect}
               selected={selectedIndex === i}
-              onSelect={() => handleSelect(choice, i)}
             />
           ))}
-
-          {/* Ground plane */}
-          <mesh rotation-x={-Math.PI / 2} receiveShadow>
-            <planeGeometry args={[100, 100]} />
-            <shadowMaterial opacity={0.3} />
-          </mesh>
         </group>
       </Canvas>
     </div>
   );
 };
 
-// ✅ Choice with tap + optional drag
-const ChoiceInteractive = ({
+const Choice = ({
+  refCallback,
   geometry,
   position,
   label,
   isCorrect,
   selected,
-  onSelect,
 }) => {
   const meshRef = useRef();
-  const [isDragging, setIsDragging] = useState(false);
-  const { camera } = useThree();
 
-  useFrame(() => {
+  useEffect(() => {
+    if (refCallback) refCallback({ meshRef });
+  }, [refCallback]);
+
+  useEffect(() => {
     if (meshRef.current) {
-      // Glow color on select
       meshRef.current.material.emissive.set(
         selected ? (isCorrect ? "green" : "red") : "black"
       );
-      // Smooth scale transition
-      const targetScale = selected ? 1.3 : 1;
-      meshRef.current.scale.lerp(
-        new THREE.Vector3(targetScale, targetScale, targetScale),
-        0.1
-      );
+      meshRef.current.scale.setScalar(selected ? 1.2 : 1);
     }
-  });
-
-  const handlePointerDown = () => {
-    if (onSelect) onSelect(); // tap to select (no drag unless needed)
-  };
-
-  const handlePointerMove = (e) => {
-    if (!isDragging) return;
-    const vec = new THREE.Vector3(e.point.x, e.point.y, e.point.z);
-    meshRef.current.position.copy(vec);
-  };
-
-  const handlePointerUp = () => setIsDragging(false);
+  }, [selected]);
 
   return (
     <group position={position}>
-      <mesh
-        ref={meshRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        castShadow
-        receiveShadow
-      >
+      <mesh ref={meshRef} castShadow receiveShadow>
         {geometry === "cube" ? (
           <boxGeometry args={[6, 6, 6]} />
         ) : (
@@ -221,7 +183,6 @@ const ChoiceInteractive = ({
         )}
         <meshStandardMaterial color="#60a5fa" />
       </mesh>
-
       <Text
         position={[0, 7, 0]}
         fontSize={2.5}
