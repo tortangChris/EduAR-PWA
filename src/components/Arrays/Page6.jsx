@@ -9,10 +9,6 @@ const Page5 = () => {
       <ARButtonAssessment />
 
       <Assessment />
-
-      <div className="w-full h-[300px] bg-gray-900 rounded-xl flex items-center justify-center relative">
-        <VisualPage5 />
-      </div>
     </div>
   );
 };
