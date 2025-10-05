@@ -10,7 +10,7 @@ const AssessmentAR = () => {
   return (
     <div className="w-full h-screen">
       <Canvas
-        camera={{ position: [0, 2, 6], fov: 55 }}
+        camera={{ position: [0, 2, 12], fov: 55 }}
         gl={{ alpha: true }}
         shadows
         onCreated={({ gl }) => {
@@ -28,7 +28,7 @@ const AssessmentAR = () => {
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
 
-        {/* 👇 All the logic moved here */}
+        {/* 👇 Core AR Scene */}
         <AssessmentScene />
       </Canvas>
     </div>
@@ -62,15 +62,16 @@ const AssessmentScene = () => {
 
   const [currentQ, setCurrentQ] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(null);
+  const [pointerPos, setPointerPos] = useState(null);
   const [playCorrect] = useSound(correctSfx, { volume: 0.5 });
   const [playWrong] = useSound(wrongSfx, { volume: 0.5 });
 
   const choiceRefs = useRef([]);
   const raycaster = useRef(new THREE.Raycaster());
   const pointer = useRef(new THREE.Vector2());
-  const { camera } = useThree();
+  const { camera, scene } = useThree();
 
-  // ✅ Detect tap inside Canvas (AR-safe)
+  // ✅ Tap detection (with pointer mark)
   useEffect(() => {
     const handleTap = (event) => {
       const x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -82,6 +83,13 @@ const AssessmentScene = () => {
         choiceRefs.current.map((ref) => ref.meshRef.current),
         true
       );
+
+      // show pointer marker in AR space
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const intersectionPoint = new THREE.Vector3();
+      raycaster.current.ray.intersectPlane(plane, intersectionPoint);
+      setPointerPos(intersectionPoint);
+      setTimeout(() => setPointerPos(null), 600); // fade pointer after 0.6s
 
       if (intersects.length > 0) {
         const tappedObject = intersects[0].object;
@@ -112,11 +120,10 @@ const AssessmentScene = () => {
   const spacing = 3;
   const mid = (questions[currentQ].choices.length - 1) / 2;
 
-  // Clear previous refs
   choiceRefs.current = [];
 
   return (
-    <group position={[0, 1, -3]} scale={[0.12, 0.12, 0.12]}>
+    <group position={[0, 1, 0]} scale={[0.12, 0.12, 0.12]}>
       <Text
         position={[0, 22, 0]}
         fontSize={2.5}
@@ -156,6 +163,14 @@ const AssessmentScene = () => {
           selected={selectedIndex === i}
         />
       ))}
+
+      {/* ✅ White pointer marker */}
+      {pointerPos && (
+        <mesh position={pointerPos}>
+          <sphereGeometry args={[0.05, 16, 16]} />
+          <meshBasicMaterial color="white" />
+        </mesh>
+      )}
     </group>
   );
 };
