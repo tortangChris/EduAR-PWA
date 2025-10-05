@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Lock, Unlock } from "lucide-react";
-import ARPage1 from "./ARPage1";
+import ARPage3 from "./ARPage3";
 
-const ARButton = () => {
+const ARButton3 = () => {
   const [isSupported, setIsSupported] = useState(null);
   const [startAR, setStartAR] = useState(false);
 
@@ -26,7 +26,7 @@ const ARButton = () => {
 
   // kung nag-start na si AR → render ARPage1
   if (startAR) {
-    return <ARPage1 />;
+    return <ARPage3 />;
   }
 
   if (isSupported === null) {
@@ -58,4 +58,4 @@ const ARButton = () => {
   );
 };
 
-export default ARButton;
+export default ARButton3;
