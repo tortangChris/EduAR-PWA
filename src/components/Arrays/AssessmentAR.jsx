@@ -6,7 +6,39 @@ import useSound from "use-sound";
 import correctSfx from "/sounds/correct.mp3";
 import wrongSfx from "/sounds/wrong.mp3";
 
-const AssessmentARInteractive = () => {
+const AssessmentAR = () => {
+  return (
+    <div className="w-full h-screen">
+      <Canvas
+        camera={{ position: [0, 2, 6], fov: 55 }}
+        gl={{ alpha: true }}
+        shadows
+        onCreated={({ gl }) => {
+          gl.xr.enabled = true;
+          if (navigator.xr) {
+            navigator.xr
+              .requestSession("immersive-ar", {
+                requiredFeatures: ["local-floor"],
+              })
+              .then((session) => gl.xr.setSession(session))
+              .catch((err) => console.error("❌ AR session failed:", err));
+          }
+        }}
+      >
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
+
+        {/* 👇 All the logic moved here */}
+        <AssessmentScene />
+      </Canvas>
+    </div>
+  );
+};
+
+// ======================
+//  INSIDE CANVAS SCENE
+// ======================
+const AssessmentScene = () => {
   const questions = [
     {
       question:
@@ -36,9 +68,9 @@ const AssessmentARInteractive = () => {
   const choiceRefs = useRef([]);
   const raycaster = useRef(new THREE.Raycaster());
   const pointer = useRef(new THREE.Vector2());
-  const { camera, scene } = useThree();
+  const { camera } = useThree();
 
-  // ✅ Handle tap on screen (mobile AR)
+  // ✅ Detect tap inside Canvas (AR-safe)
   useEffect(() => {
     const handleTap = (event) => {
       const x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -64,7 +96,7 @@ const AssessmentARInteractive = () => {
 
     window.addEventListener("pointerdown", handleTap);
     return () => window.removeEventListener("pointerdown", handleTap);
-  });
+  }, [currentQ]);
 
   const handleSelect = (choice, index) => {
     setSelectedIndex(index);
@@ -84,72 +116,53 @@ const AssessmentARInteractive = () => {
   choiceRefs.current = [];
 
   return (
-    <div className="w-full h-screen">
-      <Canvas
-        camera={{ position: [0, 2, 12], fov: 55 }}
-        gl={{ alpha: true }}
-        shadows
-        onCreated={({ gl }) => {
-          gl.xr.enabled = true;
-          if (navigator.xr) {
-            navigator.xr
-              .requestSession("immersive-ar", {
-                requiredFeatures: ["local-floor"],
-              })
-              .then((session) => gl.xr.setSession(session))
-              .catch((err) => console.error("❌ AR session failed:", err));
-          }
-        }}
+    <group position={[0, 1, -3]} scale={[0.12, 0.12, 0.12]}>
+      <Text
+        position={[0, 22, 0]}
+        fontSize={2.5}
+        color="yellow"
+        anchorX="center"
+        anchorY="middle"
+        fontWeight="bold"
+        strokeColor="black"
+        strokeWidth={0.08}
       >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
+        {`Question ${currentQ + 1} of ${questions.length}`}
+      </Text>
 
-        <group position={[0, 1, 0]} scale={[0.12, 0.12, 0.12]}>
-          <Text
-            position={[0, 22, 0]}
-            fontSize={2.5}
-            color="yellow"
-            anchorX="center"
-            anchorY="middle"
-            fontWeight="bold"
-            strokeColor="black"
-            strokeWidth={0.08}
-          >
-            {`Question ${currentQ + 1} of ${questions.length}`}
-          </Text>
+      <Text
+        position={[0, 16, 0]}
+        fontSize={3}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+        maxWidth={80}
+        lineHeight={1.3}
+        fontWeight="bold"
+        strokeColor="black"
+        strokeWidth={0.08}
+      >
+        {questions[currentQ].question}
+      </Text>
 
-          <Text
-            position={[0, 16, 0]}
-            fontSize={3}
-            color="white"
-            anchorX="center"
-            anchorY="middle"
-            maxWidth={80}
-            lineHeight={1.3}
-            fontWeight="bold"
-            strokeColor="black"
-            strokeWidth={0.08}
-          >
-            {questions[currentQ].question}
-          </Text>
-
-          {questions[currentQ].choices.map((choice, i) => (
-            <Choice
-              key={i}
-              refCallback={(ref) => (choiceRefs.current[i] = ref)}
-              geometry={choice.type}
-              position={[(i - mid) * spacing * 6, 0, 0]}
-              label={choice.label}
-              isCorrect={choice.isCorrect}
-              selected={selectedIndex === i}
-            />
-          ))}
-        </group>
-      </Canvas>
-    </div>
+      {questions[currentQ].choices.map((choice, i) => (
+        <Choice
+          key={i}
+          refCallback={(ref) => (choiceRefs.current[i] = ref)}
+          geometry={choice.type}
+          position={[(i - mid) * spacing * 6, 0, 0]}
+          label={choice.label}
+          isCorrect={choice.isCorrect}
+          selected={selectedIndex === i}
+        />
+      ))}
+    </group>
   );
 };
 
+// ======================
+//  CHOICE BOX COMPONENT
+// ======================
 const Choice = ({
   refCallback,
   geometry,
@@ -199,4 +212,4 @@ const Choice = ({
   );
 };
 
-export default AssessmentARInteractive;
+export default AssessmentAR;
