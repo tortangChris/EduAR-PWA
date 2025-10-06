@@ -56,9 +56,27 @@ const AssessmentAR = () => {
     let hitTestSource = null;
     let hitTestSourceRequested = false;
 
-    // ✅ Tap handler (with alert debug)
+    // ✅ Function to show debug message safely in AR
+    const showDebugMessage = (text) => {
+      const debugDiv = document.createElement("div");
+      debugDiv.textContent = text;
+      debugDiv.style.position = "absolute";
+      debugDiv.style.top = "20px";
+      debugDiv.style.left = "50%";
+      debugDiv.style.transform = "translateX(-50%)";
+      debugDiv.style.padding = "10px 20px";
+      debugDiv.style.background = "rgba(0, 0, 0, 0.7)";
+      debugDiv.style.color = "white";
+      debugDiv.style.fontSize = "16px";
+      debugDiv.style.borderRadius = "10px";
+      debugDiv.style.zIndex = "9999";
+      document.body.appendChild(debugDiv);
+      setTimeout(() => debugDiv.remove(), 1500);
+    };
+
+    // ✅ Tap handler (non-blocking)
     function onSelect() {
-      alert("✅ Tap detected! Object placed.");
+      showDebugMessage("✅ Tap detected! Object placed.");
       if (reticle.visible) {
         const newObj = mesh.clone();
         newObj.position.setFromMatrixPosition(reticle.matrix);
