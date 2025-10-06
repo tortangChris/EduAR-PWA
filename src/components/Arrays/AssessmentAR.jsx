@@ -117,19 +117,19 @@ const AssessmentScene = () => {
       }
     };
 
-    session.addEventListener("select", onSelect);
+    // session.addEventListener("select", onSelect);
 
     // Fallback for desktop testing
-    const onClick = () => {
-      alert("✅ Desktop click triggered!");
-      console.log("Desktop click detected");
-    };
-    window.addEventListener("click", onClick);
+    // const onClick = () => {
+    //   alert("✅ Desktop click triggered!");
+    //   console.log("Desktop click detected");
+    // };
+    // window.addEventListener("click", onClick);
 
-    return () => {
-      session.removeEventListener("select", onSelect);
-      window.removeEventListener("click", onClick);
-    };
+    // return () => {
+    //   session.removeEventListener("select", onSelect);
+    //   window.removeEventListener("click", onClick);
+    // };
   }, [gl, currentQ]);
 
   const spacing = 2.5;
