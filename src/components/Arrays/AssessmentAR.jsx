@@ -80,6 +80,8 @@ const AssessmentScene = () => {
     if (!session) return;
 
     const onSelect = (event) => {
+      alert("You selected something!");
+      console.log(event);
       const inputSource = event.inputSource;
       if (inputSource.targetRayMode !== "screen") return;
 
