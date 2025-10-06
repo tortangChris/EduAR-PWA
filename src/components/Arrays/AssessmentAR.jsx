@@ -22,7 +22,7 @@ const AssessmentAR = () => {
     renderer.xr.enabled = true;
     container.appendChild(renderer.domElement);
 
-    // ✅ Start AR session directly (no button)
+    // ✅ Start AR session
     if (navigator.xr) {
       navigator.xr
         .requestSession("immersive-ar", { requiredFeatures: ["local-floor"] })
@@ -35,7 +35,7 @@ const AssessmentAR = () => {
     light.position.set(0.5, 1, 0.25);
     scene.add(light);
 
-    // ✅ Main AR group (same layout as reference)
+    // ✅ Main AR group
     const group = new THREE.Group();
     group.position.set(0, 1, -2);
     group.scale.set(0.1, 0.1, 0.1);
@@ -57,14 +57,33 @@ const AssessmentAR = () => {
     ground.rotation.x = -Math.PI / 2;
     group.add(ground);
 
-    // ✅ Raycaster + interaction
+    // ✅ Raycaster + vector for intersection
+    const raycaster = new THREE.Raycaster();
+    const tempMatrix = new THREE.Matrix4();
+
+    // ✅ onSelect now checks if cube is hit
     const onSelect = () => {
-      setDebugText("✅ Object tapped!");
-      setTimeout(() => setDebugText(""), 1500);
-      cube.material.color.set("#22c55e");
-      setTimeout(() => cube.material.color.set("#60a5fa"), 1000);
+      tempMatrix.identity().extractRotation(controller.matrixWorld);
+      raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+      const intersects = raycaster.intersectObject(cube);
+      if (intersects.length > 0) {
+        // ✅ Only highlight if cube was hit
+        setDebugText("✅ Cube tapped!");
+        cube.material.color.set("#22c55e");
+        setTimeout(() => {
+          cube.material.color.set("#60a5fa");
+          setDebugText("");
+        }, 1000);
+      } else {
+        // Optional: debug if miss
+        setDebugText("❌ Missed the cube");
+        setTimeout(() => setDebugText(""), 1000);
+      }
     };
 
+    // ✅ Controller setup
     const controller = renderer.xr.getController(0);
     controller.addEventListener("select", onSelect);
     scene.add(controller);
@@ -74,7 +93,7 @@ const AssessmentAR = () => {
       renderer.render(scene, camera);
     });
 
-    // ✅ Resize handler
+    // ✅ Resize
     const handleResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -82,19 +101,11 @@ const AssessmentAR = () => {
     };
     window.addEventListener("resize", handleResize);
 
-    // ✅ Cleanup (safe remove)
+    // ✅ Cleanup
     return () => {
       window.removeEventListener("resize", handleResize);
-
-      try {
-        if (container.contains(renderer.domElement)) {
-          container.removeChild(renderer.domElement);
-        }
-      } catch (e) {
-        console.warn("⚠️ Renderer element already removed:", e.message);
-      }
-
-      // Stop animation loop + dispose renderer
+      if (container.contains(renderer.domElement))
+        container.removeChild(renderer.domElement);
       renderer.setAnimationLoop(null);
       renderer.dispose();
     };
