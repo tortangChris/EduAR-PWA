@@ -1,67 +1,60 @@
-// AssessmentAR.jsx
-import React, { useEffect, useRef } from "react";
-import { Canvas } from "@react-three/fiber";
-import { Text, Html } from "@react-three/drei"; // ✅ Added Html import
+import React, { useEffect, useRef, useState } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { ARButton } from "three/examples/jsm/webxr/ARButton.js";
 
 const AssessmentAR = () => {
-  const containerRef = useRef();
+  const meshRef = useRef();
+  const { gl, camera } = useThree();
+  const [position, setPosition] = useState([0, 0, -2]);
+  const [geometry, setGeometry] = useState("cube");
 
+  // ✅ Detect tap/click and confirm
   useEffect(() => {
-    // ✅ Check WebXR availability
-    if (navigator.xr) {
-      navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
-        if (supported) {
-          const button = ARButton.createButton(rendererRef.current, {
-            requiredFeatures: ["hit-test"],
-          });
-          document.body.appendChild(button);
-        } else {
-          alert("AR not supported on this device 😢");
-        }
-      });
-    } else {
-      alert("AR feature not available in this browser or device.");
-    }
-  }, []);
+    const handleClick = (event) => {
+      alert("🟢 Tap detected — creating anchor position!");
 
-  const rendererRef = useRef();
+      // Simulate anchor placement 1 meter forward
+      const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(
+        camera.quaternion
+      );
+      const newPos = camera.position.clone().addScaledVector(dir, 1);
+      setPosition([newPos.x, newPos.y, newPos.z]);
+    };
+
+    window.addEventListener("click", handleClick);
+    return () => window.removeEventListener("click", handleClick);
+  }, [camera]);
+
+  // ✅ Slowly rotate the object
+  useFrame(() => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y += 0.01;
+    }
+  });
 
   return (
-    <div ref={containerRef} className="w-full h-screen bg-black">
-      <Canvas
-        ref={rendererRef}
-        shadows
-        camera={{ position: [0, 1.5, 3] }}
-        onCreated={({ gl }) => {
-          gl.xr.enabled = true; // ✅ Enable AR Mode
-        }}
-      >
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 5]} intensity={1} />
+    <Canvas
+      shadows
+      camera={{ position: [0, 1.6, 3], fov: 70 }}
+      onCreated={({ gl }) => {
+        gl.setClearColor("black");
+      }}
+    >
+      <ambientLight intensity={1.2} />
+      <directionalLight position={[2, 4, 5]} intensity={1.5} />
 
-        {/* ✅ Debug text for click testing */}
-        <mesh
-          position={[0, 0, -2]}
-          onClick={() => alert("✅ Object tapped! Debug confirmed.")}
-        >
-          <boxGeometry args={[0.5, 0.5, 0.5]} />
-          <meshStandardMaterial color="#60a5fa" />
+      {/* Object that moves when tapping (simulated anchor) */}
+      <group position={position}>
+        <mesh ref={meshRef} castShadow receiveShadow>
+          {geometry === "cube" ? (
+            <boxGeometry args={[6, 6, 6]} />
+          ) : (
+            <sphereGeometry args={[3.5, 32, 32]} />
+          )}
+          <meshStandardMaterial color="#60a5fa" emissive="black" />
         </mesh>
-
-        {/* ✅ Overlay text for feedback */}
-        <Html position={[0, 1.5, -2]}>
-          <div style={{ color: "white", textAlign: "center" }}>
-            <p>👆 Tap the cube to test interaction</p>
-          </div>
-        </Html>
-
-        <Text position={[0, 2, -2]} fontSize={0.3} color="white">
-          AR Debug Mode
-        </Text>
-      </Canvas>
-    </div>
+      </group>
+    </Canvas>
   );
 };
 
