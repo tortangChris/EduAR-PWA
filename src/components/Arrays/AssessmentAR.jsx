@@ -34,7 +34,7 @@ const AssessmentAR = () => {
 };
 
 const AssessmentScene = () => {
-  const { gl, camera } = useThree();
+  const { gl } = useThree();
   const raycaster = useRef(new THREE.Raycaster());
   const choiceRefs = useRef([]);
   const [currentQ, setCurrentQ] = useState(0);
@@ -74,52 +74,49 @@ const AssessmentScene = () => {
     }, 2000);
   };
 
-  // WebXR tap selection
+  // WebXR select (screen tap) event
   useEffect(() => {
     const session = gl.xr.getSession?.();
     if (!session) return;
 
     const onSelect = (event) => {
       const inputSource = event.inputSource;
-      const referenceSpace = gl.xr.getReferenceSpace();
+
+      // Only handle screen taps
+      if (inputSource.targetRayMode !== "screen") return;
+
       const frame = event.frame;
+      const referenceSpace = gl.xr.getReferenceSpace();
+      if (!frame || !referenceSpace) return;
 
-      if (frame && referenceSpace) {
-        const pose = frame.getPose(inputSource.targetRaySpace, referenceSpace);
-        if (pose) {
-          const origin = new THREE.Vector3().fromArray(
-            pose.transform.position.toArray()
-          );
-          const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(
-            new THREE.Quaternion().fromArray(
-              pose.transform.orientation.toArray()
-            )
-          );
+      const pose = frame.getPose(inputSource.targetRaySpace, referenceSpace);
+      if (!pose) return;
 
-          raycaster.current.set(origin, direction);
+      const origin = new THREE.Vector3().fromArray(
+        pose.transform.position.toArray()
+      );
+      const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(
+        new THREE.Quaternion().fromArray(pose.transform.orientation.toArray())
+      );
 
-          const intersects = raycaster.current.intersectObjects(
-            choiceRefs.current.map((r) => r.meshRef.current)
-          );
+      raycaster.current.set(origin, direction);
 
-          if (intersects.length > 0) {
-            const object = intersects[0].object;
-            const tappedIndex = choiceRefs.current.findIndex(
-              (ref) => ref.meshRef.current === object
-            );
-            if (tappedIndex >= 0) {
-              handleSelect(
-                questions[currentQ].choices[tappedIndex],
-                tappedIndex
-              );
-            }
-          }
+      const intersects = raycaster.current.intersectObjects(
+        choiceRefs.current.map((r) => r.meshRef.current)
+      );
+
+      if (intersects.length > 0) {
+        const tappedIndex = choiceRefs.current.findIndex(
+          (ref) => ref.meshRef.current === intersects[0].object
+        );
+        if (tappedIndex >= 0) {
+          handleSelect(questions[currentQ].choices[tappedIndex], tappedIndex);
         }
       }
     };
 
-    session.addEventListener("selectstart", onSelect);
-    return () => session.removeEventListener("selectstart", onSelect);
+    session.addEventListener("select", onSelect);
+    return () => session.removeEventListener("select", onSelect);
   }, [gl, currentQ]);
 
   const spacing = 2.5;
