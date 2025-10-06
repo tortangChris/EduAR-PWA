@@ -1,13 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { ARButton } from "three/examples/jsm/webxr/ARButton.js";
 
 const AssessmentAR = () => {
   const containerRef = useRef();
 
   useEffect(() => {
-    // Scene setup
+    // ✅ Scene setup
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
       70,
@@ -20,22 +19,18 @@ const AssessmentAR = () => {
     renderer.xr.enabled = true;
     containerRef.current.appendChild(renderer.domElement);
 
-    // Add AR button
+    // ✅ Add AR Button
     document.body.appendChild(
       ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] })
     );
 
-    // Lighting
+    // ✅ Lighting
     const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
     light.position.set(0.5, 1, 0.25);
     scene.add(light);
 
-    // Object group
-    const group = new THREE.Group();
-    scene.add(group);
-
-    // Geometry (same as your code)
-    const geometry = "cube"; // you can toggle this dynamically later
+    // ✅ Object setup (from your code)
+    const geometry = "cube"; // change to 'sphere' if needed
     const material = new THREE.MeshStandardMaterial({
       color: "#60a5fa",
       emissive: "black",
@@ -46,22 +41,9 @@ const AssessmentAR = () => {
         : new THREE.Mesh(new THREE.SphereGeometry(0.175, 32, 32), material);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    group.add(mesh);
+    scene.add(mesh);
 
-    // Position holder (so object appears where user taps)
-    let hitTestSource = null;
-    let localSpace = null;
-    let hitTestSourceRequested = false;
-
-    function onSelect() {
-      if (reticle.visible) {
-        const clone = mesh.clone();
-        clone.position.setFromMatrixPosition(reticle.matrix);
-        scene.add(clone);
-      }
-    }
-
-    // Reticle for object placement
+    // ✅ Reticle setup (placement indicator)
     const reticle = new THREE.Mesh(
       new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ color: 0x00ffff })
@@ -70,15 +52,31 @@ const AssessmentAR = () => {
     reticle.visible = false;
     scene.add(reticle);
 
-    renderer.xr.addEventListener("sessionstart", (event) => {
+    // ✅ Variables for hit testing
+    let hitTestSource = null;
+    let hitTestSourceRequested = false;
+
+    // ✅ Tap handler (with alert debug)
+    function onSelect() {
+      alert("✅ Tap detected! Object placed.");
+      if (reticle.visible) {
+        const newObj = mesh.clone();
+        newObj.position.setFromMatrixPosition(reticle.matrix);
+        scene.add(newObj);
+      }
+    }
+
+    // ✅ AR Session Start
+    renderer.xr.addEventListener("sessionstart", () => {
       const session = renderer.xr.getSession();
       session.addEventListener("select", onSelect);
     });
 
+    // ✅ Animation loop
     renderer.setAnimationLoop((timestamp, frame) => {
       if (frame) {
-        const referenceSpace = renderer.xr.getReferenceSpace();
         const session = renderer.xr.getSession();
+        const referenceSpace = renderer.xr.getReferenceSpace();
 
         if (!hitTestSourceRequested) {
           session.requestReferenceSpace("viewer").then((refSpace) => {
@@ -86,10 +84,12 @@ const AssessmentAR = () => {
               .requestHitTestSource({ space: refSpace })
               .then((source) => (hitTestSource = source));
           });
+
           session.addEventListener("end", () => {
             hitTestSourceRequested = false;
             hitTestSource = null;
           });
+
           hitTestSourceRequested = true;
         }
 
@@ -109,6 +109,7 @@ const AssessmentAR = () => {
       renderer.render(scene, camera);
     });
 
+    // ✅ Resize handling
     const handleResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -116,6 +117,7 @@ const AssessmentAR = () => {
     };
     window.addEventListener("resize", handleResize);
 
+    // ✅ Cleanup
     return () => {
       window.removeEventListener("resize", handleResize);
       renderer.dispose();
