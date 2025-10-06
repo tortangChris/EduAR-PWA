@@ -7,155 +7,141 @@ import useSound from "use-sound";
 import correctSfx from "/sounds/correct.mp3";
 import wrongSfx from "/sounds/wrong.mp3";
 
-const AssessmentAR = () => {
-  const [isARSupported, setIsARSupported] = useState(false);
-  const [debugMsg, setDebugMsg] = useState("Awaiting tap...");
-  const [playCorrect] = useSound(correctSfx);
-  const [playWrong] = useSound(wrongSfx);
-  const [objects, setObjects] = useState([]);
-
+// ===================== ARScene Component =====================
+const ARScene = ({ playCorrect }) => {
+  const { gl, scene } = useThree();
+  const reticleRef = useRef();
   const hitTestSource = useRef(null);
   const hitTestSourceRequested = useRef(false);
-  const reticleRef = useRef();
-  const { gl, scene, camera } = useThree(() => ({}));
+  const [debugMsg, setDebugMsg] = useState("Awaiting AR surface...");
 
-  // ✅ Check for AR support and create ARButton
+  // Enable WebXR
+  useEffect(() => {
+    gl.xr.enabled = true;
+    const sessionInit = { requiredFeatures: ["hit-test"] };
+
+    navigator.xr.requestSession("immersive-ar", sessionInit).then((session) => {
+      gl.xr.setSession(session);
+      session.addEventListener("select", onSelect);
+
+      session.requestReferenceSpace("viewer").then((refSpace) => {
+        session.requestHitTestSource({ space: refSpace }).then((source) => {
+          hitTestSource.current = source;
+          hitTestSourceRequested.current = true;
+        });
+      });
+
+      const onXRFrame = (time, frame) => {
+        const referenceSpace = gl.xr.getReferenceSpace();
+        const hitTestResults = frame.getHitTestResults(hitTestSource.current);
+
+        if (hitTestResults.length > 0) {
+          const hit = hitTestResults[0];
+          const pose = hit.getPose(referenceSpace);
+
+          if (pose && reticleRef.current) {
+            reticleRef.current.visible = true;
+            reticleRef.current.position.set(
+              pose.transform.position.x,
+              pose.transform.position.y,
+              pose.transform.position.z
+            );
+            reticleRef.current.updateMatrixWorld(true);
+            setDebugMsg("Surface detected — tap to place!");
+          }
+        }
+
+        session.requestAnimationFrame(onXRFrame);
+      };
+
+      session.requestAnimationFrame(onXRFrame);
+
+      // When user taps
+      function onSelect() {
+        if (!reticleRef.current || !reticleRef.current.visible) {
+          alert("No surface detected yet!");
+          return;
+        }
+
+        const box = new THREE.Mesh(
+          new THREE.BoxGeometry(0.1, 0.1, 0.1),
+          new THREE.MeshStandardMaterial({ color: "#60a5fa" })
+        );
+        box.position.copy(reticleRef.current.position);
+        scene.add(box);
+        setDebugMsg("✅ Anchor placed!");
+        playCorrect();
+      }
+    });
+  }, [gl]);
+
+  return (
+    <>
+      <ambientLight intensity={1.5} />
+      <directionalLight position={[1, 3, 2]} intensity={2} />
+      <mesh ref={reticleRef} visible={false}>
+        <ringGeometry args={[0.05, 0.06, 32]} />
+        <meshBasicMaterial color="lime" />
+      </mesh>
+
+      <Text position={[0, 1, -1]} fontSize={0.2} color="white">
+        Tap surface to place object
+      </Text>
+
+      {/* ✅ Debug Overlay */}
+      <Html position={[0, 0.3, -0.5]}>
+        <div
+          style={{
+            background: "#000a",
+            color: "white",
+            padding: "6px 12px",
+            borderRadius: "8px",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          {debugMsg}
+        </div>
+      </Html>
+    </>
+  );
+};
+
+// ===================== Main Component =====================
+const AssessmentAR = () => {
+  const [isARSupported, setIsARSupported] = useState(false);
+  const [playCorrect] = useSound(correctSfx);
+  const [playWrong] = useSound(wrongSfx);
+
   useEffect(() => {
     if (navigator.xr) {
       navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
         if (supported) {
           setIsARSupported(true);
-          const button = ARButton.createButton(gl?.domElement, {
+          const button = ARButton.createButton({
             requiredFeatures: ["hit-test"],
           });
           document.body.appendChild(button);
         } else {
-          alert("AR interactive feature is not available on this device.");
+          alert("❌ AR interactive feature is not available on this device.");
         }
       });
     } else {
-      alert("WebXR not supported by your browser.");
+      alert("❌ WebXR not supported by your browser.");
     }
-  }, [gl]);
-
-  // ✅ Start AR session setup
-  useEffect(() => {
-    if (!gl) return;
-
-    gl.xr.enabled = true;
-    const sessionInit = { requiredFeatures: ["hit-test"] };
-
-    navigator.xr
-      ?.requestSession("immersive-ar", sessionInit)
-      .then((session) => {
-        gl.xr.setSession(session);
-        setDebugMsg("AR session started!");
-        session.addEventListener("select", onSelect);
-
-        const refSpaceType = "viewer";
-        session.requestReferenceSpace(refSpaceType).then((refSpace) => {
-          session.requestAnimationFrame(onXRFrame);
-          setupHitTest(session, refSpace);
-        });
-      });
-
-    const setupHitTest = async (session, refSpace) => {
-      const viewerSpace = await session.requestReferenceSpace("viewer");
-      const hitTestSourceTemp = await session.requestHitTestSource({
-        space: viewerSpace,
-      });
-      hitTestSource.current = hitTestSourceTemp;
-      hitTestSourceRequested.current = true;
-    };
-
-    const onXRFrame = (time, frame) => {
-      const session = frame.session;
-      const referenceSpace = gl.xr.getReferenceSpace();
-      const pose = frame.getViewerPose(referenceSpace);
-
-      if (hitTestSource.current && pose) {
-        const hitTestResults = frame.getHitTestResults(hitTestSource.current);
-        if (hitTestResults.length > 0) {
-          const hit = hitTestResults[0];
-          const referenceSpace = gl.xr.getReferenceSpace();
-          const hitPose = hit.getPose(referenceSpace);
-          if (reticleRef.current) {
-            reticleRef.current.visible = true;
-            reticleRef.current.position.set(
-              hitPose.transform.position.x,
-              hitPose.transform.position.y,
-              hitPose.transform.position.z
-            );
-            reticleRef.current.updateMatrixWorld(true);
-          }
-        }
-      }
-
-      session.requestAnimationFrame(onXRFrame);
-    };
-
-    // ✅ Tap event (select event handled below)
-    const onSelect = (event) => {
-      if (!reticleRef.current || !reticleRef.current.visible) {
-        alert("No surface detected yet.");
-        return;
-      }
-
-      // Place box at reticle position
-      const newBox = new THREE.Mesh(
-        new THREE.BoxGeometry(0.1, 0.1, 0.1),
-        new THREE.MeshStandardMaterial({ color: "#60a5fa" })
-      );
-
-      newBox.position.copy(reticleRef.current.position);
-      gl.scene.add(newBox);
-      setObjects((prev) => [...prev, newBox]);
-
-      alert("📍 Object anchored!");
-      playCorrect();
-      setDebugMsg("Anchor placed!");
-    };
-  }, [gl]);
+  }, []);
 
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
       {isARSupported ? (
-        <Canvas
-          camera={{ position: [0, 1.6, 3] }}
-          onCreated={({ gl }) => (gl.xr.enabled = true)}
-        >
-          <ambientLight intensity={1.5} />
-          <directionalLight position={[1, 3, 2]} intensity={2} />
-          <mesh ref={reticleRef} visible={false}>
-            <ringGeometry args={[0.05, 0.06, 32]} />
-            <meshBasicMaterial color="lime" />
-          </mesh>
-
-          <Text position={[0, 1, -1]} fontSize={0.2} color="white">
-            Tap surface to anchor box
-          </Text>
+        <Canvas camera={{ position: [0, 1.6, 3] }}>
+          <ARScene playCorrect={playCorrect} />
         </Canvas>
       ) : (
         <div className="p-4 text-center">
           <p>Checking AR capability...</p>
         </div>
       )}
-
-      {/* ✅ Debug UI */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 10,
-          left: 10,
-          background: "#0008",
-          color: "white",
-          padding: "6px 10px",
-          borderRadius: "8px",
-          fontSize: "14px",
-        }}
-      >
-        {debugMsg}
-      </div>
     </div>
   );
 };
