@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useThree, useFrame } from "@react-three/fiber"; // ✅ useFrame added
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import useSound from "use-sound";
@@ -74,7 +74,6 @@ const AssessmentScene = () => {
     }, 2000);
   };
 
-  // WebXR screen tap listener
   useEffect(() => {
     const session = gl.xr.getSession?.();
     if (!session) return;
@@ -124,13 +123,11 @@ const AssessmentScene = () => {
 
   return (
     <group position={[0, 1, -12]} scale={[0.15, 0.15, 0.15]}>
-      {/* Crosshair */}
       <mesh position={[0, 0, -5]}>
         <ringGeometry args={[0.05, 0.07, 32]} />
         <meshBasicMaterial color="white" transparent opacity={0.9} />
       </mesh>
 
-      {/* Question indicator */}
       <Text
         position={[0, 25, 0]}
         fontSize={2.5}
@@ -141,7 +138,6 @@ const AssessmentScene = () => {
         {`Question ${currentQ + 1} of ${questions.length}`}
       </Text>
 
-      {/* Question text */}
       <Text
         position={[0, 17, 0]}
         fontSize={3}
@@ -154,12 +150,11 @@ const AssessmentScene = () => {
         {questions[currentQ].question}
       </Text>
 
-      {/* Choices */}
       {questions[currentQ].choices.map((choice, i) => (
         <Choice
           key={i}
           refCallback={(ref) => {
-            choiceRefs.current[i] = ref; // register mesh for raycasting
+            choiceRefs.current[i] = ref;
           }}
           geometry={choice.type}
           position={[(i - mid) * spacing * 6, 0, 0]}
@@ -183,32 +178,28 @@ const Choice = ({
   const meshRef = useRef();
   const [scaleTarget, setScaleTarget] = useState(1);
 
-  // Register mesh for raycasting
   useEffect(() => {
     if (refCallback) refCallback({ meshRef });
   }, [refCallback]);
 
-  // Handle selection visual feedback
   useEffect(() => {
     if (selected) {
-      // Briefly highlight and scale
       setScaleTarget(1.3);
       meshRef.current.material.emissive.set(isCorrect ? "green" : "red");
 
       const timeout = setTimeout(() => {
         setScaleTarget(1);
         meshRef.current.material.emissive.set("black");
-      }, 500); // highlight duration 0.5s
+      }, 500);
 
       return () => clearTimeout(timeout);
     } else {
-      // Reset
       setScaleTarget(1);
       if (meshRef.current) meshRef.current.material.emissive.set("black");
     }
   }, [selected]);
 
-  // Smoothly animate scale each frame
+  // ✅ useFrame for smooth scale animation
   useFrame(() => {
     if (meshRef.current) {
       meshRef.current.scale.lerp(
