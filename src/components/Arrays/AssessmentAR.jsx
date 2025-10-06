@@ -22,18 +22,26 @@ const AssessmentAR = () => {
     renderer.xr.enabled = true;
     container.appendChild(renderer.domElement);
 
+    // ✅ Start AR session directly (no button)
+    if (navigator.xr) {
+      navigator.xr
+        .requestSession("immersive-ar", { requiredFeatures: ["local-floor"] })
+        .then((session) => renderer.xr.setSession(session))
+        .catch((err) => console.error("❌ AR session failed:", err));
+    }
+
     // ✅ Lighting
     const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
     light.position.set(0.5, 1, 0.25);
     scene.add(light);
 
-    // ✅ Main AR group
+    // ✅ Main AR group (same layout as reference)
     const group = new THREE.Group();
     group.position.set(0, 1, -2);
     group.scale.set(0.1, 0.1, 0.1);
     scene.add(group);
 
-    // ✅ Cube
+    // ✅ Object (cube)
     const cube = new THREE.Mesh(
       new THREE.BoxGeometry(6, 6, 6),
       new THREE.MeshStandardMaterial({ color: "#60a5fa", emissive: "black" })
@@ -41,7 +49,7 @@ const AssessmentAR = () => {
     cube.position.set(0, 3, 0);
     group.add(cube);
 
-    // ✅ Ground plane
+    // ✅ Ground
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(10, 10),
       new THREE.ShadowMaterial({ opacity: 0.3 })
@@ -49,85 +57,24 @@ const AssessmentAR = () => {
     ground.rotation.x = -Math.PI / 2;
     group.add(ground);
 
-    // ✅ Variables for dragging
-    let dragging = false;
-    let hitTestSource = null;
-    let localSpace = null;
-    let reticle = null;
+    // ✅ Raycaster + interaction
+    const onSelect = () => {
+      setDebugText("✅ Object tapped!");
+      setTimeout(() => setDebugText(""), 1500);
+      cube.material.color.set("#22c55e");
+      setTimeout(() => cube.material.color.set("#60a5fa"), 1000);
+    };
 
-    // ✅ Create reticle (for placement / drag indicator)
-    reticle = new THREE.Mesh(
-      new THREE.RingGeometry(0.1, 0.15, 32).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: "#22c55e" })
-    );
-    reticle.visible = false;
-    scene.add(reticle);
-
-    // ✅ Setup controller
     const controller = renderer.xr.getController(0);
+    controller.addEventListener("select", onSelect);
     scene.add(controller);
 
-    controller.addEventListener("selectstart", () => {
-      dragging = true;
-      setDebugText("🟢 Dragging started");
-    });
-
-    controller.addEventListener("selectend", () => {
-      dragging = false;
-      setDebugText("✅ Dragging stopped");
-      setTimeout(() => setDebugText(""), 1500);
-    });
-
-    // ✅ Initialize AR Session with hit-test
-    if (navigator.xr) {
-      navigator.xr
-        .requestSession("immersive-ar", {
-          requiredFeatures: ["hit-test", "local-floor"],
-        })
-        .then(async (session) => {
-          renderer.xr.setSession(session);
-          const referenceSpace = await session.requestReferenceSpace("local");
-          localSpace = referenceSpace;
-
-          const viewerSpace = await session.requestReferenceSpace("viewer");
-          hitTestSource = await session.requestHitTestSource({
-            space: viewerSpace,
-          });
-
-          session.addEventListener("end", () => {
-            hitTestSource = null;
-          });
-        })
-        .catch((err) => console.error("❌ AR session failed:", err));
-    }
-
     // ✅ Animation loop
-    renderer.setAnimationLoop((timestamp, frame) => {
-      if (frame && hitTestSource && localSpace) {
-        const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-        if (hitTestResults.length > 0) {
-          const pose = hitTestResults[0].getPose(localSpace);
-          reticle.visible = true;
-          reticle.position.set(
-            pose.transform.position.x,
-            pose.transform.position.y,
-            pose.transform.position.z
-          );
-
-          // ✅ While dragging, move cube to reticle
-          if (dragging) {
-            cube.position.copy(reticle.position);
-          }
-        } else {
-          reticle.visible = false;
-        }
-      }
-
+    renderer.setAnimationLoop(() => {
       renderer.render(scene, camera);
     });
 
-    // ✅ Handle window resize
+    // ✅ Resize handler
     const handleResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -135,9 +82,10 @@ const AssessmentAR = () => {
     };
     window.addEventListener("resize", handleResize);
 
-    // ✅ Cleanup
+    // ✅ Cleanup (safe remove)
     return () => {
       window.removeEventListener("resize", handleResize);
+
       try {
         if (container.contains(renderer.domElement)) {
           container.removeChild(renderer.domElement);
@@ -145,6 +93,8 @@ const AssessmentAR = () => {
       } catch (e) {
         console.warn("⚠️ Renderer element already removed:", e.message);
       }
+
+      // Stop animation loop + dispose renderer
       renderer.setAnimationLoop(null);
       renderer.dispose();
     };
