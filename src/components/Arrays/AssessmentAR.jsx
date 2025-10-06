@@ -20,10 +20,7 @@ const AssessmentAR = () => {
               .requestSession("immersive-ar", {
                 requiredFeatures: ["local-floor", "hit-test"],
               })
-              .then((session) => {
-                gl.xr.setSession(session);
-                console.log("✅ AR session started", session);
-              })
+              .then((session) => gl.xr.setSession(session))
               .catch((err) => console.error("❌ AR session failed:", err));
           }
         }}
@@ -39,7 +36,6 @@ const AssessmentAR = () => {
 const AssessmentScene = () => {
   const { gl } = useThree();
   const raycaster = useRef(new THREE.Raycaster());
-  raycaster.current.far = 50; // extend ray distance for AR
   const choiceRefs = useRef([]);
   const [currentQ, setCurrentQ] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(null);
@@ -68,7 +64,6 @@ const AssessmentScene = () => {
   ];
 
   const handleSelect = (choice, index) => {
-    console.log("🔹 handleSelect called:", choice.label, "Correct?", choice.isCorrect);
     setSelectedIndex(index);
     if (choice.isCorrect) playCorrect();
     else playWrong();
@@ -81,20 +76,14 @@ const AssessmentScene = () => {
 
   useEffect(() => {
     const session = gl.xr.getSession?.();
-    if (!session) {
-      console.warn("❌ No XR session detected");
-      return;
-    }
+    if (!session) return;
 
     const onSelect = (event) => {
-      console.log("🔹 AR select event fired!", event);
-      const inputSource = event.inputSource;
+      alert("✅ AR select triggered!");
+      console.log("AR select event:", event);
 
-      // Only handle screen pointer taps
-      if (inputSource.targetRayMode !== "screen") {
-        console.log("🔹 Ignored non-screen input source");
-        return;
-      }
+      const inputSource = event.inputSource;
+      if (inputSource.targetRayMode !== "screen") return;
 
       const frame = event.frame;
       const referenceSpace = gl.xr.getReferenceSpace();
@@ -103,41 +92,42 @@ const AssessmentScene = () => {
       const pose = frame.getPose(inputSource.targetRaySpace, referenceSpace);
       if (!pose) return;
 
-      // Ray origin & direction
-      const origin = new THREE.Vector3().fromArray(pose.transform.position.toArray());
+      const origin = new THREE.Vector3().fromArray(
+        pose.transform.position.toArray()
+      );
       const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(
         new THREE.Quaternion().fromArray(pose.transform.orientation.toArray())
       );
+
       raycaster.current.set(origin, direction);
 
-      console.log("🔹 Ray origin:", origin.toArray());
-      console.log("🔹 Ray direction:", direction.toArray());
-
-      // Check intersection with all choices
       const intersects = raycaster.current.intersectObjects(
-        choiceRefs.current
-          .map((r) => r?.meshRef?.current)
-          .filter(Boolean) // remove undefined refs
+        choiceRefs.current.map((r) => r.meshRef.current)
       );
-
-      console.log("🔹 Intersected objects:", intersects);
 
       if (intersects.length > 0) {
         const tappedIndex = choiceRefs.current.findIndex(
           (ref) => ref.meshRef.current === intersects[0].object
         );
-        console.log("🔹 Tapped choice index:", tappedIndex);
-
         if (tappedIndex >= 0) {
           handleSelect(questions[currentQ].choices[tappedIndex], tappedIndex);
         }
-      } else {
-        console.log("🔹 No choice intersected");
       }
     };
 
     session.addEventListener("select", onSelect);
-    return () => session.removeEventListener("select", onSelect);
+
+    // Fallback for desktop testing
+    const onClick = () => {
+      alert("✅ Desktop click triggered!");
+      console.log("Desktop click detected");
+    };
+    window.addEventListener("click", onClick);
+
+    return () => {
+      session.removeEventListener("select", onSelect);
+      window.removeEventListener("click", onClick);
+    };
   }, [gl, currentQ]);
 
   const spacing = 2.5;
@@ -150,7 +140,13 @@ const AssessmentScene = () => {
         <meshBasicMaterial color="white" transparent opacity={0.9} />
       </mesh>
 
-      <Text position={[0, 25, 0]} fontSize={2.5} color="yellow" anchorX="center" anchorY="middle">
+      <Text
+        position={[0, 25, 0]}
+        fontSize={2.5}
+        color="yellow"
+        anchorX="center"
+        anchorY="middle"
+      >
         {`Question ${currentQ + 1} of ${questions.length}`}
       </Text>
 
@@ -169,7 +165,9 @@ const AssessmentScene = () => {
       {questions[currentQ].choices.map((choice, i) => (
         <Choice
           key={i}
-          refCallback={(ref) => (choiceRefs.current[i] = ref)}
+          refCallback={(ref) => {
+            choiceRefs.current[i] = ref;
+          }}
           geometry={choice.type}
           position={[(i - mid) * spacing * 6, 0, 0]}
           label={choice.label}
@@ -181,7 +179,14 @@ const AssessmentScene = () => {
   );
 };
 
-const Choice = ({ refCallback, geometry, position, label, isCorrect, selected }) => {
+const Choice = ({
+  refCallback,
+  geometry,
+  position,
+  label,
+  isCorrect,
+  selected,
+}) => {
   const meshRef = useRef();
   const [scaleTarget, setScaleTarget] = useState(1);
 
@@ -218,10 +223,20 @@ const Choice = ({ refCallback, geometry, position, label, isCorrect, selected })
   return (
     <group position={position}>
       <mesh ref={meshRef} castShadow receiveShadow>
-        {geometry === "cube" ? <boxGeometry args={[6, 6, 6]} /> : <sphereGeometry args={[3.5, 32, 32]} />}
+        {geometry === "cube" ? (
+          <boxGeometry args={[6, 6, 6]} />
+        ) : (
+          <sphereGeometry args={[3.5, 32, 32]} />
+        )}
         <meshStandardMaterial color="#60a5fa" emissive="black" />
       </mesh>
-      <Text position={[0, 7, 0]} fontSize={2.5} color="white" anchorX="center" anchorY="middle">
+      <Text
+        position={[0, 7, 0]}
+        fontSize={2.5}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+      >
         {label}
       </Text>
     </group>
