@@ -63,6 +63,7 @@ const AssessmentScene = () => {
     },
   ];
 
+  // ✅ handle answer selection
   const handleSelect = (choice, index) => {
     setSelectedIndex(index);
     if (choice.isCorrect) playCorrect();
@@ -74,21 +75,20 @@ const AssessmentScene = () => {
     }, 2000);
   };
 
+  // ✅ Setup AR select event listener properly
   useEffect(() => {
-    alert("use effect triggered");
-    const session = gl.xr.getSession();
-    if (!session) return;
+    alert("🧠 useEffect triggered — waiting for AR session...");
+    const renderer = gl;
 
-    // alert("session passed");
     const onSelect = (event) => {
-      //   alert("✅ AR select triggered!");
+      alert("✅ AR select triggered!");
       console.log("AR select event:", event);
 
       const inputSource = event.inputSource;
       if (inputSource.targetRayMode !== "screen") return;
 
       const frame = event.frame;
-      const referenceSpace = gl.xr.getReferenceSpace();
+      const referenceSpace = renderer.xr.getReferenceSpace();
       if (!frame || !referenceSpace) return;
 
       const pose = frame.getPose(inputSource.targetRaySpace, referenceSpace);
@@ -117,19 +117,41 @@ const AssessmentScene = () => {
       }
     };
 
-    session.addEventListener("select", onSelect);
+    // ✅ Helper to attach once session starts
+    const setupARSession = (session) => {
+      alert("🟢 AR session started — adding listener!");
+      console.log("✅ AR session started:", session);
+      session.addEventListener("select", onSelect);
+    };
 
-    // Fallback for desktop testing
-    // const onClick = () => {
-    //   alert("✅ Desktop click triggered!");
-    //   console.log("Desktop click detected");
-    // };
-    // window.addEventListener("click", onClick);
+    // Check if session already exists
+    const existingSession = renderer.xr.getSession();
+    if (existingSession) {
+      setupARSession(existingSession);
+    }
 
-    // return () => {
-    //   session.removeEventListener("select", onSelect);
-    //   window.removeEventListener("click", onClick);
-    // };
+    // Wait for AR to start if not yet
+    renderer.xr.addEventListener("sessionstart", () => {
+      const newSession = renderer.xr.getSession();
+      if (newSession) setupARSession(newSession);
+    });
+
+    // ✅ Desktop fallback for debugging
+    const onClick = () => {
+      alert("💻 Desktop click triggered!");
+      console.log("Desktop click detected");
+
+      // Simulate tap on first cube for quick test
+      handleSelect(questions[currentQ].choices[0], 0);
+    };
+    window.addEventListener("click", onClick);
+
+    // Cleanup
+    return () => {
+      const session = renderer.xr.getSession();
+      if (session) session.removeEventListener("select", onSelect);
+      window.removeEventListener("click", onClick);
+    };
   }, [gl, currentQ]);
 
   const spacing = 2.5;
