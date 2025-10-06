@@ -1,147 +1,66 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
+// AssessmentAR.jsx
+import React, { useEffect, useRef } from "react";
+import { Canvas } from "@react-three/fiber";
+import { Text, Html } from "@react-three/drei"; // ✅ Added Html import
 import * as THREE from "three";
 import { ARButton } from "three/examples/jsm/webxr/ARButton.js";
-import useSound from "use-sound";
-import correctSfx from "/sounds/correct.mp3";
-import wrongSfx from "/sounds/wrong.mp3";
 
-// ===================== ARScene Component =====================
-const ARScene = ({ playCorrect }) => {
-  const { gl, scene } = useThree();
-  const reticleRef = useRef();
-  const hitTestSource = useRef(null);
-  const hitTestSourceRequested = useRef(false);
-  const [debugMsg, setDebugMsg] = useState("Awaiting AR surface...");
-
-  // Enable WebXR
-  useEffect(() => {
-    gl.xr.enabled = true;
-    const sessionInit = { requiredFeatures: ["hit-test"] };
-
-    navigator.xr.requestSession("immersive-ar", sessionInit).then((session) => {
-      gl.xr.setSession(session);
-      session.addEventListener("select", onSelect);
-
-      session.requestReferenceSpace("viewer").then((refSpace) => {
-        session.requestHitTestSource({ space: refSpace }).then((source) => {
-          hitTestSource.current = source;
-          hitTestSourceRequested.current = true;
-        });
-      });
-
-      const onXRFrame = (time, frame) => {
-        const referenceSpace = gl.xr.getReferenceSpace();
-        const hitTestResults = frame.getHitTestResults(hitTestSource.current);
-
-        if (hitTestResults.length > 0) {
-          const hit = hitTestResults[0];
-          const pose = hit.getPose(referenceSpace);
-
-          if (pose && reticleRef.current) {
-            reticleRef.current.visible = true;
-            reticleRef.current.position.set(
-              pose.transform.position.x,
-              pose.transform.position.y,
-              pose.transform.position.z
-            );
-            reticleRef.current.updateMatrixWorld(true);
-            setDebugMsg("Surface detected — tap to place!");
-          }
-        }
-
-        session.requestAnimationFrame(onXRFrame);
-      };
-
-      session.requestAnimationFrame(onXRFrame);
-
-      // When user taps
-      function onSelect() {
-        if (!reticleRef.current || !reticleRef.current.visible) {
-          alert("No surface detected yet!");
-          return;
-        }
-
-        const box = new THREE.Mesh(
-          new THREE.BoxGeometry(0.1, 0.1, 0.1),
-          new THREE.MeshStandardMaterial({ color: "#60a5fa" })
-        );
-        box.position.copy(reticleRef.current.position);
-        scene.add(box);
-        setDebugMsg("✅ Anchor placed!");
-        playCorrect();
-      }
-    });
-  }, [gl]);
-
-  return (
-    <>
-      <ambientLight intensity={1.5} />
-      <directionalLight position={[1, 3, 2]} intensity={2} />
-      <mesh ref={reticleRef} visible={false}>
-        <ringGeometry args={[0.05, 0.06, 32]} />
-        <meshBasicMaterial color="lime" />
-      </mesh>
-
-      <Text position={[0, 1, -1]} fontSize={0.2} color="white">
-        Tap surface to place object
-      </Text>
-
-      {/* ✅ Debug Overlay */}
-      <Html position={[0, 0.3, -0.5]}>
-        <div
-          style={{
-            background: "#000a",
-            color: "white",
-            padding: "6px 12px",
-            borderRadius: "8px",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          {debugMsg}
-        </div>
-      </Html>
-    </>
-  );
-};
-
-// ===================== Main Component =====================
 const AssessmentAR = () => {
-  const [isARSupported, setIsARSupported] = useState(false);
-  const [playCorrect] = useSound(correctSfx);
-  const [playWrong] = useSound(wrongSfx);
+  const containerRef = useRef();
 
   useEffect(() => {
+    // ✅ Check WebXR availability
     if (navigator.xr) {
       navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
         if (supported) {
-          setIsARSupported(true);
-          const button = ARButton.createButton({
+          const button = ARButton.createButton(rendererRef.current, {
             requiredFeatures: ["hit-test"],
           });
           document.body.appendChild(button);
         } else {
-          alert("❌ AR interactive feature is not available on this device.");
+          alert("AR not supported on this device 😢");
         }
       });
     } else {
-      alert("❌ WebXR not supported by your browser.");
+      alert("AR feature not available in this browser or device.");
     }
   }, []);
 
+  const rendererRef = useRef();
+
   return (
-    <div style={{ width: "100vw", height: "100vh" }}>
-      {isARSupported ? (
-        <Canvas camera={{ position: [0, 1.6, 3] }}>
-          <ARScene playCorrect={playCorrect} />
-        </Canvas>
-      ) : (
-        <div className="p-4 text-center">
-          <p>Checking AR capability...</p>
-        </div>
-      )}
+    <div ref={containerRef} className="w-full h-screen bg-black">
+      <Canvas
+        ref={rendererRef}
+        shadows
+        camera={{ position: [0, 1.5, 3] }}
+        onCreated={({ gl }) => {
+          gl.xr.enabled = true; // ✅ Enable AR Mode
+        }}
+      >
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[10, 10, 5]} intensity={1} />
+
+        {/* ✅ Debug text for click testing */}
+        <mesh
+          position={[0, 0, -2]}
+          onClick={() => alert("✅ Object tapped! Debug confirmed.")}
+        >
+          <boxGeometry args={[0.5, 0.5, 0.5]} />
+          <meshStandardMaterial color="#60a5fa" />
+        </mesh>
+
+        {/* ✅ Overlay text for feedback */}
+        <Html position={[0, 1.5, -2]}>
+          <div style={{ color: "white", textAlign: "center" }}>
+            <p>👆 Tap the cube to test interaction</p>
+          </div>
+        </Html>
+
+        <Text position={[0, 2, -2]} fontSize={0.3} color="white">
+          AR Debug Mode
+        </Text>
+      </Canvas>
     </div>
   );
 };
