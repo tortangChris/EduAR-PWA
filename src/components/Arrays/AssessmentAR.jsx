@@ -79,9 +79,9 @@ const AssessmentScene = () => {
     const session = gl.xr.getSession?.();
     if (session) return;
 
-    alert("session passed");
+    // alert("session passed");
     const onSelect = (event) => {
-      alert("✅ AR select triggered!");
+      //   alert("✅ AR select triggered!");
       console.log("AR select event:", event);
 
       const inputSource = event.inputSource;
