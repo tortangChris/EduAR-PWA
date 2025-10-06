@@ -117,7 +117,7 @@ const AssessmentScene = () => {
       }
     };
 
-    // session.addEventListener("select", onSelect);
+    session.addEventListener("select", onSelect);
 
     // Fallback for desktop testing
     // const onClick = () => {
