@@ -74,15 +74,13 @@ const AssessmentScene = () => {
     }, 2000);
   };
 
-  // WebXR select (screen tap) event
+  // WebXR screen tap listener
   useEffect(() => {
     const session = gl.xr.getSession?.();
     if (!session) return;
 
     const onSelect = (event) => {
       const inputSource = event.inputSource;
-
-      // Only handle screen taps
       if (inputSource.targetRayMode !== "screen") return;
 
       const frame = event.frame;
@@ -121,7 +119,6 @@ const AssessmentScene = () => {
 
   const spacing = 2.5;
   const mid = (questions[currentQ].choices.length - 1) / 2;
-  choiceRefs.current = [];
 
   return (
     <group position={[0, 1, -12]} scale={[0.15, 0.15, 0.15]}>
@@ -159,7 +156,9 @@ const AssessmentScene = () => {
       {questions[currentQ].choices.map((choice, i) => (
         <Choice
           key={i}
-          refCallback={(ref) => (choiceRefs.current[i] = ref)}
+          refCallback={(ref) => {
+            choiceRefs.current[i] = ref; // register mesh for raycasting
+          }}
           geometry={choice.type}
           position={[(i - mid) * spacing * 6, 0, 0]}
           label={choice.label}
