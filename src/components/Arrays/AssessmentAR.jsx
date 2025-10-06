@@ -1,11 +1,15 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { ARButton } from "three/examples/jsm/webxr/ARButton.js";
+import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
 const AssessmentAR = () => {
   const containerRef = useRef();
+  const [debugText, setDebugText] = useState(""); // ✅ Non-blocking debug text
 
   useEffect(() => {
+    const container = containerRef.current;
+
     // ✅ Scene setup
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
@@ -14,10 +18,11 @@ const AssessmentAR = () => {
       0.01,
       20
     );
+
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.xr.enabled = true;
-    containerRef.current.appendChild(renderer.domElement);
+    container.appendChild(renderer.domElement);
 
     // ✅ Add AR Button
     document.body.appendChild(
@@ -29,105 +34,37 @@ const AssessmentAR = () => {
     light.position.set(0.5, 1, 0.25);
     scene.add(light);
 
-    // ✅ Object setup (from your code)
-    const geometry = "cube"; // change to 'sphere' if needed
-    const material = new THREE.MeshStandardMaterial({
-      color: "#60a5fa",
-      emissive: "black",
-    });
-    const mesh =
-      geometry === "cube"
-        ? new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), material)
-        : new THREE.Mesh(new THREE.SphereGeometry(0.175, 32, 32), material);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    scene.add(mesh);
-
-    // ✅ Reticle setup (placement indicator)
-    const reticle = new THREE.Mesh(
-      new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: 0x00ffff })
+    // ✅ Create object (your given geometry)
+    const meshRef = new THREE.Mesh(
+      new THREE.BoxGeometry(0.3, 0.3, 0.3),
+      new THREE.MeshStandardMaterial({ color: "#60a5fa", emissive: "black" })
     );
-    reticle.matrixAutoUpdate = false;
-    reticle.visible = false;
-    scene.add(reticle);
+    meshRef.position.set(0, 0, -1);
+    scene.add(meshRef);
 
-    // ✅ Variables for hit testing
-    let hitTestSource = null;
-    let hitTestSourceRequested = false;
+    // ✅ Raycaster for detecting taps
+    const raycaster = new THREE.Raycaster();
+    const tapPosition = new THREE.Vector2();
 
-    // ✅ Function to show debug message safely in AR
-    const showDebugMessage = (text) => {
-      const debugDiv = document.createElement("div");
-      debugDiv.textContent = text;
-      debugDiv.style.position = "absolute";
-      debugDiv.style.top = "20px";
-      debugDiv.style.left = "50%";
-      debugDiv.style.transform = "translateX(-50%)";
-      debugDiv.style.padding = "10px 20px";
-      debugDiv.style.background = "rgba(0, 0, 0, 0.7)";
-      debugDiv.style.color = "white";
-      debugDiv.style.fontSize = "16px";
-      debugDiv.style.borderRadius = "10px";
-      debugDiv.style.zIndex = "9999";
-      document.body.appendChild(debugDiv);
-      setTimeout(() => debugDiv.remove(), 1500);
+    const onSelect = (event) => {
+      setDebugText("Tapped object!"); // ✅ Show debug text
+      setTimeout(() => setDebugText(""), 2000); // Auto hide after 2s
+
+      // Optional: Change color for feedback
+      meshRef.material.color.set("#22c55e");
+      setTimeout(() => meshRef.material.color.set("#60a5fa"), 1500);
     };
 
-    // ✅ Tap handler (non-blocking)
-    function onSelect() {
-      showDebugMessage("✅ Tap detected! Object placed.");
-      if (reticle.visible) {
-        const newObj = mesh.clone();
-        newObj.position.setFromMatrixPosition(reticle.matrix);
-        scene.add(newObj);
-      }
-    }
+    const controller = renderer.xr.getController(0);
+    controller.addEventListener("select", onSelect);
+    scene.add(controller);
 
-    // ✅ AR Session Start
-    renderer.xr.addEventListener("sessionstart", () => {
-      const session = renderer.xr.getSession();
-      session.addEventListener("select", onSelect);
-    });
-
-    // ✅ Animation loop
-    renderer.setAnimationLoop((timestamp, frame) => {
-      if (frame) {
-        const session = renderer.xr.getSession();
-        const referenceSpace = renderer.xr.getReferenceSpace();
-
-        if (!hitTestSourceRequested) {
-          session.requestReferenceSpace("viewer").then((refSpace) => {
-            session
-              .requestHitTestSource({ space: refSpace })
-              .then((source) => (hitTestSource = source));
-          });
-
-          session.addEventListener("end", () => {
-            hitTestSourceRequested = false;
-            hitTestSource = null;
-          });
-
-          hitTestSourceRequested = true;
-        }
-
-        if (hitTestSource) {
-          const hitTestResults = frame.getHitTestResults(hitTestSource);
-          if (hitTestResults.length) {
-            const hit = hitTestResults[0];
-            const pose = hit.getPose(referenceSpace);
-            reticle.visible = true;
-            reticle.matrix.fromArray(pose.transform.matrix);
-          } else {
-            reticle.visible = false;
-          }
-        }
-      }
-
+    // ✅ Render loop
+    renderer.setAnimationLoop(() => {
       renderer.render(scene, camera);
     });
 
-    // ✅ Resize handling
+    // ✅ Handle resize
     const handleResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -135,14 +72,26 @@ const AssessmentAR = () => {
     };
     window.addEventListener("resize", handleResize);
 
-    // ✅ Cleanup
     return () => {
       window.removeEventListener("resize", handleResize);
-      renderer.dispose();
+      container.removeChild(renderer.domElement);
+      document.body.removeChild(document.querySelector(".ar-button"));
     };
   }, []);
 
-  return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
+  return (
+    <div ref={containerRef} className="w-full h-screen relative bg-black">
+      {/* ✅ Non-blocking temporary debug text */}
+      {debugText && (
+        <div
+          className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-xl text-lg animate-fade"
+          style={{ transition: "opacity 0.5s" }}
+        >
+          {debugText}
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default AssessmentAR;
