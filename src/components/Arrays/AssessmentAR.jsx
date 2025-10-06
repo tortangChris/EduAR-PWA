@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import useSound from "use-sound";
@@ -20,9 +20,7 @@ const AssessmentAR = () => {
               .requestSession("immersive-ar", {
                 requiredFeatures: ["local-floor", "hit-test"],
               })
-              .then((session) => {
-                gl.xr.setSession(session);
-              })
+              .then((session) => gl.xr.setSession(session))
               .catch((err) => console.error("❌ AR session failed:", err));
           }
         }}
@@ -36,9 +34,8 @@ const AssessmentAR = () => {
 };
 
 const AssessmentScene = () => {
-  const { gl, camera, scene } = useThree();
+  const { gl, camera } = useThree();
   const raycaster = useRef(new THREE.Raycaster());
-  const [draggedObject, setDraggedObject] = useState(null);
   const choiceRefs = useRef([]);
   const [currentQ, setCurrentQ] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(null);
@@ -77,35 +74,32 @@ const AssessmentScene = () => {
     }, 2000);
   };
 
-  // ✅ Handle WebXR select events
+  // WebXR tap selection
   useEffect(() => {
     const session = gl.xr.getSession?.();
     if (!session) return;
 
-    const onSelectStart = (event) => {
+    const onSelect = (event) => {
       const inputSource = event.inputSource;
       const referenceSpace = gl.xr.getReferenceSpace();
       const frame = event.frame;
 
       if (frame && referenceSpace) {
-        const targetRayPose = frame.getPose(
-          inputSource.targetRaySpace,
-          referenceSpace
-        );
-        if (targetRayPose) {
+        const pose = frame.getPose(inputSource.targetRaySpace, referenceSpace);
+        if (pose) {
           const origin = new THREE.Vector3().fromArray(
-            targetRayPose.transform.position.toArray()
+            pose.transform.position.toArray()
           );
           const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(
             new THREE.Quaternion().fromArray(
-              targetRayPose.transform.orientation.toArray()
+              pose.transform.orientation.toArray()
             )
           );
+
           raycaster.current.set(origin, direction);
 
           const intersects = raycaster.current.intersectObjects(
-            choiceRefs.current.map((r) => r.meshRef.current),
-            false
+            choiceRefs.current.map((r) => r.meshRef.current)
           );
 
           if (intersects.length > 0) {
@@ -118,45 +112,15 @@ const AssessmentScene = () => {
                 questions[currentQ].choices[tappedIndex],
                 tappedIndex
               );
-              setDraggedObject(object);
             }
           }
         }
       }
     };
 
-    const onSelectEnd = () => setDraggedObject(null);
-
-    session.addEventListener("selectstart", onSelectStart);
-    session.addEventListener("selectend", onSelectEnd);
-
-    return () => {
-      session.removeEventListener("selectstart", onSelectStart);
-      session.removeEventListener("selectend", onSelectEnd);
-    };
+    session.addEventListener("selectstart", onSelect);
+    return () => session.removeEventListener("selectstart", onSelect);
   }, [gl, currentQ]);
-
-  // Optional: follow controller if dragging
-  useFrame(({ xr }) => {
-    if (!draggedObject) return;
-    const session = xr.getSession();
-    if (!session) return;
-    const inputSource = session.inputSources[0];
-    const frame = xr.getFrame();
-    const referenceSpace = xr.getReferenceSpace();
-    if (frame && inputSource && referenceSpace) {
-      const gripPose = frame.getPose(
-        inputSource.targetRaySpace,
-        referenceSpace
-      );
-      if (gripPose) {
-        const newPos = new THREE.Vector3().fromArray(
-          gripPose.transform.position.toArray()
-        );
-        draggedObject.position.copy(newPos);
-      }
-    }
-  });
 
   const spacing = 2.5;
   const mid = (questions[currentQ].choices.length - 1) / 2;
@@ -164,13 +128,13 @@ const AssessmentScene = () => {
 
   return (
     <group position={[0, 1, -12]} scale={[0.15, 0.15, 0.15]}>
-      {/* ✅ 3D Crosshair always visible */}
+      {/* Crosshair */}
       <mesh position={[0, 0, -5]}>
         <ringGeometry args={[0.05, 0.07, 32]} />
         <meshBasicMaterial color="white" transparent opacity={0.9} />
       </mesh>
 
-      {/* Question Indicator */}
+      {/* Question indicator */}
       <Text
         position={[0, 25, 0]}
         fontSize={2.5}
@@ -181,7 +145,7 @@ const AssessmentScene = () => {
         {`Question ${currentQ + 1} of ${questions.length}`}
       </Text>
 
-      {/* Question Text */}
+      {/* Question text */}
       <Text
         position={[0, 17, 0]}
         fontSize={3}
