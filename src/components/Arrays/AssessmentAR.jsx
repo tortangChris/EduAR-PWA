@@ -22,13 +22,11 @@ const AssessmentAR = () => {
     renderer.xr.enabled = true;
     container.appendChild(renderer.domElement);
 
-    // ✅ Enable AR session directly (no button)
+    // ✅ Start AR session directly (no button)
     if (navigator.xr) {
       navigator.xr
         .requestSession("immersive-ar", { requiredFeatures: ["local-floor"] })
-        .then((session) => {
-          renderer.xr.setSession(session);
-        })
+        .then((session) => renderer.xr.setSession(session))
         .catch((err) => console.error("❌ AR session failed:", err));
     }
 
@@ -37,13 +35,13 @@ const AssessmentAR = () => {
     light.position.set(0.5, 1, 0.25);
     scene.add(light);
 
-    // ✅ Create a parent group (like reference)
+    // ✅ Main AR group (same layout as reference)
     const group = new THREE.Group();
-    group.position.set(0, 1, -2); // ⬅️ same as ARPage1
+    group.position.set(0, 1, -2);
     group.scale.set(0.1, 0.1, 0.1);
     scene.add(group);
 
-    // ✅ Add the main cube
+    // ✅ Object (cube)
     const cube = new THREE.Mesh(
       new THREE.BoxGeometry(6, 6, 6),
       new THREE.MeshStandardMaterial({ color: "#60a5fa", emissive: "black" })
@@ -51,7 +49,7 @@ const AssessmentAR = () => {
     cube.position.set(0, 3, 0);
     group.add(cube);
 
-    // ✅ Add ground plane
+    // ✅ Ground
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(10, 10),
       new THREE.ShadowMaterial({ opacity: 0.3 })
@@ -59,9 +57,7 @@ const AssessmentAR = () => {
     ground.rotation.x = -Math.PI / 2;
     group.add(ground);
 
-    // ✅ Raycaster + tap interaction
-    const raycaster = new THREE.Raycaster();
-
+    // ✅ Raycaster + interaction
     const onSelect = () => {
       setDebugText("✅ Object tapped!");
       setTimeout(() => setDebugText(""), 1500);
@@ -73,12 +69,12 @@ const AssessmentAR = () => {
     controller.addEventListener("select", onSelect);
     scene.add(controller);
 
-    // ✅ Render loop
+    // ✅ Animation loop
     renderer.setAnimationLoop(() => {
       renderer.render(scene, camera);
     });
 
-    // ✅ Handle window resize
+    // ✅ Resize handler
     const handleResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -86,15 +82,26 @@ const AssessmentAR = () => {
     };
     window.addEventListener("resize", handleResize);
 
+    // ✅ Cleanup (safe remove)
     return () => {
       window.removeEventListener("resize", handleResize);
-      container.removeChild(renderer.domElement);
+
+      try {
+        if (container.contains(renderer.domElement)) {
+          container.removeChild(renderer.domElement);
+        }
+      } catch (e) {
+        console.warn("⚠️ Renderer element already removed:", e.message);
+      }
+
+      // Stop animation loop + dispose renderer
+      renderer.setAnimationLoop(null);
+      renderer.dispose();
     };
   }, []);
 
   return (
     <div ref={containerRef} className="w-full h-screen relative bg-black">
-      {/* ✅ Debug message overlay */}
       {debugText && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-xl text-lg">
           {debugText}
