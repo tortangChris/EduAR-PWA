@@ -76,8 +76,8 @@ const AssessmentScene = () => {
 
   useEffect(() => {
     alert("use effect triggered");
-    const session = gl.xr.getSession?.();
-    if (session) return;
+    const session = gl.xr.getSession();
+    if (!session) return;
 
     // alert("session passed");
     const onSelect = (event) => {
