@@ -7,39 +7,59 @@ import correctSfx from "/sounds/correct.mp3";
 import wrongSfx from "/sounds/wrong.mp3";
 
 const AssessmentAR = () => {
+  const [isARSupported, setIsARSupported] = useState(true);
+
+  useEffect(() => {
+    // ✅ Check WebXR AR support
+    if (navigator.xr) {
+      navigator.xr
+        .isSessionSupported("immersive-ar")
+        .then((supported) => {
+          if (!supported) {
+            alert("AR not supported on this device.");
+            setIsARSupported(false);
+          }
+        })
+        .catch(() => {
+          alert("Error checking AR support.");
+          setIsARSupported(false);
+        });
+    } else {
+      alert("WebXR not available in this browser.");
+      setIsARSupported(false);
+    }
+  }, []);
+
+  if (!isARSupported) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center text-white bg-black">
+        <p>⚠️ AR not supported on this device.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-screen">
       <Canvas
-        gl={{ alpha: true }}
-        style={{ background: "transparent" }} // ✅ AR camera passthrough
         camera={{ position: [0, 1.5, 12], fov: 60 }}
+        gl={{ alpha: true }}
         shadows
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
 
-          // ✅ Check if AR supported
-          if (!navigator.xr) {
-            alert("❌ AR Interactive feature not available on this device.");
-            return;
-          }
-
-          navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
-            if (!supported) {
-              alert("❌ This device does not support AR Interactive features.");
-              return;
-            }
-
-            // ✅ Start AR session if supported
-            navigator.xr
-              .requestSession("immersive-ar", {
-                requiredFeatures: ["local-floor", "hit-test"],
-              })
-              .then((session) => {
-                gl.xr.setSession(session);
-                console.log("✅ AR session started successfully!");
-              })
-              .catch((err) => console.error("❌ Failed to start AR:", err));
-          });
+          // ✅ Request AR session and bind to WebXRManager
+          navigator.xr
+            .requestSession("immersive-ar", {
+              requiredFeatures: ["local-floor", "hit-test"],
+            })
+            .then((session) => {
+              gl.xr.setSession(session);
+              console.log("✅ AR session started successfully!");
+            })
+            .catch((err) => {
+              console.error("❌ AR session failed:", err);
+              alert("AR session could not start. Please check permissions.");
+            });
         }}
       >
         <ambientLight intensity={0.6} />
@@ -92,18 +112,20 @@ const AssessmentScene = () => {
   };
 
   useEffect(() => {
-    console.log("🧠 Waiting for AR session...");
-    const renderer = gl;
+    const session = gl.xr.getSession();
+    if (!session) {
+      console.warn("⚠️ No active AR session found.");
+      return;
+    }
 
     const onSelect = (event) => {
-      alert("✅ AR tap/select detected!");
-      console.log("AR select event:", event);
+      console.log("✅ AR select event:", event);
 
       const inputSource = event.inputSource;
       if (inputSource.targetRayMode !== "screen") return;
 
       const frame = event.frame;
-      const referenceSpace = renderer.xr.getReferenceSpace();
+      const referenceSpace = gl.xr.getReferenceSpace();
       if (!frame || !referenceSpace) return;
 
       const pose = frame.getPose(inputSource.targetRaySpace, referenceSpace);
@@ -132,32 +154,8 @@ const AssessmentScene = () => {
       }
     };
 
-    // ✅ Wait for AR session to start
-    const setupARSession = (session) => {
-      alert("🟢 AR session started — listener added!");
-      session.addEventListener("select", onSelect);
-    };
-
-    const existingSession = renderer.xr.getSession();
-    if (existingSession) setupARSession(existingSession);
-
-    renderer.xr.addEventListener("sessionstart", () => {
-      const newSession = renderer.xr.getSession();
-      if (newSession) setupARSession(newSession);
-    });
-
-    // ✅ Desktop fallback for testing
-    const onClick = () => {
-      alert("💻 Desktop click detected — simulating AR tap.");
-      handleSelect(questions[currentQ].choices[0], 0);
-    };
-    window.addEventListener("click", onClick);
-
-    return () => {
-      const session = renderer.xr.getSession();
-      if (session) session.removeEventListener("select", onSelect);
-      window.removeEventListener("click", onClick);
-    };
+    session.addEventListener("select", onSelect);
+    return () => session.removeEventListener("select", onSelect);
   }, [gl, currentQ]);
 
   const spacing = 2.5;
@@ -195,9 +193,7 @@ const AssessmentScene = () => {
       {questions[currentQ].choices.map((choice, i) => (
         <Choice
           key={i}
-          refCallback={(ref) => {
-            choiceRefs.current[i] = ref;
-          }}
+          refCallback={(ref) => (choiceRefs.current[i] = ref)}
           geometry={choice.type}
           position={[(i - mid) * spacing * 6, 0, 0]}
           label={choice.label}
