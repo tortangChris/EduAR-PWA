@@ -1,159 +1,162 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
+import { ARButton } from "three/examples/jsm/webxr/ARButton.js";
 import useSound from "use-sound";
 import correctSfx from "/sounds/correct.mp3";
 import wrongSfx from "/sounds/wrong.mp3";
 
 const AssessmentAR = () => {
-  const [isSupported, setIsSupported] = useState(true);
+  const [isARSupported, setIsARSupported] = useState(false);
+  const [debugMsg, setDebugMsg] = useState("Awaiting tap...");
+  const [playCorrect] = useSound(correctSfx);
+  const [playWrong] = useSound(wrongSfx);
+  const [objects, setObjects] = useState([]);
 
+  const hitTestSource = useRef(null);
+  const hitTestSourceRequested = useRef(false);
+  const reticleRef = useRef();
+  const { gl, scene, camera } = useThree(() => ({}));
+
+  // ✅ Check for AR support and create ARButton
   useEffect(() => {
-    if (!navigator.xr) {
-      alert("WebXR not available in this browser.");
-      setIsSupported(false);
-      return;
+    if (navigator.xr) {
+      navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
+        if (supported) {
+          setIsARSupported(true);
+          const button = ARButton.createButton(gl?.domElement, {
+            requiredFeatures: ["hit-test"],
+          });
+          document.body.appendChild(button);
+        } else {
+          alert("AR interactive feature is not available on this device.");
+        }
+      });
+    } else {
+      alert("WebXR not supported by your browser.");
     }
+  }, [gl]);
 
-    navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
-      if (!supported) {
-        alert("AR not supported on this device.");
-        setIsSupported(false);
+  // ✅ Start AR session setup
+  useEffect(() => {
+    if (!gl) return;
+
+    gl.xr.enabled = true;
+    const sessionInit = { requiredFeatures: ["hit-test"] };
+
+    navigator.xr
+      ?.requestSession("immersive-ar", sessionInit)
+      .then((session) => {
+        gl.xr.setSession(session);
+        setDebugMsg("AR session started!");
+        session.addEventListener("select", onSelect);
+
+        const refSpaceType = "viewer";
+        session.requestReferenceSpace(refSpaceType).then((refSpace) => {
+          session.requestAnimationFrame(onXRFrame);
+          setupHitTest(session, refSpace);
+        });
+      });
+
+    const setupHitTest = async (session, refSpace) => {
+      const viewerSpace = await session.requestReferenceSpace("viewer");
+      const hitTestSourceTemp = await session.requestHitTestSource({
+        space: viewerSpace,
+      });
+      hitTestSource.current = hitTestSourceTemp;
+      hitTestSourceRequested.current = true;
+    };
+
+    const onXRFrame = (time, frame) => {
+      const session = frame.session;
+      const referenceSpace = gl.xr.getReferenceSpace();
+      const pose = frame.getViewerPose(referenceSpace);
+
+      if (hitTestSource.current && pose) {
+        const hitTestResults = frame.getHitTestResults(hitTestSource.current);
+        if (hitTestResults.length > 0) {
+          const hit = hitTestResults[0];
+          const referenceSpace = gl.xr.getReferenceSpace();
+          const hitPose = hit.getPose(referenceSpace);
+          if (reticleRef.current) {
+            reticleRef.current.visible = true;
+            reticleRef.current.position.set(
+              hitPose.transform.position.x,
+              hitPose.transform.position.y,
+              hitPose.transform.position.z
+            );
+            reticleRef.current.updateMatrixWorld(true);
+          }
+        }
       }
-    });
-  }, []);
 
-  if (!isSupported) {
-    return (
-      <div className="w-full h-screen flex items-center justify-center bg-black text-white">
-        <p>⚠️ AR not supported on this device.</p>
-      </div>
-    );
-  }
+      session.requestAnimationFrame(onXRFrame);
+    };
+
+    // ✅ Tap event (select event handled below)
+    const onSelect = (event) => {
+      if (!reticleRef.current || !reticleRef.current.visible) {
+        alert("No surface detected yet.");
+        return;
+      }
+
+      // Place box at reticle position
+      const newBox = new THREE.Mesh(
+        new THREE.BoxGeometry(0.1, 0.1, 0.1),
+        new THREE.MeshStandardMaterial({ color: "#60a5fa" })
+      );
+
+      newBox.position.copy(reticleRef.current.position);
+      gl.scene.add(newBox);
+      setObjects((prev) => [...prev, newBox]);
+
+      alert("📍 Object anchored!");
+      playCorrect();
+      setDebugMsg("Anchor placed!");
+    };
+  }, [gl]);
 
   return (
-    <div className="w-full h-screen">
-      <Canvas
-        camera={{ position: [0, 1.5, 12], fov: 60 }}
-        gl={{ alpha: true }}
-        style={{ background: "transparent" }}
-        onCreated={({ gl }) => {
-          gl.xr.enabled = true;
+    <div style={{ width: "100vw", height: "100vh" }}>
+      {isARSupported ? (
+        <Canvas
+          camera={{ position: [0, 1.6, 3] }}
+          onCreated={({ gl }) => (gl.xr.enabled = true)}
+        >
+          <ambientLight intensity={1.5} />
+          <directionalLight position={[1, 3, 2]} intensity={2} />
+          <mesh ref={reticleRef} visible={false}>
+            <ringGeometry args={[0.05, 0.06, 32]} />
+            <meshBasicMaterial color="lime" />
+          </mesh>
 
-          // ✅ Properly request AR session and bind after success
-          navigator.xr
-            .requestSession("immersive-ar", {
-              requiredFeatures: ["local-floor", "hit-test"],
-            })
-            .then((session) => {
-              gl.xr.setReferenceSpaceType("local-floor");
+          <Text position={[0, 1, -1]} fontSize={0.2} color="white">
+            Tap surface to anchor box
+          </Text>
+        </Canvas>
+      ) : (
+        <div className="p-4 text-center">
+          <p>Checking AR capability...</p>
+        </div>
+      )}
 
-              // Required to render AR to camera background
-              gl.xr.setSession(session);
-              console.log("✅ AR session started");
-
-              // Debugging confirmation
-              alert("✅ AR session started successfully!");
-
-              // Add event listener here — after XR session truly starts
-              session.addEventListener("select", (event) => {
-                console.log("🟢 XR SELECT EVENT:", event);
-                alert("Tap detected in AR mode!");
-              });
-            })
-            .catch((err) => {
-              console.error("❌ AR session failed:", err);
-              alert("AR session failed. Check camera permissions.");
-            });
+      {/* ✅ Debug UI */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 10,
+          left: 10,
+          background: "#0008",
+          color: "white",
+          padding: "6px 10px",
+          borderRadius: "8px",
+          fontSize: "14px",
         }}
       >
-        <ambientLight intensity={0.7} />
-        <directionalLight position={[5, 10, 5]} intensity={1.2} />
-        <ARScene />
-      </Canvas>
+        {debugMsg}
+      </div>
     </div>
-  );
-};
-
-const ARScene = () => {
-  const [currentQ, setCurrentQ] = useState(0);
-  const [selected, setSelected] = useState(null);
-  const [playCorrect] = useSound(correctSfx, { volume: 0.5 });
-  const [playWrong] = useSound(wrongSfx, { volume: 0.5 });
-  const refs = useRef([]);
-
-  const questions = [
-    {
-      question: "Accessing an array element by index has what complexity?",
-      choices: [
-        { text: "O(1)", correct: true },
-        { text: "O(n)", correct: false },
-        { text: "O(log n)", correct: false },
-      ],
-    },
-    {
-      question: "Deleting first element of an array has what complexity?",
-      choices: [
-        { text: "O(1)", correct: false },
-        { text: "O(n)", correct: true },
-        { text: "O(log n)", correct: false },
-      ],
-    },
-  ];
-
-  const spacing = 2.5;
-  const mid = (questions[currentQ].choices.length - 1) / 2;
-
-  return (
-    <group position={[0, 1, -12]} scale={[0.15, 0.15, 0.15]}>
-      <Text
-        position={[0, 25, 0]}
-        fontSize={2.5}
-        color="yellow"
-        anchorX="center"
-      >
-        Question {currentQ + 1}
-      </Text>
-      <Text
-        position={[0, 17, 0]}
-        fontSize={3}
-        color="white"
-        anchorX="center"
-        maxWidth={80}
-      >
-        {questions[currentQ].question}
-      </Text>
-
-      {questions[currentQ].choices.map((ch, i) => (
-        <Choice
-          key={i}
-          label={ch.text}
-          correct={ch.correct}
-          position={[(i - mid) * spacing * 6, 0, 0]}
-          refCallback={(ref) => (refs.current[i] = ref)}
-        />
-      ))}
-    </group>
-  );
-};
-
-const Choice = ({ label, correct, position, refCallback }) => {
-  const meshRef = useRef();
-  useEffect(() => {
-    if (refCallback) refCallback(meshRef);
-  }, [refCallback]);
-
-  return (
-    <group position={position}>
-      <mesh ref={meshRef}>
-        <boxGeometry args={[6, 6, 6]} />
-        <meshStandardMaterial color="#60a5fa" emissive="black" />
-      </mesh>
-      <Text position={[0, 7, 0]} fontSize={2.5} color="white" anchorX="center">
-        {label}
-      </Text>
-    </group>
   );
 };
 
