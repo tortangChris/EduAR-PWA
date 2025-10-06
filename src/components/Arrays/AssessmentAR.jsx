@@ -180,19 +180,42 @@ const Choice = ({
   selected,
 }) => {
   const meshRef = useRef();
+  const [scaleTarget, setScaleTarget] = useState(1);
 
+  // Register mesh for raycasting
   useEffect(() => {
     if (refCallback) refCallback({ meshRef });
   }, [refCallback]);
 
+  // Handle selection visual feedback
   useEffect(() => {
-    if (meshRef.current) {
-      meshRef.current.material.emissive.set(
-        selected ? (isCorrect ? "green" : "red") : "black"
-      );
-      meshRef.current.scale.setScalar(selected ? 1.2 : 1);
+    if (selected) {
+      // Briefly highlight and scale
+      setScaleTarget(1.3);
+      meshRef.current.material.emissive.set(isCorrect ? "green" : "red");
+
+      const timeout = setTimeout(() => {
+        setScaleTarget(1);
+        meshRef.current.material.emissive.set("black");
+      }, 500); // highlight duration 0.5s
+
+      return () => clearTimeout(timeout);
+    } else {
+      // Reset
+      setScaleTarget(1);
+      if (meshRef.current) meshRef.current.material.emissive.set("black");
     }
   }, [selected]);
+
+  // Smoothly animate scale each frame
+  useFrame(() => {
+    if (meshRef.current) {
+      meshRef.current.scale.lerp(
+        new THREE.Vector3(scaleTarget, scaleTarget, scaleTarget),
+        0.1
+      );
+    }
+  });
 
   return (
     <group position={position}>
