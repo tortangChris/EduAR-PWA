@@ -1,69 +1,71 @@
+// VisualPage1AR.jsx
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 /**
  * VisualPage1AR
- *
- * Props:
- *  - data: number[] (default [10,20,30,40])
- *  - spacing: number (default 2.0)
+ * - data: array of numbers (default shown)
+ * - spacing: spacing between boxes in world units (default 0.9)
  *
  * Notes:
- *  - Directly requests immersive-ar session (no start button).
- *  - Uses XR controller "select" event + raycasting for tap detection.
- *  - Fallback pointer/tap raycast when XR not available for debugging in browser.
- *  - Uses canvas textures for text labels and the side definition panel.
+ * - Uses WebXR immersive-ar (auto-start). If XR unavailable, pointer fallback works for testing.
+ * - Uses canvas-created textures for labels and panel (no external deps).
+ * - Invisible planes placed in front of objects to improve tap hit detection.
  */
-const VisualPage1AR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
+const VisualPage1AR = ({ data = [10, 20, 30, 40], spacing = 0.9 }) => {
   const containerRef = useRef(null);
-  const rendererRef = useRef(null);
-  const sceneRef = useRef(null);
-  const cameraRef = useRef(null);
-  const xrSessionRef = useRef(null);
-
+  const debugRef = useRef("");
   const [debugText, setDebugText] = useState("");
-  const [selectedIndex, setSelectedIndex] = useState(null);
-  const pickableMeshesRef = useRef([]); // pickable box meshes
-  const spriteRefs = useRef({}); // store sprites like value label and selected label
-  const panelSpriteRef = useRef(null);
+  // local refs for internals
+  const sceneRef = useRef();
+  const rendererRef = useRef();
+  const cameraRef = useRef();
+  const xrSessionRef = useRef();
+  const pickableRef = useRef([]); // objects that raycast can hit
+  const spritesRef = useRef({}); // store sprites by key
+  const panelStateRef = useRef({ page: 0, visible: false });
+  const selectedIndexRef = useRef(null);
 
-  // precompute positions
-  const positions = (() => {
-    const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  })();
+  // BOX SIZE in world units before group scale
+  const BOX_SIZE = { x: 1.6, y: 1.2, z: 1.0 };
 
-  // helpers ---------------------------------------------------------------
-  const makeTextTexture = (
-    text,
-    {
-      font = "bold 48px sans-serif",
+  // helper to briefly show debug
+  const flashDebug = (msg, ms = 1400) => {
+    setDebugText(msg);
+    if (debugRef.current) {
+      clearTimeout(debugRef.current);
+    }
+    debugRef.current = setTimeout(() => setDebugText(""), ms);
+  };
+
+  // create canvas texture from text (supports multiline)
+  const makeTextTexture = (text, opts = {}) => {
+    const {
+      font = "600 36px sans-serif",
       padding = 10,
-      background = "rgba(0,0,0,0)",
-      color = "white",
-      maxWidth = 800,
-      lineHeight = 58,
-    } = {}
-  ) => {
-    // support multi-line
+      color = "#ffffff",
+      background = "rgba(0,0,0,0.0)",
+      maxWidth = 900,
+      lineHeight = 40,
+    } = opts;
+
     const lines = String(text).split("\n");
-    // measure canvas width and height
-    const tmp = document.createElement("canvas");
-    const tctx = tmp.getContext("2d");
-    tctx.font = font;
-    let width = 0;
-    lines.forEach((line) => {
-      width = Math.max(width, Math.min(tctx.measureText(line).width, maxWidth));
+    // measure width
+    const measureCanvas = document.createElement("canvas");
+    const mctx = measureCanvas.getContext("2d");
+    mctx.font = font;
+    let w = 0;
+    lines.forEach((ln) => {
+      const measured = mctx.measureText(ln).width;
+      if (measured > w) w = Math.min(measured, maxWidth);
     });
-    const height = lineHeight * lines.length;
+    const h = lineHeight * lines.length;
 
     const canvas = document.createElement("canvas");
-    // account for padding
-    canvas.width = Math.ceil(width + padding * 2);
-    canvas.height = Math.ceil(height + padding * 2);
+    canvas.width = Math.ceil(w + padding * 2);
+    canvas.height = Math.ceil(h + padding * 2);
     const ctx = canvas.getContext("2d");
 
-    // optional background
     if (background) {
       ctx.fillStyle = background;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -73,56 +75,36 @@ const VisualPage1AR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
     ctx.fillStyle = color;
     ctx.textBaseline = "top";
 
-    lines.forEach((line, i) => {
-      ctx.fillText(line, padding, padding + i * lineHeight);
+    lines.forEach((ln, i) => {
+      ctx.fillText(ln, padding, padding + i * lineHeight);
     });
 
     const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
     texture.minFilter = THREE.LinearFilter;
+    texture.needsUpdate = true;
     return { texture, width: canvas.width, height: canvas.height };
   };
 
-  const makeSpriteFromText = (text, options = {}) => {
-    const { texture, width, height } = makeTextTexture(text, options);
-    const material = new THREE.SpriteMaterial({
+  const makeSpriteFromText = (text, opts = {}) => {
+    const { texture, width, height } = makeTextTexture(text, opts);
+    const mat = new THREE.SpriteMaterial({
       map: texture,
+      transparent: true,
       depthTest: false,
     });
-    const sprite = new THREE.Sprite(material);
-    // scale sprite in world units: scale relative to width/height
-    const aspect = width / height;
-    const baseHeight = 0.5; // world units for height
+    const sprite = new THREE.Sprite(mat);
+    // scale: choose a base height in world units, then preserve aspect
+    const baseHeight = opts.baseHeight || 0.45;
+    const aspect = width / height || 1;
     sprite.scale.set(baseHeight * aspect, baseHeight, 1);
     return sprite;
   };
 
-  // create box mesh
-  const createBox = (value, idx, pos, sharedGeometries, sharedMaterials) => {
-    const size = [1.6, 1.2, 1.0];
-    const geo = sharedGeometries.boxGeo;
-    const mat = sharedMaterials[idx % sharedMaterials.length];
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(pos[0], size[1] / 2, pos[2]);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.userData = { index: idx, value };
-    mesh.name = `box-${idx}`;
-    return mesh;
-  };
-
-  // show debug message briefly
-  const flashDebug = (msg, ms = 1500) => {
-    setDebugText(msg);
-    setTimeout(() => setDebugText(""), ms);
-  };
-
-  // main effect -----------------------------------------------------------
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Scene, camera, renderer
+    // Scene + Camera + Renderer
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
@@ -132,31 +114,31 @@ const VisualPage1AR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
       0.01,
       50
     );
-    camera.position.set(0, 1.6, 0); // typical eye height for AR
+    camera.position.set(0, 1.6, 0);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.xr.enabled = true;
-    renderer.shadowMap.enabled = false; // shadows heavy for AR - disable for perf
     renderer.setPixelRatio(window.devicePixelRatio || 1);
+    renderer.shadowMap.enabled = false; // keep perf good for AR
     rendererRef.current = renderer;
 
-    // append DOM
     container.appendChild(renderer.domElement);
 
-    // Lights
+    // Light
     const hemi = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1.0);
+    hemi.position.set(0.2, 1, 0.1);
     scene.add(hemi);
 
-    // Main group that will hold the array visualization
+    // Main group to hold the array - scaled down to fit AR view
     const mainGroup = new THREE.Group();
-    mainGroup.position.set(0, 1, -2); // placed in front of user
-    mainGroup.scale.set(0.12, 0.12, 0.12); // scale down to fit AR view
+    mainGroup.position.set(0, 1, -1.5); // slightly in front of user
+    mainGroup.scale.set(0.12, 0.12, 0.12); // scale so our box sizes from BOX_SIZE are reasonable
     scene.add(mainGroup);
 
-    // Shared geometries/materials to optimize
-    const boxGeo = new THREE.BoxGeometry(1.6, 1.2, 1.0);
+    // Shared geometry and materials
+    const boxGeo = new THREE.BoxGeometry(BOX_SIZE.x, BOX_SIZE.y, BOX_SIZE.z);
     const matA = new THREE.MeshStandardMaterial({
       color: "#60a5fa",
       emissive: "#000000",
@@ -170,157 +152,219 @@ const VisualPage1AR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
       emissive: "#fbbf24",
       emissiveIntensity: 0.4,
     });
-    const sharedMaterials = [matA, matB, matSelected];
 
-    // pickable meshes list
-    pickableMeshesRef.current = [];
+    // precompute positions (unscaled; group scale will apply)
+    const mid = (data.length - 1) / 2;
+    const positions = data.map((_, i) => [(i - mid) * spacing, 0, 0]);
 
-    // create boxes
-    data.forEach((value, i) => {
+    // arrays for pickable objects
+    pickableRef.current = [];
+
+    // create boxes, value/index sprites, and invisible planes for hits
+    data.forEach((val, i) => {
       const pos = positions[i];
-      const mesh = createBox(value, i, pos, { boxGeo }, sharedMaterials);
-      // initially set correct material (alternate)
-      mesh.material = i % 2 === 0 ? matA : matB;
-      mainGroup.add(mesh);
-      pickableMeshesRef.current.push(mesh);
 
-      // value sprite (above front face)
-      const valSprite = makeSpriteFromText(String(value), {
-        font: "bold 60px sans-serif",
+      // Box mesh
+      const mesh = new THREE.Mesh(boxGeo, i % 2 === 0 ? matA : matB);
+      mesh.position.set(pos[0], BOX_SIZE.y / 2, pos[2]);
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      mesh.userData = { index: i, value: val, kind: "box" };
+      mesh.name = `box-${i}`;
+      mainGroup.add(mesh);
+
+      // front value sprite
+      const valSprite = makeSpriteFromText(String(val), {
+        font: "600 48px sans-serif",
         padding: 8,
         color: "#ffffff",
         background: "rgba(0,0,0,0.55)",
+        baseHeight: 0.42,
       });
-      valSprite.position.set(pos[0], 1.2 / 2 + 0.22, pos[2] + 0.55);
-      // smaller scale since group scaled
+      valSprite.position.set(
+        pos[0],
+        BOX_SIZE.y / 2 + 0.22,
+        pos[2] + (BOX_SIZE.z / 2 + 0.08)
+      );
       mainGroup.add(valSprite);
-      spriteRefs.current[`val-${i}`] = valSprite;
+      spritesRef.current[`val-${i}`] = valSprite;
 
-      // index sprite (clickable area) below the box - we'll use invisible plane for raycast target
-      const indexSprite = makeSpriteFromText(`[${i}]`, {
-        font: "bold 42px sans-serif",
+      // index sprite (visual)
+      const idxSprite = makeSpriteFromText(`[${i}]`, {
+        font: "600 40px sans-serif",
         padding: 8,
         color: "#ffeb3b",
-        background: "rgba(0,0,0,0.35)",
+        background: "rgba(0,0,0,0.4)",
+        baseHeight: 0.32,
       });
-      indexSprite.position.set(pos[0], -0.36, pos[2] + 0.55);
-      mainGroup.add(indexSprite);
-      spriteRefs.current[`idx-${i}`] = indexSprite;
+      idxSprite.position.set(pos[0], -0.36, pos[2] + (BOX_SIZE.z / 2 + 0.08));
+      mainGroup.add(idxSprite);
+      spritesRef.current[`idx-${i}`] = idxSprite;
 
-      // create an invisible thin plane in front for easier tapping (so raycast hits)
-      const planeGeo = new THREE.PlaneGeometry(1.0, 0.6);
+      // invisible plane in front of box for better hit detection (value tap)
+      const planeGeo = new THREE.PlaneGeometry(0.95, 0.75);
       const planeMat = new THREE.MeshBasicMaterial({ visible: false });
-      const plane = new THREE.Mesh(planeGeo, planeMat);
-      plane.position.set(pos[0], size[1] / 2, pos[2] + 0.51);
-      plane.userData = { index: i, type: "value-plane" }; // used to detect index/value taps
-      mainGroup.add(plane);
-      pickableMeshesRef.current.push(plane);
-      // also create small plane for index (below)
+      const valPlane = new THREE.Mesh(planeGeo, planeMat);
+      valPlane.position.set(
+        pos[0],
+        BOX_SIZE.y / 2,
+        pos[2] + (BOX_SIZE.z / 2 + 0.06)
+      );
+      valPlane.userData = { index: i, type: "value-plane" };
+      mainGroup.add(valPlane);
+      pickableRef.current.push(valPlane);
+
+      // invisible plane for index (below)
       const idxPlane = new THREE.Mesh(
         new THREE.PlaneGeometry(0.8, 0.4),
         planeMat
       );
-      idxPlane.position.set(pos[0], -0.3, pos[2] + 0.51);
+      idxPlane.position.set(pos[0], -0.32, pos[2] + (BOX_SIZE.z / 2 + 0.06));
       idxPlane.userData = { index: i, type: "index-plane" };
       mainGroup.add(idxPlane);
-      pickableMeshesRef.current.push(idxPlane);
+      pickableRef.current.push(idxPlane);
+
+      // also allow raycast to hit the visible mesh as backup
+      pickableRef.current.push(mesh);
     });
 
-    // Definition panel sprite (hidden initially)
+    // --- Definition panel (sprite) ---
+    // placed below boxes (y ≈ -0.6 relative to mainGroup) and faces camera
     const panelSprite = makeSpriteFromText("", {
-      font: "bold 36px sans-serif",
-      padding: 12,
+      font: "600 34px sans-serif",
+      padding: 10,
       color: "#fde68a",
       background: "rgba(0,0,0,0.6)",
-      lineHeight: 44,
+      baseHeight: 1.1,
+      lineHeight: 36,
     });
+    panelSprite.position.set(0, -0.9, 0); // relative to mainGroup
     panelSprite.visible = false;
-    // position it to the right of main group
-    panelSprite.position.set(1.5, 0.4, 0);
-    panelSprite.scale.set(1.4, 1.4, 1);
     mainGroup.add(panelSprite);
-    panelSpriteRef.current = panelSprite;
+    spritesRef.current["panel"] = panelSprite;
 
-    // Selected label sprite (shows "Value X at index Y")
-    const selSprite = makeSpriteFromText("", {
-      font: "bold 44px sans-serif",
-      padding: 12,
+    // small invisible plane to advance/close panel (placed right beneath panel)
+    const panelNextPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.9, 0.45),
+      new THREE.MeshBasicMaterial({ visible: false })
+    );
+    panelNextPlane.position.set(0.9, -1.4, 0.01);
+    panelNextPlane.userData = { type: "panel-next" };
+    mainGroup.add(panelNextPlane);
+    pickableRef.current.push(panelNextPlane);
+
+    // selected label sprite (top)
+    const selectedSprite = makeSpriteFromText("", {
+      font: "600 44px sans-serif",
+      padding: 10,
       color: "#fde68a",
       background: "rgba(0,0,0,0.45)",
+      baseHeight: 0.8,
     });
-    selSprite.visible = false;
-    selSprite.position.set(0, 2.0, 0);
-    mainGroup.add(selSprite);
-    spriteRefs.current["selectedLabel"] = selSprite;
+    selectedSprite.position.set(0, BOX_SIZE.y + 1.3, 0);
+    selectedSprite.visible = false;
+    mainGroup.add(selectedSprite);
+    spritesRef.current["selected"] = selectedSprite;
 
-    // Raycaster + controller handling
-    const raycaster = new THREE.Raycaster();
-    const tempMatrix = new THREE.Matrix4();
-
-    // controller (XR)
-    const controller = renderer.xr.getController(0);
-
-    const onXRSelect = () => {
-      // cast a ray from controller forward
-      tempMatrix.identity().extractRotation(controller.matrixWorld);
-      raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-
-      const intersects = raycaster.intersectObjects(
-        pickableMeshesRef.current,
-        true
-      );
-      if (intersects.length > 0) {
-        const hit = intersects[0].object;
-        handlePick(hit);
-      } else {
-        flashDebug("No hit");
+    // small on-screen sprite (for non-XR hint) - visible in both modes
+    const hintSprite = makeSpriteFromText(
+      "Tap a box to select • Tap an index to open panel",
+      {
+        font: "500 30px sans-serif",
+        padding: 8,
+        color: "#e6f4ff",
+        background: "rgba(0,0,0,0.45)",
+        baseHeight: 0.55,
       }
-    };
+    );
+    hintSprite.position.set(-0.01, -1.9, -0.05);
+    mainGroup.add(hintSprite);
+    spritesRef.current["hint"] = hintSprite;
 
-    controller.addEventListener("select", onXRSelect);
+    // Raycaster + controller
+    const raycaster = new THREE.Raycaster();
+    const controller = renderer.xr.getController(0);
     scene.add(controller);
 
-    // pointer fallback for non-XR (desktop testing & touch)
-    const onPointerDown = (event) => {
-      // get normalized device coords
-      const rect = renderer.domElement.getBoundingClientRect();
-      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera({ x, y }, camera);
-      const intersects = raycaster.intersectObjects(
-        pickableMeshesRef.current,
-        true
-      );
-      if (intersects.length) {
-        handlePick(intersects[0].object);
+    // handle picking logic
+    const handlePick = (hitObj) => {
+      if (!hitObj || !hitObj.userData) return;
+      const ud = hitObj.userData;
+
+      // Panel next plane
+      if (ud.type === "panel-next") {
+        if (!panelStateRef.current.visible) return;
+        // Advance page or close
+        panelStateRef.current.page = (panelStateRef.current.page + 1) % 3;
+        updatePanelContent(
+          panelStateRef.current.page,
+          panelStateRef.current.currentIndex
+        );
+        // if we wrap to page 0 from 2, close instead of showing again? keep cyclic per original request
+        return;
+      }
+
+      // Index-plane: show panel
+      if (ud.type === "index-plane" && typeof ud.index === "number") {
+        openPanelForIndex(ud.index);
+        return;
+      }
+
+      // Value-plane or mesh: toggle selection
+      if (ud.type === "value-plane" || ud.kind === "box") {
+        const idx = ud.index;
+        toggleSelect(idx);
+        return;
       }
     };
-    renderer.domElement.addEventListener("pointerdown", onPointerDown);
 
-    // handle pick logic (index or value)
-    const handlePick = (object) => {
-      const ud = object.userData || {};
-      const idx = ud.index;
-      const type = ud.type || "value-plane";
-      if (typeof idx === "number") {
-        if (type === "index-plane") {
-          // show definition panel (pages inside sprite)
-          const content = buildPanelContent(0); // page 0 initially
-          updatePanel(content);
-          panelSprite.visible = true;
-          flashDebug(`Opened panel for index ${idx}`);
-        } else {
-          // value clicked: toggle selection
-          toggleSelect(idx);
+    // Toggle selection of a box
+    const toggleSelect = (idx) => {
+      const prev = selectedIndexRef.current;
+      if (prev !== null && prev === idx) {
+        // deselect
+        selectedIndexRef.current = null;
+        // revert material of the box
+        const mesh = mainGroup.getObjectByName(`box-${idx}`);
+        if (mesh) {
+          mesh.material = idx % 2 === 0 ? matA : matB;
         }
+        // hide selectedlabel
+        spritesRef.current["selected"].visible = false;
+        flashDebug(`Deselected index ${idx}`);
       } else {
-        flashDebug("Tapped object has no index");
+        // select new
+        selectedIndexRef.current = idx;
+        // find mesh and set material
+        const mesh = mainGroup.getObjectByName(`box-${idx}`);
+        if (mesh) {
+          mesh.material = matSelected;
+        }
+        // update selected sprite texture
+        const selText = `Value ${data[idx]} at index ${idx}`;
+        const { texture, width, height } = makeTextTexture(selText, {
+          font: "600 44px sans-serif",
+          padding: 10,
+          color: "#fde68a",
+          background: "rgba(0,0,0,0.45)",
+          lineHeight: 48,
+        });
+        const sp = spritesRef.current["selected"];
+        sp.material.map?.dispose();
+        sp.material.map = texture;
+        sp.material.needsUpdate = true;
+        sp.visible = true;
+        flashDebug(`Selected index ${idx}`);
+        // hide panel if open
+        if (panelStateRef.current.visible) {
+          panelStateRef.current.visible = false;
+          spritesRef.current["panel"].visible = false;
+        }
       }
     };
 
-    // build definition panel text content (string)
-    const buildPanelContent = (page, localData = data) => {
+    // Panel content builder
+    const buildPanelText = (page, localData = data) => {
       if (page === 0) {
         return [
           "📘 Understanding Index in Arrays:",
@@ -344,223 +388,146 @@ const VisualPage1AR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
       }
     };
 
-    let panelPage = 0;
-    const updatePanel = (text) => {
-      if (!panelSpriteRef.current) return;
-      // replace material map
-      const { texture, width, height } = makeTextTexture(text, {
-        font: "bold 36px sans-serif",
+    // Update panel content and show
+    const updatePanelContent = (page, indexForContext = null) => {
+      const content = buildPanelText(page);
+      const { texture } = makeTextTexture(content, {
+        font: "600 34px sans-serif",
         padding: 12,
         color: "#fde68a",
         background: "rgba(0,0,0,0.6)",
-        lineHeight: 40,
+        lineHeight: 36,
       });
-      panelSpriteRef.current.material.map.dispose?.();
-      panelSpriteRef.current.material.map = texture;
-      panelSpriteRef.current.material.needsUpdate = true;
-      panelSpriteRef.current.visible = true;
+      panelStateRef.current.page = page;
+      const p = spritesRef.current["panel"];
+      p.material.map?.dispose();
+      p.material.map = texture;
+      p.material.needsUpdate = true;
+      p.visible = true;
+      panelStateRef.current.visible = true;
+      panelStateRef.current.currentIndex = indexForContext;
+      flashDebug(`Panel page ${page + 1}`);
     };
 
-    // toggle selection and update visuals
-    const toggleSelect = (idx) => {
-      if (selectedIndex === idx) {
-        // deselect
-        setSelectedIndex(null);
-        flashDebug(`Deselected ${idx}`);
-        // revert material
-        const mesh = pickableMeshesRef.current.find(
-          (m) => m.userData?.index === idx && m.type === "Mesh"
-        );
-        if (mesh) {
-          mesh.material = idx % 2 === 0 ? matA : matB;
-        }
-        // hide selected label
-        const s = spriteRefs.current["selectedLabel"];
-        if (s) s.visible = false;
-      } else {
-        // select new
-        setSelectedIndex(idx);
-        flashDebug(`Selected index ${idx}`);
-        // find the actual box mesh (not plane)
-        const boxMesh = pickableMeshesRef.current.find(
-          (m) =>
-            m.userData?.index === idx &&
-            m.geometry &&
-            m.geometry.type === "BoxGeometry"
-        );
-        if (boxMesh) {
-          boxMesh.material = matSelected;
-        }
-        // update selected label sprite
-        const selText = `Value ${data[idx]} at index ${idx}`;
-        const selSprite = spriteRefs.current["selectedLabel"];
-        if (selSprite) {
-          // replace texture
-          const { texture, width, height } = makeTextTexture(selText, {
-            font: "bold 44px sans-serif",
-            padding: 12,
-            color: "#fde68a",
-            background: "rgba(0,0,0,0.45)",
-            lineHeight: 48,
-          });
-          selSprite.material.map.dispose?.();
-          selSprite.material.map = texture;
-          selSprite.material.needsUpdate = true;
-          selSprite.visible = true;
-        }
-        // hide panel if open
-        if (panelSpriteRef.current) panelSpriteRef.current.visible = false;
-      }
+    const openPanelForIndex = (idx) => {
+      panelStateRef.current.page = 0;
+      updatePanelContent(0, idx);
+      // move panel slightly under the clicked index to give context
+      const pos = positions[idx];
+      spritesRef.current["panel"].position.set(pos[0], -0.9, pos[2]);
+      // also move panel-next plane near it
+      panelNextPlane.position.set(pos[0] + 1.1, -1.3, pos[2] + 0.01);
+      flashDebug(`Opened panel for index ${idx}`);
     };
 
-    // simple UI: advance panel page when tapping to the right of panel area on pointerdown (desktop)
-    // Also add small next/close area as plane (visible false)
-    const panelNextPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.6, 0.4),
-      new THREE.MeshBasicMaterial({ visible: false })
-    );
-    panelNextPlane.position.set(1.5, -0.6, 0);
-    mainGroup.add(panelNextPlane);
-    pickableMeshesRef.current.push(panelNextPlane);
-    panelNextPlane.userData = { type: "panel-next" };
-
-    // handle panel next/close
-    const handlePanelNext = () => {
-      panelPage = (panelPage + 1) % 3;
-      updatePanel(buildPanelContent(panelPage));
-      if (panelPage === 0) flashDebug("Panel: page 1");
-      if (panelPage === 2) flashDebug("Panel: summary");
-    };
-
-    // make sure pick handler reacts to panelNext
-    const handlePickWrapper = (obj) => {
-      if (!obj || !obj.userData) return;
-      if (obj.userData.type === "panel-next") {
-        // next page or close
-        if (!panelSpriteRef.current.visible) return;
-        if (panelPage < 2) {
-          handlePanelNext();
-        } else {
-          panelSpriteRef.current.visible = false;
-        }
-        return;
-      }
-      handlePick(obj);
-    };
-
-    // replace earlier handlePick usage to wrapper
-    // (we'll keep onXRSelect and onPointerDown calling handlePickWrapper)
-    // Update onXRSelect and pointer handler to call wrapper:
-    controller.removeEventListener("select", onXRSelect); // remove earlier bound
-    const onXRSelect2 = () => {
-      tempMatrix.identity().extractRotation(controller.matrixWorld);
+    // XR select handler
+    const tmpMatrix = new THREE.Matrix4();
+    const onXRSelect = () => {
+      tmpMatrix.identity().extractRotation(controller.matrixWorld);
       raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-      const intersects = raycaster.intersectObjects(
-        pickableMeshesRef.current,
-        true
-      );
-      if (intersects.length > 0) {
-        handlePickWrapper(intersects[0].object);
+      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tmpMatrix);
+      const intersects = raycaster.intersectObjects(pickableRef.current, true);
+      if (intersects.length) {
+        handlePick(intersects[0].object);
       } else {
         flashDebug("No hit");
       }
     };
-    controller.addEventListener("select", onXRSelect2);
+    controller.addEventListener("select", onXRSelect);
 
-    renderer.domElement.removeEventListener("pointerdown", onPointerDown);
-    const onPointerDown2 = (ev) => {
+    // Pointer fallback (desktop / touch)
+    const onPointerDown = (ev) => {
       const rect = renderer.domElement.getBoundingClientRect();
       const x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
       const y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera({ x, y }, camera);
-      const intersects = raycaster.intersectObjects(
-        pickableMeshesRef.current,
-        true
-      );
-      if (intersects.length) handlePickWrapper(intersects[0].object);
+      const intersects = raycaster.intersectObjects(pickableRef.current, true);
+      if (intersects.length) {
+        handlePick(intersects[0].object);
+      }
     };
-    renderer.domElement.addEventListener("pointerdown", onPointerDown2);
+    renderer.domElement.addEventListener("pointerdown", onPointerDown);
 
     // Animation loop
     renderer.setAnimationLoop(() => {
-      // subtle hover animation for labels
-      Object.values(spriteRefs.current).forEach((s) => {
+      // make panel always face the camera (billboard)
+      const p = spritesRef.current["panel"];
+      if (p && p.visible) {
+        p.quaternion.copy(camera.quaternion);
+      }
+      // selected and value sprites face camera as well
+      Object.keys(spritesRef.current).forEach((k) => {
+        const s = spritesRef.current[k];
         if (!s) return;
-        s.material.rotation = (s.material.rotation || 0) * 0 + 0; // no-op for now
+        if (k !== "hint") s.quaternion.copy(camera.quaternion);
       });
+
       renderer.render(scene, camera);
     });
 
-    // request XR session
+    // Try to start XR session
     const tryStartXR = async () => {
       if (navigator.xr && navigator.xr.requestSession) {
         try {
-          const session = await navigator.xr.requestSession("immersive-ar", {
+          const sess = await navigator.xr.requestSession("immersive-ar", {
             requiredFeatures: ["local-floor"],
           });
-          xrSessionRef.current = session;
-          renderer.xr.setSession(session);
+          xrSessionRef.current = sess;
+          renderer.xr.setSession(sess);
           flashDebug("AR session started ✅", 1200);
         } catch (err) {
-          console.error("AR session failed:", err);
-          flashDebug("AR session failed (check device/support)");
+          console.warn("AR session failed:", err);
+          flashDebug(
+            "AR session failed (device/support). Pointer fallback active."
+          );
         }
       } else {
-        flashDebug("WebXR not available on this browser");
+        flashDebug("WebXR not available. Pointer fallback active.");
       }
     };
-
     tryStartXR();
 
-    // resize handler
+    // resize
     const onResize = () => {
-      if (!renderer || !camera) return;
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     };
     window.addEventListener("resize", onResize);
 
-    // Cleanup
+    // cleanup on unmount
     return () => {
       window.removeEventListener("resize", onResize);
-      renderer.domElement.removeEventListener("pointerdown", onPointerDown2);
-      controller.removeEventListener("select", onXRSelect2);
+      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
+      controller.removeEventListener("select", onXRSelect);
 
       try {
         if (container.contains(renderer.domElement))
           container.removeChild(renderer.domElement);
       } catch (e) {
-        console.warn("Renderer already removed:", e.message);
+        console.warn("Renderer DOM already removed:", e.message);
       }
-      // End XR session if started
+
       if (xrSessionRef.current && xrSessionRef.current.end) {
         xrSessionRef.current.end().catch(() => {});
       }
-      // stop render loop & dispose
       renderer.setAnimationLoop(null);
       renderer.dispose();
-      // clear textures
-      Object.values(spriteRefs.current).forEach((s) => {
+
+      // dispose created textures
+      Object.values(spritesRef.current).forEach((s) => {
         try {
           s.material.map?.dispose();
           s.material.dispose();
-        } catch {}
+        } catch (e) {}
       });
-      panelSpriteRef.current?.material.map?.dispose();
+      spritesRef.current = {};
+      pickableRef.current = [];
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once
 
-  // small controls for panel navigation (desktop UI)
-  const onPanelNextClick = () => {
-    // simulate next press by raycasting to the panel-next plane
-    setDebugText("Panel next (desktop)");
-    setTimeout(() => setDebugText(""), 1000);
-    // we can't directly access internals here safely; user should tap in AR or use pointer on canvas
-  };
-
+  // simple DOM hint + debug overlay
   return (
     <div ref={containerRef} className="w-full h-screen relative bg-black">
       {debugText && (
@@ -569,7 +536,6 @@ const VisualPage1AR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
         </div>
       )}
 
-      {/* Small on-screen hint for non-XR testing */}
       <div
         style={{
           position: "absolute",
@@ -585,24 +551,21 @@ const VisualPage1AR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
       >
         Tip: Tap a box to select. Tap an index to open panel.
       </div>
-
-      {/* Optional small control for panel next (desktop only) */}
-      <button
-        onClick={onPanelNextClick}
+      <div
         style={{
           position: "absolute",
           right: 12,
           bottom: 12,
-          padding: "8px 12px",
-          borderRadius: 8,
-          border: "none",
+          padding: "6px 10px",
           background: "#2563eb",
           color: "white",
+          borderRadius: 8,
+          fontSize: 13,
           zIndex: 50,
         }}
       >
-        Panel Next (desktop)
-      </button>
+        Panel: tap the right area near the panel to Next / Close
+      </div>
     </div>
   );
 };
