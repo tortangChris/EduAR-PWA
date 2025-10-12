@@ -1,102 +1,77 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
-import useSound from "use-sound";
-
-// tiny base64 beep sound (no import needed)
-const beep = "data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAA..."; // shortened, will still ding
+import * as THREE from "three";
 
 const VisualPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
-  const [stage, setStage] = useState(0);
-  const [fadeValues, setFadeValues] = useState({});
-  const [play] = useSound(beep, { volume: 0.5 });
+  const [selectedBox, setSelectedBox] = useState(null);
 
-  // positions for boxes along the X axis
+  // X positions of boxes
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  // timeline control (loop every 15s)
-  useEffect(() => {
-    const timeline = [
-      { time: 0, action: () => setStage(1) }, // Title
-      { time: 3, action: () => setStage(2) }, // Def
-      { time: 6, action: () => setStage(3) }, // Boxes
-      {
-        time: 9,
-        action: () => {
-          setStage(4);
-          play();
-        },
-      }, // Highlight index [2]
-      { time: 12, action: () => setStage(5) }, // Complexity label
-      { time: 15, action: () => setStage(6) }, // Example code
-    ];
+  // Toggle selection
+  const handleBoxClick = (i) => {
+    setSelectedBox((prev) => (prev === i ? null : i));
+  };
 
-    let timers = timeline.map((t) => setTimeout(t.action, t.time * 1000));
-
-    const loop = setInterval(() => {
-      setStage(0);
-      timers = timeline.map((t) => setTimeout(t.action, t.time * 1000));
-    }, 18000); // loop every 18s
-
-    return () => {
-      timers.forEach(clearTimeout);
-      clearInterval(loop);
-    };
-  }, [play]);
+  // Pseudo code generator
+  const generateCode = (index, value) => {
+    return [
+      "📘 Pseudo Code Example:",
+      "",
+      "array = [10, 20, 30, 40, 50]",
+      `index = ${index}`,
+      "",
+      "value = array[index]",
+      "print('Accessed Value:', value)",
+      "",
+      `// Result: ${value}`,
+    ].join("\n");
+  };
 
   return (
-    <div className="w-full h-[400px]">
+    <div className="w-full h-[300px]">
       <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
-        {/* Lighting */}
+        {/* Lights */}
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* Title */}
-        {stage >= 1 && (
-          <FadeText text="Access Operation (O(1))" position={[0, 3.5, 0]} />
-        )}
+        {/* Header */}
+        <FadeText
+          text="Array Access Operation (O(1))"
+          position={[0, 4, 0]}
+          fontSize={0.6}
+          color="#facc15"
+        />
 
-        {/* Definition */}
-        {stage >= 2 && (
-          <FadeText
-            text="Access = retrieving an element using its index"
-            position={[0, 2.8, 0]}
-            fontSize={0.35}
-          />
-        )}
+        {/* Instruction */}
+        <FadeText
+          text="Click a box to view its value and pseudo code"
+          position={[0, 3.2, 0]}
+          fontSize={0.35}
+          color="white"
+        />
 
         {/* Boxes */}
-        {stage >= 3 &&
-          data.map((value, i) => (
-            <Box
-              key={i}
-              index={i}
-              value={value}
-              position={positions[i]}
-              highlight={stage >= 4 && i === 2}
-            />
-          ))}
-
-        {/* Complexity label */}
-        {stage >= 5 && (
-          <FadeText
-            text="Time Complexity: O(1) → constant time"
-            position={[0, -2.8, 0]}
-            fontSize={0.35}
-            color="#facc15"
+        {data.map((value, i) => (
+          <Box
+            key={i}
+            index={i}
+            value={value}
+            position={positions[i]}
+            selected={selectedBox === i}
+            onClick={() => handleBoxClick(i)}
           />
-        )}
+        ))}
 
-        {/* Example code */}
-        {stage >= 6 && (
-          <FadeText
-            text={`arr = [10, 20, 30, 40]\narr[2] = 30   # Access index 2`}
-            position={[0, -3.5, 0]}
-            fontSize={0.28}
-            color="lightgreen"
+        {/* Code panel */}
+        {selectedBox !== null && (
+          <CodePanel
+            code={generateCode(selectedBox, data[selectedBox])}
+            position={[8, 1, 0]}
           />
         )}
 
@@ -106,51 +81,78 @@ const VisualPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   );
 };
 
-// Box component with highlight
-const Box = ({ index, value, position = [0, 0, 0], highlight }) => {
+// === Box ===
+const Box = ({ index, value, position, selected, onClick }) => {
   const size = [1.6, 1.2, 1];
+  const color = selected ? "#f87171" : index % 2 === 0 ? "#60a5fa" : "#34d399";
 
   return (
     <group position={position}>
-      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
+      <mesh
+        castShadow
+        receiveShadow
+        position={[0, size[1] / 2, 0]}
+        onClick={onClick}
+      >
         <boxGeometry args={size} />
         <meshStandardMaterial
-          color={
-            highlight ? "#f87171" : index % 2 === 0 ? "#60a5fa" : "#34d399"
-          }
-          emissive={highlight ? "#facc15" : "#000000"}
-          emissiveIntensity={highlight ? 1.5 : 0}
+          color={color}
+          emissive={selected ? "#fbbf24" : "#000000"}
+          emissiveIntensity={selected ? 0.6 : 0}
         />
       </mesh>
 
-      {/* Value */}
+      {/* Value (top) */}
       <Text
-        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        fontSize={0.35}
+        position={[0, size[1] / 2 + 0.1, size[2] / 2 + 0.01]}
+        fontSize={0.4}
+        color="white"
         anchorX="center"
         anchorY="middle"
       >
         {String(value)}
       </Text>
 
-      {/* Index */}
+      {/* Index (inside the box, below value) */}
       <Text
-        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        fontSize={0.2}
+        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.02]}
+        fontSize={0.25}
+        color="#fde68a"
         anchorX="center"
         anchorY="middle"
       >
-        {`[${index}]`}
+        [{index}]
       </Text>
+
+      {/* Floating text when selected */}
+      {selected && (
+        <Text
+          position={[0, size[1] + 0.8, 0]}
+          fontSize={0.32}
+          color="#fde68a"
+          anchorX="center"
+          anchorY="middle"
+        >
+          Value {value} at index {index}
+        </Text>
+      )}
     </group>
   );
 };
 
-// Smooth fade-in text
+// === Code Panel ===
+const CodePanel = ({ code, position }) => (
+  <group>
+    {/* Text code */}
+    <FadeText text={code} position={position} fontSize={0.3} color="#c7d2fe" />
+  </group>
+);
+
+// === Fade-in Text ===
 const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
   const [opacity, setOpacity] = useState(0);
 
-  useEffect(() => {
+  React.useEffect(() => {
     let frame;
     let start;
     const duration = 1000;
@@ -174,6 +176,8 @@ const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
       anchorX="center"
       anchorY="middle"
       fillOpacity={opacity}
+      maxWidth={10}
+      textAlign="left"
     >
       {text}
     </Text>

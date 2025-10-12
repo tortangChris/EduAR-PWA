@@ -1,168 +1,157 @@
-// VisualPage3.jsx
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Text } from "@react-three/drei";
+import { Text, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import useSound from "use-sound";
-import dingSfx from "/sounds/ding.mp3"; // put ding.mp3 in public/sounds/
+import dingSfx from "/sounds/ding.mp3"; // place this in /public/sounds/
 
-const VisualPage3 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
-  const [stage, setStage] = useState(0);
+const VisualPage3 = ({ data = [5, 10, 15, 20, 25], spacing = 2.0 }) => {
+  const [searching, setSearching] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(null);
-  const [statusText, setStatusText] = useState("");
+  const [foundIndex, setFoundIndex] = useState(null);
+  const [statusText, setStatusText] = useState(""); // 🔹 NEW: transition label
+  const [infoText, setInfoText] = useState("");
+  const [showCode, setShowCode] = useState(false);
+  const [pseudoCode, setPseudoCode] = useState([]);
   const [play] = useSound(dingSfx, { volume: 0.5 });
 
-  // compute box positions
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  // timeline (loop every 25s)
-  useEffect(() => {
-    const timeline = [
-      {
-        time: 0,
-        action: () => {
-          setStage(1);
-          setStatusText("");
-          play();
-        },
-      }, // Title
-      {
-        time: 3,
-        action: () => {
-          setStage(2);
-          play();
-        },
-      }, // Definition
-      {
-        time: 6,
-        action: () => {
-          setStage(3);
-          play();
-        },
-      }, // Boxes
-      {
-        time: 9,
-        action: () => {
-          setHighlightIndex(0);
-          setStatusText("Checking index 0...");
-          play();
-        },
-      },
-      {
-        time: 10.5,
-        action: () => {
-          setHighlightIndex(1);
-          setStatusText("Checking index 1...");
-          play();
-        },
-      },
-      {
-        time: 12,
-        action: () => {
-          setHighlightIndex(2);
-          setStatusText("Found at index 2!");
-          play();
-          setStage(4);
-        },
-      },
-      {
-        time: 18,
-        action: () => {
-          setStage(5);
-          play();
-        },
-      }, // Complexity
-      {
-        time: 20,
-        action: () => {
-          setStage(6);
-          play();
-        },
-      }, // Example
-    ];
+  // 🔹 Search animation
+  const handleClick = (index) => {
+    if (searching) return;
+    setSearching(true);
+    setHighlightIndex(null);
+    setFoundIndex(null);
+    setStatusText("");
+    setInfoText("");
+    setShowCode(false);
 
-    let timers = timeline.map((t) => setTimeout(t.action, t.time * 1000));
+    let i = 0;
+    setStatusText("🔍 Starting linear search...");
 
-    const loop = setInterval(() => {
-      setStage(0);
-      setHighlightIndex(null);
-      setStatusText("");
-      timers.forEach(clearTimeout);
-      timers = timeline.map((t) => setTimeout(t.action, t.time * 1000));
-    }, 25000);
+    const interval = setInterval(() => {
+      setHighlightIndex(i);
+      setStatusText(`Checking index ${i} → value ${data[i]}`);
 
-    return () => {
-      timers.forEach(clearTimeout);
-      clearInterval(loop);
-    };
-  }, [play]);
+      if (i === index) {
+        clearInterval(interval);
+        setTimeout(() => {
+          setFoundIndex(i);
+          play();
+          setStatusText(`✅ Found value ${data[i]} at index ${i}`);
+          setInfoText(`Value ${data[i]} located after ${i + 1} comparisons`);
+          setPseudoCode([
+            "📘 Pseudo Code Example:",
+            "",
+            "for i = 0 to n-1:",
+            "   if array[i] == key:",
+            "       return i",
+            "",
+            `// Found at index ${i}`,
+          ]);
+          setShowCode(true);
+          setSearching(false);
+        }, 900);
+      } else {
+        i++;
+        if (i >= data.length) {
+          clearInterval(interval);
+          setTimeout(() => {
+            setStatusText("❌ Value not found in array");
+            setInfoText("Search completed — no match found.");
+            setPseudoCode([
+              "📘 Pseudo Code Example:",
+              "",
+              "for i = 0 to n-1:",
+              "   if array[i] == key:",
+              "       return i",
+              "",
+              "return -1  // not found",
+            ]);
+            setShowCode(true);
+            setSearching(false);
+          }, 800);
+        }
+      }
+    }, 900);
+  };
 
   return (
-    <div className="w-full h-[440px]">
-      <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
-        <ambientLight intensity={0.45} />
-        <directionalLight position={[5, 10, 5]} intensity={0.8} />
+    <div className="w-full h-[300px]">
+      <Canvas camera={{ position: [0, 4, 10], fov: 50 }}>
+        <ambientLight intensity={0.4} />
+        <directionalLight position={[5, 8, 5]} intensity={0.8} />
 
         {/* Title */}
         <FadeInText
-          show={stage >= 1}
-          text="Search Operation (O(n))"
-          position={[0, 3.5, 0]}
-          fontSize={0.6}
+          show={true}
+          text="Search Operation (Linear Search)"
+          position={[0, 3, 0]}
+          fontSize={0.55}
           color="white"
         />
 
-        {/* Definition */}
+        {/* Instruction */}
         <FadeInText
-          show={stage >= 2}
-          text="Searching = looking for an element in the array"
-          position={[0, 2.9, 0]}
+          show={!searching && !foundIndex && !infoText}
+          text="Click any box to start searching..."
+          position={[0, 2.4, 0]}
+          fontSize={0.3}
+          color="#ffd166"
+        />
+
+        {/* 🔹 Transition label above boxes */}
+        <FadeInText
+          show={!!statusText}
+          text={statusText}
+          position={[0, 2, 0]}
           fontSize={0.32}
           color="#ffd166"
         />
 
         {/* Boxes */}
-        {stage >= 3 &&
-          data.map((value, i) => (
-            <Box
-              key={i}
-              index={i}
-              value={value}
-              position={positions[i]}
-              highlight={highlightIndex === i && stage < 4}
-              found={highlightIndex === i && stage >= 4}
+        {data.map((value, i) => (
+          <Box
+            key={i}
+            index={i}
+            value={value}
+            position={positions[i]}
+            highlight={highlightIndex === i}
+            found={foundIndex === i}
+            disabled={searching}
+            onClick={() => handleClick(i)}
+          />
+        ))}
+
+        {/* Info text & pseudo code beside boxes */}
+        {showCode && (
+          <>
+            <FadeInText
+              show={true}
+              text={infoText}
+              position={[5.2, 1.9, 0]}
+              fontSize={0.35}
+              color="#9be7a2"
+              anchorX="left"
             />
-          ))}
 
-        {/* Status label (checking/found) */}
-        <FadeInText
-          show={!!statusText}
-          text={statusText}
-          position={[0, -1.5, 0]}
-          fontSize={0.35}
-          color="#ffba08"
-        />
-
-        {/* Complexity label */}
-        <FadeInText
-          show={stage >= 5}
-          text="Time Complexity: O(n) → proportional to array size"
-          position={[0, -2.6, 0]}
-          fontSize={0.34}
-          color="#facc15"
-        />
-
-        {/* Example code */}
-        <FadeInText
-          show={stage >= 6}
-          text={`arr = [10, 20, 30, 40]\nSearch 30 → Found at index 2 after checking 3 elements`}
-          position={[0, -3.4, 0]}
-          fontSize={0.28}
-          color="#9be7a2"
-        />
+            {pseudoCode.map((line, i) => (
+              <FadeInText
+                key={i}
+                show={true}
+                text={line}
+                position={[5.4, 1.1 - i * 0.35, 0]}
+                fontSize={0.28}
+                color={line.startsWith("//") ? "#9be7a2" : "#ffeb99"}
+                anchorX="left"
+              />
+            ))}
+          </>
+        )}
 
         <OrbitControls makeDefault />
       </Canvas>
@@ -170,25 +159,32 @@ const VisualPage3 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   );
 };
 
-/* ---------- Box component ---------- */
-const Box = ({ index, value, position = [0, 0, 0], highlight, found }) => {
+/* ---------- Box Component ---------- */
+const Box = ({
+  index,
+  value,
+  position = [0, 0, 0],
+  highlight,
+  found,
+  disabled,
+  onClick,
+}) => {
   const meshRef = useRef();
   const size = [1.6, 1.2, 1];
 
   useFrame(() => {
     if (!meshRef.current) return;
     const mat = meshRef.current.material;
-    const baseColor = new THREE.Color("#60a5fa"); // same color for all
+    const baseColor = new THREE.Color(index % 2 === 0 ? "#60a5fa" : "#34d399");
     const targetColor = found
-      ? new THREE.Color("#4ade80")
+      ? new THREE.Color("#fbbf24")
       : highlight
       ? new THREE.Color("#f87171")
       : baseColor;
     const targetEmissive = highlight || found ? 0.9 : 0;
-
     mat.color.lerp(targetColor, 0.12);
     mat.emissive = mat.emissive || new THREE.Color(0x000000);
-    mat.emissive.lerp(new THREE.Color(targetColor), 0.12);
+    mat.emissive.lerp(targetColor, 0.12);
     mat.emissiveIntensity = THREE.MathUtils.lerp(
       mat.emissiveIntensity || 0,
       targetEmissive,
@@ -197,7 +193,11 @@ const Box = ({ index, value, position = [0, 0, 0], highlight, found }) => {
   });
 
   return (
-    <group position={position}>
+    <group
+      position={position}
+      onClick={!disabled ? onClick : undefined}
+      style={{ cursor: disabled ? "default" : "pointer" }}
+    >
       <mesh
         ref={meshRef}
         castShadow
@@ -205,15 +205,12 @@ const Box = ({ index, value, position = [0, 0, 0], highlight, found }) => {
         position={[0, size[1] / 2, 0]}
       >
         <boxGeometry args={size} />
-        <meshStandardMaterial
-          color={"#60a5fa"}
-          emissive={"#000000"}
-          emissiveIntensity={0}
-        />
+        <meshStandardMaterial color={"#60a5fa"} emissive={"#000"} />
       </mesh>
 
+      {/* Value */}
       <Text
-        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
+        position={[0, size[1] / 2 + 0.1, size[2] / 2 + 0.01]}
         fontSize={0.35}
         anchorX="center"
         anchorY="middle"
@@ -221,13 +218,15 @@ const Box = ({ index, value, position = [0, 0, 0], highlight, found }) => {
         {String(value)}
       </Text>
 
+      {/* Index inside box */}
       <Text
         position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        fontSize={0.2}
+        fontSize={0.22}
         anchorX="center"
         anchorY="middle"
+        color="#e0e0e0"
       >
-        {`[${index}]`}
+        [{index}]
       </Text>
     </group>
   );
@@ -240,6 +239,7 @@ const FadeInText = ({
   position = [0, 0, 0],
   fontSize = 0.5,
   color = "white",
+  anchorX = "center",
 }) => {
   const ref = useRef();
   const opacity = useRef(0);
@@ -266,7 +266,7 @@ const FadeInText = ({
       position={position}
       fontSize={fontSize}
       color={color}
-      anchorX="center"
+      anchorX={anchorX}
       anchorY="middle"
     >
       {text}
