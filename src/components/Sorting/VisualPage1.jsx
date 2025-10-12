@@ -1,142 +1,181 @@
-import React, { useRef, useState } from "react";
-import { Canvas } from "@react-three/fiber";
+import React, { useState, useMemo, useEffect } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
-import { Play, RotateCcw } from "lucide-react";
+import * as THREE from "three";
 
-const VisualPage1 = ({
-  data = [40, 10, 30, 20, 50],
-  spacing = 2.0,
-  stepDuration = 700,
-}) => {
-  const initialArray = useRef(data.slice());
-  const [boxes, setBoxes] = useState(
-    createBoxes(initialArray.current, spacing)
-  );
-  const animRef = useRef({ cancelled: false });
-  const [status, setStatus] = useState("Idle");
-  const [progress, setProgress] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+const VisualPage1 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
+  const [sorted, setSorted] = useState(false);
+  const [boxes, setBoxes] = useState(data);
 
-  function createBoxes(arr, spacingVal) {
-    const n = arr.length;
-    const mid = (n - 1) / 2;
-    return arr.map((val, i) => ({
-      id: `b${i}`,
-      value: val,
-      x: (i - mid) * spacingVal,
-      height: val / 10, // scale value into height for bar graph effect
-      highlight: false,
-    }));
-  }
+  // Compute normalized heights (so even large numbers don't get too tall)
+  const heights = useMemo(() => {
+    const maxVal = Math.max(...boxes);
+    return boxes.map((v) => (v / maxVal) * 2 + 0.5); // scale to 0.5–2.5 range
+  }, [boxes]);
 
-  const resetArray = () => {
-    animRef.current.cancelled = true;
-    setBoxes(createBoxes(initialArray.current, spacing));
-    setProgress(0);
-    setStatus("Idle");
-    setIsPlaying(false);
+  // Compute X positions
+  const positions = useMemo(() => {
+    const mid = (boxes.length - 1) / 2;
+    return boxes.map((_, i) => [(i - mid) * spacing, 0, 0]);
+  }, [boxes, spacing]);
+
+  // Handle sorting click
+  const handleSortClick = () => {
+    if (!sorted) {
+      const sortedData = [...boxes].sort((a, b) => a - b);
+      setBoxes(sortedData);
+      setSorted(true);
+    } else {
+      setBoxes(data);
+      setSorted(false);
+    }
   };
 
-  const sortArray = async () => {
-    if (isPlaying) return;
-    animRef.current.cancelled = false;
-    setIsPlaying(true);
-    let arr = initialArray.current.slice();
-    setStatus("Sorting...");
-
-    const steps = [];
-    let tempArr = arr.slice();
-
-    // Bubble Sort steps
-    for (let i = 0; i < tempArr.length - 1; i++) {
-      for (let j = 0; j < tempArr.length - i - 1; j++) {
-        if (tempArr[j] > tempArr[j + 1]) {
-          [tempArr[j], tempArr[j + 1]] = [tempArr[j + 1], tempArr[j]];
-          steps.push(tempArr.slice());
-        }
-      }
-    }
-
-    for (let step = 0; step < steps.length; step++) {
-      if (animRef.current.cancelled) break;
-      setBoxes(createBoxes(steps[step], spacing));
-      setProgress(Math.round(((step + 1) / steps.length) * 100));
-      await new Promise((res) => setTimeout(res, stepDuration));
-    }
-
-    setStatus("Sorted!");
-    setIsPlaying(false);
+  // Pseudo code
+  const generateCode = () => {
+    return [
+      "📘 Pseudo Code Example:",
+      "",
+      "array = [35, 10, 25, 5, 15]",
+      "print('Before Sorting:', array)",
+      "",
+      "sort(array)   // Arrange values in ascending order",
+      "print('After Sorting:', array)",
+      "",
+      "// Result: [5, 10, 15, 25, 35]",
+    ].join("\n");
   };
 
   return (
-    <div className="w-full h-[300px] flex flex-col items-center justify-center">
-      <div className="w-2/3 mb-4">
-        <div className="flex items-center gap-3 mb-2">
-          <button
-            onClick={sortArray}
-            disabled={isPlaying}
-            className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600"
-          >
-            <Play size={20} />
-          </button>
-          <button
-            onClick={resetArray}
-            className="p-2 bg-gray-500 text-white rounded-full hover:bg-gray-600"
-          >
-            <RotateCcw size={20} />
-          </button>
-        </div>
-        <div className="w-full h-2 bg-gray-300 rounded">
-          <div
-            className="h-2 bg-green-500 rounded"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <div className="mt-2 text-gray-700 font-mono text-sm text-center">
-          {status}
-        </div>
-      </div>
-      <div className="w-full h-[60%]">
-        <Canvas camera={{ position: [0, 10, 15], fov: 50 }}>
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[5, 10, 5]} intensity={0.8} />
+    <div className="w-full h-[300px]">
+      <Canvas camera={{ position: [0, 5, 13], fov: 50 }}>
+        {/* Lights */}
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[5, 10, 5]} intensity={1} />
 
-          {boxes.map((b) => (
-            <Bar
-              key={b.id}
-              value={b.value}
-              height={b.height}
-              position={[b.x, 0, 0]}
-              highlight={b.highlight}
-            />
-          ))}
+        {/* Header */}
+        <FadeText
+          text="Introduction to Sorting Algorithms"
+          position={[0, 4.5, 0]}
+          fontSize={0.6}
+          color="#facc15"
+        />
 
-          <OrbitControls makeDefault />
-        </Canvas>
-      </div>
+        {/* Instruction */}
+        <FadeText
+          text={
+            sorted
+              ? "The array is now sorted in ascending order!"
+              : "Click any box to visualize sorting"
+          }
+          position={[0, 3.8, 0]}
+          fontSize={0.35}
+          color="white"
+        />
+
+        {/* Boxes */}
+        {boxes.map((value, i) => (
+          <AnimatedBox
+            key={i}
+            value={value}
+            height={heights[i]}
+            position={positions[i]}
+            sorted={sorted}
+            onClick={handleSortClick}
+          />
+        ))}
+
+        {/* Code Panel */}
+        {sorted && <CodePanel code={generateCode()} position={[8.8, 1, 0]} />}
+
+        <OrbitControls makeDefault />
+      </Canvas>
     </div>
   );
 };
 
-const Bar = ({ value, height, position, highlight }) => {
-  const width = 1;
-  const depth = 1;
+// === Animated Box Component ===
+const AnimatedBox = ({ value, height, position, sorted, onClick }) => {
+  const meshRef = React.useRef();
+  const targetY = height / 2; // ensure it sits on ground plane
+  const targetColor = sorted
+    ? new THREE.Color("#34d399")
+    : new THREE.Color("#60a5fa");
+
+  useFrame(() => {
+    if (!meshRef.current) return;
+    // Smooth position animation
+    meshRef.current.position.x +=
+      (position[0] - meshRef.current.position.x) * 0.1;
+    meshRef.current.position.y += (targetY - meshRef.current.position.y) * 0.1;
+
+    // Smooth color transition
+    meshRef.current.material.color.lerp(targetColor, 0.1);
+  });
+
   return (
-    <group position={position}>
-      <mesh castShadow receiveShadow position={[0, height / 2, 0]}>
-        <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial color={highlight ? "#f59e0b" : "#60a5fa"} />
+    <group>
+      <mesh ref={meshRef} onClick={onClick}>
+        <boxGeometry args={[1.6, height, 1]} />
+        <meshStandardMaterial
+          color={sorted ? "#34d399" : "#60a5fa"}
+          emissive={sorted ? "#fbbf24" : "#000000"}
+          emissiveIntensity={sorted ? 0.5 : 0}
+        />
       </mesh>
+
+      {/* Value label */}
       <Text
-        position={[0, height + 0.3, 0]}
+        position={[position[0], height + 0.3, 0]}
         fontSize={0.35}
+        color="white"
         anchorX="center"
         anchorY="middle"
-        color="#000000"
       >
-        {value}
+        {String(value)}
       </Text>
     </group>
+  );
+};
+
+// === Code Panel ===
+const CodePanel = ({ code, position }) => (
+  <FadeText text={code} position={position} fontSize={0.3} color="#c7d2fe" />
+);
+
+// === Fade Text ===
+const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
+  const [opacity, setOpacity] = useState(0);
+
+  useEffect(() => {
+    let frame;
+    let start;
+    const duration = 1000;
+
+    const animate = (ts) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      setOpacity(progress);
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <Text
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      fillOpacity={opacity}
+      maxWidth={10}
+      textAlign="left"
+    >
+      {text}
+    </Text>
   );
 };
 
