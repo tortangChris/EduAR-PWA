@@ -1,113 +1,208 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState, useRef, useMemo } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Text } from "@react-three/drei";
 import * as THREE from "three";
 
+// === Main AR Page ===
 const ARPage1 = () => {
-  const containerRef = useRef();
-  const [debugText, setDebugText] = useState("");
+  const [anchors, setAnchors] = useState([]);
+  const [placed, setPlaced] = useState(false);
 
-  useEffect(() => {
-    const container = containerRef.current;
-
-    // ✅ Scene setup
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(
-      70,
-      window.innerWidth / window.innerHeight,
-      0.01,
-      20
-    );
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.xr.enabled = true;
-    container.appendChild(renderer.domElement);
-
-    // ✅ Start AR session directly (no button)
-    if (navigator.xr) {
-      navigator.xr
-        .requestSession("immersive-ar", { requiredFeatures: ["local-floor"] })
-        .then((session) => renderer.xr.setSession(session))
-        .catch((err) => console.error("❌ AR session failed:", err));
+  // when user taps, create an anchor (tap point)
+  const handleClick = (event) => {
+    const { x, y } = event.pointer;
+    if (!placed) {
+      setAnchors([{ x, y }]);
+      setPlaced(true);
     }
-
-    // ✅ Lighting
-    const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-    light.position.set(0.5, 1, 0.25);
-    scene.add(light);
-
-    // ✅ Main AR group (same layout as reference)
-    const group = new THREE.Group();
-    group.position.set(0, 1, -2);
-    group.scale.set(0.1, 0.1, 0.1);
-    scene.add(group);
-
-    // ✅ Object (cube)
-    const cube = new THREE.Mesh(
-      new THREE.BoxGeometry(6, 6, 6),
-      new THREE.MeshStandardMaterial({ color: "#60a5fa", emissive: "black" })
-    );
-    cube.position.set(0, 3, 0);
-    group.add(cube);
-
-    // ✅ Ground
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(10, 10),
-      new THREE.ShadowMaterial({ opacity: 0.3 })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    group.add(ground);
-
-    // ✅ Raycaster + interaction
-    const onSelect = () => {
-      setDebugText("✅ Object tapped!");
-      setTimeout(() => setDebugText(""), 1500);
-      cube.material.color.set("#22c55e");
-      setTimeout(() => cube.material.color.set("#60a5fa"), 1000);
-    };
-
-    const controller = renderer.xr.getController(0);
-    controller.addEventListener("select", onSelect);
-    scene.add(controller);
-
-    // ✅ Animation loop
-    renderer.setAnimationLoop(() => {
-      renderer.render(scene, camera);
-    });
-
-    // ✅ Resize handler
-    const handleResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    };
-    window.addEventListener("resize", handleResize);
-
-    // ✅ Cleanup (safe remove)
-    return () => {
-      window.removeEventListener("resize", handleResize);
-
-      try {
-        if (container.contains(renderer.domElement)) {
-          container.removeChild(renderer.domElement);
-        }
-      } catch (e) {
-        console.warn("⚠️ Renderer element already removed:", e.message);
-      }
-
-      // Stop animation loop + dispose renderer
-      renderer.setAnimationLoop(null);
-      renderer.dispose();
-    };
-  }, []);
+  };
 
   return (
-    <div ref={containerRef} className="w-full h-screen relative bg-black">
-      {debugText && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-xl text-lg">
-          {debugText}
-        </div>
-      )}
+    <div style={{ width: "100vw", height: "100vh", background: "black" }}>
+      <Canvas
+        camera={{ position: [0, 2, 6], fov: 50 }}
+        onPointerDown={handleClick}
+        gl={{ xrCompatible: true }}
+        onCreated={({ gl }) => {
+          gl.xr.enabled = true;
+          navigator.xr?.isSessionSupported("immersive-ar").then((supported) => {
+            if (supported) {
+              gl.xr.setSession(null);
+              navigator.xr
+                .requestSession("immersive-ar", {
+                  requiredFeatures: ["hit-test"],
+                })
+                .then((session) => {
+                  gl.xr.setSession(session);
+                });
+            } else {
+              alert("AR not supported on this device.");
+            }
+          });
+        }}
+      >
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[2, 5, 2]} intensity={0.8} />
+
+        {anchors.map((anchor, i) => (
+          <ArrayAR key={i} />
+        ))}
+      </Canvas>
     </div>
+  );
+};
+
+// === Array visualization to place in AR ===
+const ArrayAR = () => {
+  const data = [10, 20, 30, 40];
+  const spacing = 2;
+  const [selected, setSelected] = useState(null);
+  const [panelVisible, setPanelVisible] = useState(false);
+
+  const positions = useMemo(() => {
+    const mid = (data.length - 1) / 2;
+    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
+  }, [data, spacing]);
+
+  return (
+    <group position={[0, 0, -2]}>
+      <FadeInText
+        text="Array in AR"
+        position={[0, 3, 0]}
+        fontSize={0.6}
+        color="white"
+      />
+
+      {data.map((v, i) => (
+        <BoxAR
+          key={i}
+          index={i}
+          value={v}
+          position={positions[i]}
+          selected={selected === i}
+          onSelect={() => setSelected(selected === i ? null : i)}
+          onShowPanel={() => setPanelVisible((p) => !p)}
+        />
+      ))}
+
+      {panelVisible && (
+        <DefinitionPanel
+          position={[0, -3, 0]}
+          data={data}
+          onClose={() => setPanelVisible(false)}
+        />
+      )}
+    </group>
+  );
+};
+
+// === Box for AR (clickable cube) ===
+const BoxAR = ({ index, value, position, selected, onSelect, onShowPanel }) => {
+  const color = selected ? "#facc15" : index % 2 === 0 ? "#60a5fa" : "#34d399";
+
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.6, 0]} onClick={onSelect}>
+        <boxGeometry args={[1.6, 1.2, 1]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={selected ? "#fbbf24" : "#000"}
+          emissiveIntensity={selected ? 0.5 : 0}
+        />
+      </mesh>
+
+      {/* value label */}
+      <Text
+        position={[0, 1.1, 0.6]}
+        fontSize={0.4}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {String(value)}
+      </Text>
+
+      {/* index label */}
+      <Text
+        position={[0, -0.3, 0.6]}
+        fontSize={0.3}
+        color="yellow"
+        anchorX="center"
+        anchorY="middle"
+        onClick={onShowPanel}
+      >
+        [{index}]
+      </Text>
+
+      {selected && (
+        <Text
+          position={[0, 1.8, 0]}
+          fontSize={0.3}
+          color="#fde68a"
+          anchorX="center"
+          anchorY="middle"
+        >
+          Value {value} at index {index}
+        </Text>
+      )}
+    </group>
+  );
+};
+
+// === Info panel ===
+const DefinitionPanel = ({ data, position, onClose }) => {
+  const content = [
+    "📘 Array Index Summary:",
+    "",
+    ...data.map((v, i) => `• Index ${i} → value ${v}`),
+  ].join("\n");
+
+  return (
+    <group position={position}>
+      <FadeInText
+        text={content}
+        position={[0, 0, 0]}
+        fontSize={0.3}
+        color="#fff"
+      />
+      <Text
+        position={[0, -1.5, 0]}
+        fontSize={0.4}
+        color="#38bdf8"
+        onClick={onClose}
+      >
+        Close ✖
+      </Text>
+    </group>
+  );
+};
+
+// === Fade-in text ===
+const FadeInText = ({ text, position, fontSize, color }) => {
+  const ref = useRef();
+  const opacity = useRef(0);
+
+  useFrame(() => {
+    if (ref.current && ref.current.material) {
+      opacity.current = Math.min(opacity.current + 0.05, 1);
+      ref.current.material.opacity = opacity.current;
+    }
+  });
+
+  return (
+    <Text
+      ref={ref}
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      material-transparent
+      maxWidth={8}
+      textAlign="center"
+      anchorX="center"
+      anchorY="middle"
+    >
+      {text}
+    </Text>
   );
 };
 
