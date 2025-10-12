@@ -1,57 +1,112 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 
-const VisualPage1 = ({ nodes = [10, 20, 30] }) => {
-  const spacing = 6.3; // spacing per node
+const VisualPage1 = ({ nodes = ["A", "B", "C"] }) => {
+  const spacing = 6.3;
+  const [selectedNode, setSelectedNode] = useState(null);
+
+  const positions = useMemo(() => {
+    const mid = (nodes.length - 1) / 2;
+    return nodes.map((_, i) => [(i - mid) * spacing, 0, 0]);
+  }, [nodes, spacing]);
+
+  const handleNodeClick = (i) =>
+    setSelectedNode((prev) => (prev === i ? null : i));
+
+  // Detailed but short pseudo code
+  const generateCode = (index, value) => {
+    return [
+      "📘 Pseudo Code Example:",
+      "",
+      "linkedList = Head -> Node1 -> Node2 -> ...",
+      `index = ${index}`,
+      "",
+      "currentNode = Node at position index",
+      "print('Accessed Node:', currentNode.value)",
+      "",
+      `// Result: ${value}`,
+    ].join("\n");
+  };
 
   return (
-    <div className="w-full h-[300px] flex items-center justify-center">
+    <div className="w-full h-[400px] flex items-center justify-center">
       <Canvas camera={{ position: [0, 4, 18], fov: 50 }}>
-        {/* Lighting */}
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        <Scene nodes={nodes} spacing={spacing} />
+        {/* Header */}
+        <FadeText
+          text="Linked List Introduction"
+          position={[0, 4, 0]}
+          fontSize={0.6}
+          color="#facc15"
+        />
+
+        {/* Instruction */}
+        <FadeText
+          text="Click a node to view its value and pseudo code"
+          position={[0, 3.2, 0]}
+          fontSize={0.35}
+          color="white"
+        />
+
+        {/* Scene */}
+        <Scene
+          nodes={nodes}
+          positions={positions}
+          handleNodeClick={handleNodeClick}
+          selectedNode={selectedNode}
+        />
+
+        {/* Pseudo code panel */}
+        {selectedNode !== null && (
+          <group position={[positions[positions.length - 1][0] + 8, 1, 0]}>
+            <FadeText
+              text={generateCode(selectedNode, nodes[selectedNode])}
+              fontSize={0.3}
+              color="#c7d2fe"
+            />
+          </group>
+        )}
+
+        <OrbitControls makeDefault />
       </Canvas>
     </div>
   );
 };
 
-const Scene = ({ nodes, spacing }) => {
-  const mid = (nodes.length - 1) / 2; // compute middle index
-
+const Scene = ({ nodes, positions, handleNodeClick, selectedNode }) => {
   return (
     <>
-      {/* Render Nodes */}
       {nodes.map((val, idx) => (
         <Node
           key={idx}
           value={val}
-          position={[(idx - mid) * spacing, 0, 0]} // center aligned
+          position={positions[idx]}
           isLast={idx === nodes.length - 1}
+          onClick={() => handleNodeClick(idx)}
+          selected={selectedNode === idx}
         />
       ))}
-
-      <OrbitControls makeDefault />
     </>
   );
 };
 
-const Node = ({ value, position, isLast }) => {
-  const size = [4.5, 2, 1]; // node box size
+const Node = ({ value, position, isLast, onClick, selected }) => {
+  const size = [4.5, 2, 1];
   const boxHalf = size[0] / 2;
 
   return (
     <group position={position}>
       {/* Main Box */}
-      <mesh>
+      <mesh onClick={onClick}>
         <boxGeometry args={size} />
-        <meshStandardMaterial color="#60a5fa" />
+        <meshStandardMaterial color={selected ? "#f87171" : "#60a5fa"} />
       </mesh>
 
-      {/* Divider line */}
+      {/* Divider */}
       <mesh position={[0.5, 0, 0.51]}>
         <boxGeometry args={[0.05, size[1], 0.05]} />
         <meshStandardMaterial color="white" />
@@ -81,18 +136,25 @@ const Node = ({ value, position, isLast }) => {
 
       {/* Arrow or Null */}
       {!isLast ? (
-        <Arrow3D
-          start={[boxHalf, 0, 0]}
-          end={[boxHalf + 1.8, 0, 0]} // shorter arrow
-        />
+        <Arrow3D start={[boxHalf, 0, 0]} end={[boxHalf + 1.8, 0, 0]} />
       ) : (
         <>
-          <Arrow3D
-            start={[boxHalf, 0, 0]}
-            end={[boxHalf + 1.2, 0, 0]} // short arrow to null
-          />
+          <Arrow3D start={[boxHalf, 0, 0]} end={[boxHalf + 1.2, 0, 0]} />
           <NullCircle offset={boxHalf + 1.8} />
         </>
+      )}
+
+      {/* Floating label */}
+      {selected && (
+        <Text
+          position={[0, size[1] + 0.2, 0]}
+          fontSize={0.32}
+          color="#fde68a"
+          anchorX="center"
+          anchorY="middle"
+        >
+          Node "{value}"
+        </Text>
       )}
     </group>
   );
@@ -100,17 +162,8 @@ const Node = ({ value, position, isLast }) => {
 
 const Arrow3D = ({ start, end }) => {
   const ref = useRef();
-  const dir = new THREE.Vector3(
-    end[0] - start[0],
-    end[1] - start[1],
-    end[2] - start[2]
-  ).normalize();
-
-  const length = new THREE.Vector3(
-    end[0] - start[0],
-    end[1] - start[1],
-    end[2] - start[2]
-  ).length();
+  const dir = new THREE.Vector3(end[0] - start[0], 0, 0).normalize();
+  const length = new THREE.Vector3(end[0] - start[0], 0, 0).length();
 
   useFrame(() => {
     if (ref.current) {
@@ -129,7 +182,6 @@ const Arrow3D = ({ start, end }) => {
   );
 };
 
-/* Null Circle */
 const NullCircle = ({ offset }) => (
   <group position={[offset, 0, 0]}>
     <mesh>
@@ -147,5 +199,45 @@ const NullCircle = ({ offset }) => (
     </Text>
   </group>
 );
+
+const FadeText = ({
+  text,
+  fontSize = 0.5,
+  color = "white",
+  position = [0, 0, 0],
+}) => {
+  const [opacity, setOpacity] = useState(0);
+
+  React.useEffect(() => {
+    let frame;
+    let start;
+    const duration = 1000;
+
+    const animate = (ts) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      setOpacity(progress);
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <Text
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      fillOpacity={opacity}
+      maxWidth={10}
+      textAlign="left"
+    >
+      {text}
+    </Text>
+  );
+};
 
 export default VisualPage1;

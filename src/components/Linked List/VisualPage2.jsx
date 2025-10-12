@@ -1,134 +1,130 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useMemo, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 
-const VisualPage2 = ({ nodes = [10, 20, 30], stepDuration = 2000 }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [instruction, setInstruction] = useState("Starting at Head");
+const VisualPage2 = ({ nodes = ["10", "20", "30", "40"] }) => {
+  const spacing = 6;
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (currentIndex < nodes.length) {
-        setCurrentIndex(currentIndex + 1);
-        if (currentIndex + 1 < nodes.length) {
-          setInstruction(`Move to next node: ${nodes[currentIndex + 1]}`);
-        } else {
-          setInstruction("Reached Tail → NULL");
-        }
-      } else {
-        setInstruction("Reached NULL, restarting...");
-        setTimeout(() => {
-          setCurrentIndex(0);
-          setInstruction("Starting at Head");
-        }, stepDuration);
-      }
-    }, stepDuration);
+  const positions = useMemo(() => {
+    const mid = (nodes.length - 1) / 2;
+    return nodes.map((_, i) => [(i - mid) * spacing, 0, 0]);
+  }, [nodes, spacing]);
 
-    return () => clearTimeout(timer);
-  }, [currentIndex, nodes, stepDuration]);
+  const handleNodeClick = (i) => {
+    setSelectedNode(i);
+    setHighlightedIndex(-1);
 
-  const spacing = 6.3;
+    // Animate traversal from head to clicked node
+    let index = 0;
+    const interval = setInterval(() => {
+      setHighlightedIndex(index);
+      index++;
+      if (index > i) clearInterval(interval);
+    }, 500);
+  };
+
+  const generateCode = (index, value) =>
+    [
+      "📘 Pseudo Code Example:",
+      "",
+      "Head -> Node1 -> Node2 -> ... -> null",
+      `index = ${index}`,
+      "",
+      "currentNode = Head",
+      `for i in range(0, index):`,
+      "    currentNode = currentNode.next",
+      "print('Accessed Node:', currentNode.value)",
+      "",
+      `// Result: ${value}`,
+    ].join("\n");
 
   return (
-    <div className="w-full h-[400px] flex flex-col items-center justify-center">
-      <div className="text-xl font-bold mb-4">{instruction}</div>
+    <div className="w-full h-[450px] flex items-center justify-center">
       <Canvas camera={{ position: [0, 5, 18], fov: 50 }}>
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
-        <Scene nodes={nodes} spacing={spacing} currentIndex={currentIndex} />
+
+        <FadeText
+          text="Singly Linked List Overview"
+          position={[0, 4, 0]}
+          fontSize={0.6}
+          color="#facc15"
+        />
+
+        <FadeText
+          text="Click a node to view its value and pseudo code"
+          position={[0, 3.2, 0]}
+          fontSize={0.35}
+          color="white"
+        />
+
+        <Scene
+          nodes={nodes}
+          positions={positions}
+          handleNodeClick={handleNodeClick}
+          selectedNode={selectedNode}
+          highlightedIndex={highlightedIndex}
+        />
+
+        {selectedNode !== null && (
+          <group position={[positions[positions.length - 1][0] + 8, 1, 0]}>
+            <FadeText
+              text={generateCode(selectedNode, nodes[selectedNode])}
+              fontSize={0.3}
+              color="#c7d2fe"
+            />
+          </group>
+        )}
+
+        <OrbitControls makeDefault />
       </Canvas>
     </div>
   );
 };
 
-const Scene = ({ nodes, spacing, currentIndex }) => {
-  const mid = (nodes.length - 1) / 2;
+const Scene = ({
+  nodes,
+  positions,
+  handleNodeClick,
+  selectedNode,
+  highlightedIndex,
+}) => (
+  <>
+    {nodes.map((val, idx) => (
+      <Node
+        key={idx}
+        value={val}
+        position={positions[idx]}
+        isLast={idx === nodes.length - 1}
+        onClick={() => handleNodeClick(idx)}
+        selected={selectedNode === idx}
+        highlighted={idx <= highlightedIndex}
+      />
+    ))}
+  </>
+);
 
-  return (
-    <>
-      {nodes.map((val, idx) => (
-        <Node
-          key={idx}
-          value={val}
-          position={[(idx - mid) * spacing, 0, 0]}
-          isHead={idx === 0}
-          isLast={idx === nodes.length - 1}
-          isActive={idx === currentIndex}
-          highlightNull={currentIndex === nodes.length}
-        />
-      ))}
-      <OrbitControls makeDefault />
-    </>
-  );
-};
-
-const Node = ({
-  value,
-  position,
-  isHead,
-  isLast,
-  isActive,
-  highlightNull,
-  currentIndex,
-  nodeIndex,
-}) => {
+const Node = ({ value, position, isLast, onClick, selected, highlighted }) => {
   const size = [4.5, 2, 1];
   const boxHalf = size[0] / 2;
 
-  // Refs for bouncing
-  const labelGroupRef = useRef(); // Head label
-  const arrowLabelRef = useRef(); // arrow between nodes
-  const nullArrowRef = useRef(); // arrow for NULL
-  const tailLabelRef = useRef(); // tail label above last node
-
-  // Bouncing animation
-  useFrame(({ clock }) => {
-    if (labelGroupRef.current) {
-      labelGroupRef.current.position.y =
-        2.2 + Math.sin(clock.getElapsedTime() * 2) * 0.2;
-    }
-    if (arrowLabelRef.current) {
-      arrowLabelRef.current.position.y =
-        1.5 + Math.sin(clock.getElapsedTime() * 2) * 0.15;
-    }
-    if (nullArrowRef.current) {
-      nullArrowRef.current.position.y =
-        1.5 + Math.sin(clock.getElapsedTime() * 2) * 0.15;
-    }
-    if (tailLabelRef.current) {
-      tailLabelRef.current.position.y =
-        2.0 + Math.sin(clock.getElapsedTime() * 2) * 0.15;
-    }
-  });
-
-  const arrowActive = currentIndex === nodeIndex;
-
   return (
     <group position={position}>
-      {/* Node Box */}
-      <mesh>
+      <mesh onClick={onClick}>
         <boxGeometry args={size} />
-        <meshStandardMaterial color={isActive ? "#facc15" : "#3b82f6"} />
+        <meshStandardMaterial
+          color={selected ? "#f87171" : highlighted ? "#fde68a" : "#60a5fa"}
+        />
       </mesh>
 
-      {/* Divider */}
       <mesh position={[0.5, 0, 0.51]}>
         <boxGeometry args={[0.05, size[1], 0.05]} />
         <meshStandardMaterial color="white" />
       </mesh>
 
-      {/* Head Label */}
-      {isHead && (
-        <group ref={labelGroupRef}>
-          <Text fontSize={0.4} anchorX="center" anchorY="middle" color="yellow">
-            Head
-          </Text>
-          <Arrow3D start={[0, -0.1, 0]} end={[0, -1.2, 0]} color="yellow" />
-        </group>
-      )}
-
-      {/* Value and Next */}
       <Text
         position={[-0.8, 0, 0.55]}
         fontSize={0.35}
@@ -138,6 +134,7 @@ const Node = ({
       >
         {value}
       </Text>
+
       <Text
         position={[1.4, 0, 0.55]}
         fontSize={0.35}
@@ -148,92 +145,42 @@ const Node = ({
         Next
       </Text>
 
-      {/* Label below node */}
-      <Text
-        position={[0, -1.5, 0]}
-        fontSize={0.25}
-        anchorX="center"
-        anchorY="middle"
-        color="lightblue"
-      >
-        Node
-      </Text>
-
-      {/* Tail label above last node */}
-      {isLast && (
-        <group ref={tailLabelRef} position={[0, 2.0, 0]}>
-          <Text
-            fontSize={0.35}
-            anchorX="center"
-            anchorY="middle"
-            color="yellow"
-          >
-            Tail Node
-          </Text>
-          <Arrow3D start={[0, -0.1, 0]} end={[0, -1.0, 0]} color="yellow" />
-        </group>
-      )}
-
-      {/* Arrows */}
       {!isLast ? (
-        <>
-          {/* Arrow to next node */}
-          <Arrow3D
-            start={[boxHalf, 0, 0]}
-            end={[boxHalf + 1.8, 0, 0]}
-            color={arrowActive ? "#facc15" : "black"}
-          />
-          <group ref={arrowLabelRef} position={[boxHalf + 0.9, 1.5, 0]}>
-            <Text
-              fontSize={0.25}
-              anchorX="center"
-              anchorY="middle"
-              color="orange"
-            >
-              Reference to The Next Node
-            </Text>
-            <Arrow3D start={[0, -0.1, 0]} end={[0, -0.8, 0]} color="orange" />
-          </group>
-        </>
+        <Arrow3D
+          start={[boxHalf, 0, 0]}
+          end={[boxHalf + 1.8, 0, 0]}
+          highlighted={highlighted}
+        />
       ) : (
         <>
-          {/* Arrow to NULL */}
           <Arrow3D
             start={[boxHalf, 0, 0]}
             end={[boxHalf + 1.2, 0, 0]}
-            color={arrowActive ? "#facc15" : "black"}
+            highlighted={highlighted}
           />
-          <NullCircle offset={boxHalf + 1.8} highlight={highlightNull} />
-          {/* Label + arrow to NULL */}
-          <group ref={nullArrowRef} position={[boxHalf + 1.2, 1.5, 0]}>
-            <Text
-              fontSize={0.25}
-              anchorX="center"
-              anchorY="middle"
-              color="orange"
-            >
-              Reference to NULL
-            </Text>
-            <Arrow3D start={[0, -0.1, 0]} end={[0, -0.8, 0]} color="orange" />
-          </group>
+          <NullCircle offset={boxHalf + 1.8} />
         </>
+      )}
+
+      {selected && (
+        <Text
+          position={[0, size[1] + 0.2, 0]}
+          fontSize={0.32}
+          color="#fde68a"
+          anchorX="center"
+          anchorY="middle"
+        >
+          Node "{value}"
+        </Text>
       )}
     </group>
   );
 };
 
-const Arrow3D = ({ start, end, color = "black" }) => {
+const Arrow3D = ({ start, end, highlighted }) => {
   const ref = useRef();
-  const dir = new THREE.Vector3(
-    end[0] - start[0],
-    end[1] - start[1],
-    end[2] - start[2]
-  ).normalize();
-  const length = new THREE.Vector3(
-    end[0] - start[0],
-    end[1] - start[1],
-    end[2] - start[2]
-  ).length();
+  const dir = new THREE.Vector3(end[0] - start[0], 0, 0).normalize();
+  const length = new THREE.Vector3(end[0] - start[0], 0, 0).length();
 
   useFrame(() => {
     if (ref.current) {
@@ -245,18 +192,23 @@ const Arrow3D = ({ start, end, color = "black" }) => {
   return (
     <primitive
       object={
-        new THREE.ArrowHelper(dir, new THREE.Vector3(...start), length, color)
+        new THREE.ArrowHelper(
+          dir,
+          new THREE.Vector3(...start),
+          length,
+          highlighted ? "yellow" : "black"
+        )
       }
       ref={ref}
     />
   );
 };
 
-const NullCircle = ({ offset, highlight }) => (
+const NullCircle = ({ offset }) => (
   <group position={[offset, 0, 0]}>
     <mesh>
       <circleGeometry args={[0.6, 32]} />
-      <meshStandardMaterial color={highlight ? "#facc15" : "red"} />
+      <meshStandardMaterial color="red" />
     </mesh>
     <Text
       position={[0, 0, 0.4]}
@@ -265,9 +217,49 @@ const NullCircle = ({ offset, highlight }) => (
       anchorY="middle"
       color="white"
     >
-      NULL
+      null
     </Text>
   </group>
 );
+
+const FadeText = ({
+  text,
+  fontSize = 0.5,
+  color = "white",
+  position = [0, 0, 0],
+}) => {
+  const [opacity, setOpacity] = useState(0);
+
+  useEffect(() => {
+    let frame;
+    let start;
+    const duration = 1000;
+
+    const animate = (ts) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      setOpacity(progress);
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <Text
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      fillOpacity={opacity}
+      maxWidth={10}
+      textAlign="left"
+    >
+      {text}
+    </Text>
+  );
+};
 
 export default VisualPage2;
