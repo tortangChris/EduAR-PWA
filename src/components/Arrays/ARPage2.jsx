@@ -1,209 +1,200 @@
-import React, { useMemo, useState, useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
-import useSound from "use-sound";
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
-// tiny base64 beep sound
-const beep = "data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAA..."; // shortened
+const ARPage2 = () => {
+  const containerRef = useRef();
+  const [debugText, setDebugText] = useState("");
 
-const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
-  const [stage, setStage] = useState(0);
-  const [placed, setPlaced] = useState(true); // always placed
-  const [play] = useSound(beep, { volume: 0.5 });
-
-  // positions for boxes
-  const positions = useMemo(() => {
-    const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [data, spacing]);
-
-  // Timeline (looping every 18s)
   useEffect(() => {
-    if (!placed) return;
+    const container = containerRef.current;
 
-    const timeline = [
-      { time: 0, action: () => setStage(1) },
-      { time: 3, action: () => setStage(2) },
-      { time: 6, action: () => setStage(3) },
-      {
-        time: 9,
-        action: () => {
-          setStage(4);
-          play();
-        },
-      },
-      { time: 12, action: () => setStage(5) },
-      { time: 15, action: () => setStage(6) },
-    ];
+    // ✅ Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(
+      70,
+      window.innerWidth / window.innerHeight,
+      0.01,
+      20
+    );
 
-    let timers = timeline.map((t) => setTimeout(t.action, t.time * 1000));
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.xr.enabled = true;
+    container.appendChild(renderer.domElement);
 
-    const loop = setInterval(() => {
-      setStage(0);
-      timers = timeline.map((t) => setTimeout(t.action, t.time * 1000));
-    }, 18000);
+    // ✅ Start AR session directly
+    if (navigator.xr) {
+      navigator.xr
+        .requestSession("immersive-ar", { requiredFeatures: ["local-floor"] })
+        .then((session) => renderer.xr.setSession(session))
+        .catch((err) => console.error("❌ AR session failed:", err));
+    }
 
+    // ✅ Lighting
+    const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+    light.position.set(0.5, 1, 0.25);
+    scene.add(light);
+
+    // ✅ Group setup
+    const group = new THREE.Group();
+    group.position.set(0, 1, -2);
+    group.scale.set(0.1, 0.1, 0.1);
+    scene.add(group);
+
+    // ✅ Data + box creation
+    const data = [10, 20, 30, 40, 50];
+    const spacing = 8;
+    const boxes = [];
+    const fontLoader = new THREE.FontLoader();
+
+    for (let i = 0; i < data.length; i++) {
+      const geometry = new THREE.BoxGeometry(6, 6, 6);
+      const material = new THREE.MeshStandardMaterial({
+        color: i % 2 === 0 ? "#60a5fa" : "#34d399",
+        emissive: "black",
+      });
+      const box = new THREE.Mesh(geometry, material);
+      box.position.set((i - (data.length - 1) / 2) * spacing, 3, 0);
+      box.userData = { index: i, value: data[i] };
+      group.add(box);
+      boxes.push(box);
+    }
+
+    // ✅ Raycaster for interaction
+    const raycaster = new THREE.Raycaster();
+    const tempMatrix = new THREE.Matrix4();
+    let codeLabel = null;
+
+    const generateCode = (index, value) => {
+      return [
+        "📘 Pseudo Code Example:",
+        "",
+        "array = [10, 20, 30, 40, 50]",
+        `index = ${index}`,
+        "",
+        "value = array[index]",
+        "print('Accessed Value:', value)",
+        "",
+        `// Result: ${value}`,
+      ].join("\n");
+    };
+
+    const createFloatingLabel = (text, position) => {
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      context.font = "bold 60px Arial";
+      const lines = text.split("\n");
+
+      // Dynamic canvas height
+      const lineHeight = 70;
+      const width = 1600;
+      const height = lineHeight * lines.length + 100;
+      canvas.width = width;
+      canvas.height = height;
+      context.fillStyle = "rgba(0,0,0,0.7)";
+      context.fillRect(0, 0, width, height);
+
+      context.fillStyle = "#c7d2fe";
+      context.textAlign = "left";
+      context.textBaseline = "top";
+
+      lines.forEach((line, i) => {
+        context.fillText(line, 50, 50 + i * lineHeight);
+      });
+
+      const texture = new THREE.CanvasTexture(canvas);
+      const material = new THREE.SpriteMaterial({ map: texture });
+      const sprite = new THREE.Sprite(material);
+      sprite.scale.set(25, (height / width) * 25, 1);
+      sprite.position.copy(position);
+      return sprite;
+    };
+
+    const onSelect = (event) => {
+      const controller = event.target;
+      tempMatrix.identity().extractRotation(controller.matrixWorld);
+      raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+      const intersects = raycaster.intersectObjects(boxes);
+      if (intersects.length > 0) {
+        const selected = intersects[0].object;
+        const { index, value } = selected.userData;
+
+        setDebugText(`✅ Box ${index + 1} tapped!`);
+        selected.material.color.set("#f87171");
+
+        // Remove old label
+        if (codeLabel) {
+          group.remove(codeLabel);
+          codeLabel.material.map.dispose();
+          codeLabel.material.dispose();
+        }
+
+        // Add new label
+        const codeText = generateCode(index, value);
+        codeLabel = createFloatingLabel(
+          codeText,
+          new THREE.Vector3(selected.position.x, selected.position.y + 10, 0)
+        );
+        group.add(codeLabel);
+
+        // Reset after delay
+        setTimeout(() => {
+          selected.material.color.set(index % 2 === 0 ? "#60a5fa" : "#34d399");
+          setDebugText("");
+        }, 2000);
+      }
+    };
+
+    const controller = renderer.xr.getController(0);
+    controller.addEventListener("select", onSelect);
+    scene.add(controller);
+
+    // ✅ Ground plane
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(30, 30),
+      new THREE.ShadowMaterial({ opacity: 0.25 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    group.add(ground);
+
+    // ✅ Render loop
+    renderer.setAnimationLoop(() => {
+      renderer.render(scene, camera);
+    });
+
+    // ✅ Handle resize
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener("resize", handleResize);
+
+    // ✅ Cleanup
     return () => {
-      timers.forEach(clearTimeout);
-      clearInterval(loop);
+      window.removeEventListener("resize", handleResize);
+      renderer.setAnimationLoop(null);
+      try {
+        if (container.contains(renderer.domElement)) {
+          container.removeChild(renderer.domElement);
+        }
+      } catch (e) {
+        console.warn("⚠️ Renderer cleanup:", e.message);
+      }
+      renderer.dispose();
     };
-  }, [play, placed]);
-
-  return (
-    <div className="w-full h-screen">
-      <Canvas
-        camera={{ position: [0, 2, 2], fov: 50 }}
-        gl={{ alpha: true }}
-        shadows
-        onCreated={({ gl }) => {
-          gl.xr.enabled = true;
-          if (navigator.xr) {
-            navigator.xr
-              .requestSession("immersive-ar", {
-                requiredFeatures: ["local-floor"],
-              })
-              .then((session) => gl.xr.setSession(session))
-              .catch((err) => console.error("❌ AR session failed:", err));
-          }
-        }}
-      >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
-
-        {/* Fixed AR group */}
-        <group position={[0, 1, -2]} scale={[0.1, 0.1, 0.1]}>
-          {/* Title */}
-          {stage >= 1 && (
-            <FadeText text="Access Operation (O(1))" position={[0, 3.5, 0]} />
-          )}
-
-          {/* Definition */}
-          {stage >= 2 && (
-            <FadeText
-              text="Access = retrieving an element using its index"
-              position={[0, 2.8, 0]}
-              fontSize={0.35}
-            />
-          )}
-
-          {/* Boxes */}
-          {stage >= 3 &&
-            data.map((value, i) => (
-              <Box
-                key={i}
-                index={i}
-                value={value}
-                position={positions[i]}
-                highlight={stage >= 4 && i === 2}
-              />
-            ))}
-
-          {/* Complexity */}
-          {stage >= 5 && (
-            <FadeText
-              text="Time Complexity: O(1) → constant time"
-              position={[0, -2.8, 0]}
-              fontSize={0.35}
-              color="#facc15"
-            />
-          )}
-
-          {/* Example code */}
-          {stage >= 6 && (
-            <FadeText
-              text={`arr = [10, 20, 30, 40]\narr[2] = 30   # Access index 2`}
-              position={[0, -3.5, 0]}
-              fontSize={0.28}
-              color="lightgreen"
-            />
-          )}
-
-          {/* Ground */}
-          <mesh rotation-x={-Math.PI / 2} receiveShadow>
-            <planeGeometry args={[10, 10]} />
-            <shadowMaterial opacity={0.3} />
-          </mesh>
-        </group>
-      </Canvas>
-    </div>
-  );
-};
-
-// Box with highlight
-const Box = ({ index, value, position = [0, 0, 0], highlight }) => {
-  const size = [1.6, 1.2, 1];
-
-  return (
-    <group position={position}>
-      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
-        <boxGeometry args={size} />
-        <meshStandardMaterial
-          color={
-            highlight ? "#f87171" : index % 2 === 0 ? "#60a5fa" : "#34d399"
-          }
-          emissive={highlight ? "#facc15" : "#000000"}
-          emissiveIntensity={highlight ? 1.5 : 0}
-        />
-      </mesh>
-
-      {/* Value */}
-      <Text
-        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        fontSize={0.35}
-        anchorX="center"
-        anchorY="middle"
-        color="white"
-      >
-        {String(value)}
-      </Text>
-
-      {/* Index aligned like labels */}
-      <Text
-        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
-        fontSize={0.2}
-        anchorX="right"
-        anchorY="middle"
-        color="yellow"
-      >
-        [{index}]
-      </Text>
-    </group>
-  );
-};
-
-// Fade-in text
-const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
-  const [opacity, setOpacity] = useState(0);
-
-  useEffect(() => {
-    let frame;
-    let start;
-    const duration = 1000;
-
-    const animate = (ts) => {
-      if (!start) start = ts;
-      const progress = Math.min((ts - start) / duration, 1);
-      setOpacity(progress);
-      if (progress < 1) frame = requestAnimationFrame(animate);
-    };
-
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
   }, []);
 
   return (
-    <Text
-      position={position}
-      fontSize={fontSize}
-      color={color}
-      anchorX="center"
-      anchorY="middle"
-      fillOpacity={opacity}
-    >
-      {text}
-    </Text>
+    <div ref={containerRef} className="w-full h-screen relative bg-black">
+      {debugText && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-xl text-lg">
+          {debugText}
+        </div>
+      )}
+    </div>
   );
 };
 
