@@ -1,127 +1,113 @@
-// ARPage1.jsx
-import React, { useRef, useState, useMemo } from "react";
-import { ARCanvas, useHitTest, useXR, Interactive } from "@react-three/xr";
-import { Text } from "@react-three/drei";
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 const ARPage1 = () => {
-  const [placements, setPlacements] = useState([]);
+  const containerRef = useRef();
+  const [debugText, setDebugText] = useState("");
 
-  const handlePlace = (position) => {
-    // Limit to one array visualization (replace instead of stacking)
-    setPlacements([position]);
-  };
+  useEffect(() => {
+    const container = containerRef.current;
+
+    // ✅ Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(
+      70,
+      window.innerWidth / window.innerHeight,
+      0.01,
+      20
+    );
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.xr.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // ✅ Start AR session directly (no button)
+    if (navigator.xr) {
+      navigator.xr
+        .requestSession("immersive-ar", { requiredFeatures: ["local-floor"] })
+        .then((session) => renderer.xr.setSession(session))
+        .catch((err) => console.error("❌ AR session failed:", err));
+    }
+
+    // ✅ Lighting
+    const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+    light.position.set(0.5, 1, 0.25);
+    scene.add(light);
+
+    // ✅ Main AR group (same layout as reference)
+    const group = new THREE.Group();
+    group.position.set(0, 1, -2);
+    group.scale.set(0.1, 0.1, 0.1);
+    scene.add(group);
+
+    // ✅ Object (cube)
+    const cube = new THREE.Mesh(
+      new THREE.BoxGeometry(6, 6, 6),
+      new THREE.MeshStandardMaterial({ color: "#60a5fa", emissive: "black" })
+    );
+    cube.position.set(0, 3, 0);
+    group.add(cube);
+
+    // ✅ Ground
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(10, 10),
+      new THREE.ShadowMaterial({ opacity: 0.3 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    group.add(ground);
+
+    // ✅ Raycaster + interaction
+    const onSelect = () => {
+      setDebugText("✅ Object tapped!");
+      setTimeout(() => setDebugText(""), 1500);
+      cube.material.color.set("#22c55e");
+      setTimeout(() => cube.material.color.set("#60a5fa"), 1000);
+    };
+
+    const controller = renderer.xr.getController(0);
+    controller.addEventListener("select", onSelect);
+    scene.add(controller);
+
+    // ✅ Animation loop
+    renderer.setAnimationLoop(() => {
+      renderer.render(scene, camera);
+    });
+
+    // ✅ Resize handler
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener("resize", handleResize);
+
+    // ✅ Cleanup (safe remove)
+    return () => {
+      window.removeEventListener("resize", handleResize);
+
+      try {
+        if (container.contains(renderer.domElement)) {
+          container.removeChild(renderer.domElement);
+        }
+      } catch (e) {
+        console.warn("⚠️ Renderer element already removed:", e.message);
+      }
+
+      // Stop animation loop + dispose renderer
+      renderer.setAnimationLoop(null);
+      renderer.dispose();
+    };
+  }, []);
 
   return (
-    <div className="w-full h-screen">
-      <ARCanvas sessionInit={{ requiredFeatures: ["hit-test"] }}>
-        <ambientLight intensity={0.7} />
-        <directionalLight position={[2, 5, 2]} intensity={1} />
-
-        <XRHitPlace onSelect={handlePlace} />
-
-        {placements.map((pos, i) => (
-          <ArrayVisualization key={i} position={pos} />
-        ))}
-      </ARCanvas>
+    <div ref={containerRef} className="w-full h-screen relative bg-black">
+      {debugText && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-xl text-lg">
+          {debugText}
+        </div>
+      )}
     </div>
-  );
-};
-
-// === Hit Test (Tap placement indicator) ===
-const XRHitPlace = ({ onSelect }) => {
-  const reticleRef = useRef();
-  const hitMatrix = useRef(new THREE.Matrix4());
-
-  useHitTest((hitMatrixLocal) => {
-    hitMatrix.current = hitMatrixLocal;
-    if (reticleRef.current) {
-      reticleRef.current.visible = true;
-      const pos = new THREE.Vector3().setFromMatrixPosition(hitMatrix.current);
-      reticleRef.current.position.copy(pos);
-    }
-  });
-
-  const handleSelect = () => {
-    if (reticleRef.current?.visible) {
-      const pos = reticleRef.current.position.clone();
-      onSelect(pos);
-    }
-  };
-
-  return (
-    <Interactive onSelect={handleSelect}>
-      <mesh ref={reticleRef} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
-        <ringGeometry args={[0.05, 0.07, 32]} />
-        <meshBasicMaterial color="#ffd700" />
-      </mesh>
-    </Interactive>
-  );
-};
-
-// === Array Visualization ===
-const ArrayVisualization = ({ position }) => {
-  const data = [10, 20, 30, 40];
-  const spacing = 0.35; // increased spacing for AR clarity
-  const positions = useMemo(() => {
-    const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [data, spacing]);
-
-  return (
-    <group position={[position.x, position.y + 0.05, position.z]}>
-      {/* Title Label */}
-      <Text
-        position={[0, 0.25, 0]}
-        fontSize={0.1}
-        color="#ffffff"
-        anchorX="center"
-        anchorY="middle"
-      >
-        Array Data Structure
-      </Text>
-
-      {data.map((value, i) => (
-        <Box key={i} position={positions[i]} value={value} index={i} />
-      ))}
-    </group>
-  );
-};
-
-// === Box ===
-const Box = ({ value, index, position }) => {
-  const color = index % 2 === 0 ? "#60a5fa" : "#34d399";
-
-  return (
-    <group position={position}>
-      {/* Box */}
-      <mesh position={[0, 0.1, 0]}>
-        <boxGeometry args={[0.22, 0.22, 0.22]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-
-      {/* Value Label */}
-      <Text
-        position={[0, 0.25, 0.001]}
-        fontSize={0.09}
-        color="white"
-        anchorX="center"
-        anchorY="middle"
-      >
-        {value}
-      </Text>
-
-      {/* Index Label */}
-      <Text
-        position={[0, -0.17, 0.001]}
-        fontSize={0.07}
-        color="#fde047"
-        anchorX="center"
-        anchorY="middle"
-      >
-        [{index}]
-      </Text>
-    </group>
   );
 };
 
