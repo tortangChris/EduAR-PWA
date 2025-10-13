@@ -2,7 +2,7 @@ import React, { useMemo, useState, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Text, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import { ARButton, XR, useHitTest } from "@react-three/xr";
+import { ARButton, XR, useHitTest, Interactive } from "@react-three/xr";
 
 const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   const [showPanel, setShowPanel] = useState(false);
@@ -18,7 +18,12 @@ const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   return (
     <div className="w-full h-screen">
       <ARButton />
-      <Canvas camera={{ fov: 60 }}>
+      <Canvas
+        camera={{ fov: 60 }}
+        onCreated={({ gl }) => {
+          gl.xr.enabled = true;
+        }}
+      >
         <XR>
           <ambientLight intensity={0.4} />
           <directionalLight position={[5, 10, 5]} intensity={0.8} />
@@ -71,7 +76,7 @@ const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   );
 };
 
-// 🔹 Hit test reticle for AR placement
+// ✅ FIXED HitTestReticle (now valid inside XR Canvas)
 const HitTestReticle = ({ setPosition }) => {
   useHitTest((hitMatrix) => {
     const position = new THREE.Vector3();
@@ -118,7 +123,7 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
   );
 };
 
-// 🔹 Box component
+// 🔹 Box component with proper AR interaction
 const Box = ({
   index,
   value,
@@ -132,19 +137,16 @@ const Box = ({
 
   return (
     <group position={position}>
-      <mesh
-        castShadow
-        receiveShadow
-        position={[0, size[1] / 2, 0]}
-        onClick={onValueClick}
-      >
-        <boxGeometry args={size} />
-        <meshStandardMaterial
-          color={color}
-          emissive={selected ? "#fbbf24" : "#000000"}
-          emissiveIntensity={selected ? 0.4 : 0}
-        />
-      </mesh>
+      <Interactive onSelect={onValueClick}>
+        <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
+          <boxGeometry args={size} />
+          <meshStandardMaterial
+            color={color}
+            emissive={selected ? "#fbbf24" : "#000000"}
+            emissiveIntensity={selected ? 0.4 : 0}
+          />
+        </mesh>
+      </Interactive>
 
       <FadeInText
         show={true}
@@ -154,16 +156,17 @@ const Box = ({
         color="white"
       />
 
-      <Text
-        position={[0, -0.3, size[2] / 2 + 0.01]}
-        fontSize={0.3}
-        color="yellow"
-        anchorX="center"
-        anchorY="middle"
-        onClick={onIndexClick}
-      >
-        [{index}]
-      </Text>
+      <Interactive onSelect={onIndexClick}>
+        <Text
+          position={[0, -0.3, size[2] / 2 + 0.01]}
+          fontSize={0.3}
+          color="yellow"
+          anchorX="center"
+          anchorY="middle"
+        >
+          [{index}]
+        </Text>
+      </Interactive>
 
       {selected && (
         <Text
@@ -217,16 +220,17 @@ const DefinitionPanel = ({ page, data, position, onNextClick }) => {
         fontSize={0.32}
         color="#fde68a"
       />
-      <Text
-        position={[position[0], position[1] - 2.8, position[2]]}
-        fontSize={0.45}
-        color="#38bdf8"
-        anchorX="center"
-        anchorY="middle"
-        onClick={onNextClick}
-      >
-        {nextLabel}
-      </Text>
+      <Interactive onSelect={onNextClick}>
+        <Text
+          position={[position[0], position[1] - 2.8, position[2]]}
+          fontSize={0.45}
+          color="#38bdf8"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {nextLabel}
+        </Text>
+      </Interactive>
     </group>
   );
 };
