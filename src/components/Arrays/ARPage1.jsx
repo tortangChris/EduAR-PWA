@@ -8,13 +8,13 @@ const ARPage1 = () => {
   useEffect(() => {
     const container = containerRef.current;
 
-    // === SCENE SETUP ===
+    // === SCENE & CAMERA ===
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
       70,
       window.innerWidth / window.innerHeight,
       0.01,
-      20
+      30
     );
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -22,7 +22,7 @@ const ARPage1 = () => {
     renderer.xr.enabled = true;
     container.appendChild(renderer.domElement);
 
-    // === START AR SESSION ===
+    // === AR SESSION START ===
     if (navigator.xr) {
       navigator.xr
         .requestSession("immersive-ar", { requiredFeatures: ["local-floor"] })
@@ -37,13 +37,13 @@ const ARPage1 = () => {
 
     // === MAIN GROUP ===
     const group = new THREE.Group();
-    group.position.set(0, 1, -2);
-    group.scale.set(0.1, 0.1, 0.1); // consistent with working cube
+    group.position.set(0, 1.2, -3); // farther from camera
+    group.scale.set(0.08, 0.08, 0.08);
     scene.add(group);
 
     // === DATA ===
     const data = [10, 20, 30, 40];
-    const spacing = 10;
+    const spacing = 12;
     const boxRefs = [];
 
     // === TITLE ===
@@ -51,87 +51,70 @@ const ARPage1 = () => {
       fontsize: 90,
       textColor: "#ffffff",
     });
-    title.position.set(0, 28, 0);
+    title.position.set(0, 30, 0);
     group.add(title);
 
-    // === BOXES ===
+    // === BOXES + LABELS (inside the box) ===
     data.forEach((value, i) => {
       const box = new THREE.Mesh(
-        new THREE.BoxGeometry(6, 6, 6),
+        new THREE.BoxGeometry(8, 8, 8),
         new THREE.MeshStandardMaterial({
           color: i % 2 === 0 ? "#60a5fa" : "#34d399",
+          roughness: 0.3,
+          metalness: 0.1,
         })
       );
-      box.position.set((i - (data.length - 1) / 2) * spacing, 3, 0);
+      box.position.set((i - (data.length - 1) / 2) * spacing, 5, 0);
       box.userData = { index: i, value };
       group.add(box);
       boxRefs.push(box);
 
-      // Value label (above)
-      const valueLabel = makeTextSprite(`${value}`, {
-        fontsize: 70,
+      // === TEXT INSIDE BOX ===
+      const textInside = makeTextSprite(`${value}\n[${i}]`, {
+        fontsize: 85,
         textColor: "#ffffff",
       });
-      valueLabel.position.set(box.position.x, 10, 3);
-      group.add(valueLabel);
-
-      // Index label (below)
-      const indexLabel = makeTextSprite(`[${i}]`, {
-        fontsize: 60,
-        textColor: "#facc15",
-      });
-      indexLabel.position.set(box.position.x, -1, 3);
-      group.add(indexLabel);
+      textInside.position.copy(box.position);
+      textInside.position.z += 4.1; // inside front face
+      group.add(textInside);
     });
 
-    // === PANEL TEXT (HIDDEN INITIALLY) ===
+    // === INFO PANEL ===
     const infoPanel = makeTextSprite(
-      "📘 Understanding Index in Arrays:\n• Index starts at 0\n• Arrays store values contiguously",
+      "📘 Pseudo Code Example:\narray = [10, 20, 30, 40]\nindex = 2\nvalue = array[index]\nprint(value)",
       { fontsize: 70, textColor: "#fde68a" }
     );
-    infoPanel.position.set(60, 8, 0);
+    infoPanel.position.set(0, -5, 0);
     infoPanel.visible = false;
     group.add(infoPanel);
 
-    // === RAYCASTER LOGIC (controller tap) ===
+    // === RAYCASTER (controller select) ===
     const raycaster = new THREE.Raycaster();
     const tempMatrix = new THREE.Matrix4();
 
     const onSelect = (event) => {
       const controller = event.target;
       tempMatrix.identity().extractRotation(controller.matrixWorld);
-
       raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
       raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
       const intersects = raycaster.intersectObjects(boxRefs);
-
       if (intersects.length > 0) {
         const hit = intersects[0].object;
         const { index, value } = hit.userData;
 
-        // highlight
-        hit.material.color.set("#facc15");
+        // highlight animation
+        hit.material.emissive = new THREE.Color("#facc15");
         setTimeout(
-          () => hit.material.color.set(index % 2 === 0 ? "#60a5fa" : "#34d399"),
+          () => (hit.material.emissive = new THREE.Color("#000000")),
           1000
         );
 
-        // debug text on screen
+        // update debug text
         setDebugText(`📦 Value ${value} at index ${index}`);
         setTimeout(() => setDebugText(""), 2000);
 
-        // floating label above clicked box
-        const label = makeTextSprite(`Value ${value} at index ${index}`, {
-          fontsize: 70,
-          textColor: "#fde68a",
-        });
-        label.position.copy(hit.position);
-        label.position.y += 15;
-        group.add(label);
-        setTimeout(() => group.remove(label), 2000);
-
-        // show info panel briefly
+        // show info panel temporarily
         infoPanel.visible = true;
         setTimeout(() => (infoPanel.visible = false), 4000);
       }
@@ -141,8 +124,9 @@ const ARPage1 = () => {
     controller.addEventListener("select", onSelect);
     scene.add(controller);
 
-    // === ANIMATION LOOP ===
+    // === ROTATION ANIMATION ===
     renderer.setAnimationLoop(() => {
+      group.rotation.y += 0.005; // smooth, stable rotation
       renderer.render(scene, camera);
     });
 
@@ -175,7 +159,7 @@ const ARPage1 = () => {
   );
 };
 
-// === HELPER: TEXT SPRITE ===
+// === HELPER FUNCTION ===
 function makeTextSprite(message, parameters) {
   const fontface = parameters.fontface || "Arial";
   const fontsize = parameters.fontsize || 60;
@@ -184,7 +168,6 @@ function makeTextSprite(message, parameters) {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
   context.font = `${fontsize}px ${fontface}`;
-
   const lines = message.split("\n");
   let maxWidth = 0;
   lines.forEach((line) => {
@@ -194,7 +177,6 @@ function makeTextSprite(message, parameters) {
 
   canvas.width = maxWidth + 50;
   canvas.height = fontsize * lines.length * 1.4;
-
   context.font = `${fontsize}px ${fontface}`;
   context.fillStyle = textColor;
   context.textBaseline = "top";
