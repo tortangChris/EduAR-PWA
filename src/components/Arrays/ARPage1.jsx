@@ -8,7 +8,7 @@ const ARPage1 = () => {
   useEffect(() => {
     const container = containerRef.current;
 
-    // === SCENE SETUP ===
+    // === Scene Setup ===
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
       70,
@@ -22,7 +22,7 @@ const ARPage1 = () => {
     renderer.xr.enabled = true;
     container.appendChild(renderer.domElement);
 
-    // === START AR SESSION ===
+    // === Start AR session ===
     if (navigator.xr) {
       navigator.xr
         .requestSession("immersive-ar", { requiredFeatures: ["local-floor"] })
@@ -30,87 +30,87 @@ const ARPage1 = () => {
         .catch((err) => console.error("❌ AR session failed:", err));
     }
 
-    // === LIGHTING ===
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+    // === Lighting ===
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x888888, 1);
     hemiLight.position.set(0, 1, 0);
     scene.add(hemiLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(1, 3, 2);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    dirLight.position.set(1, 2, 1);
     scene.add(dirLight);
 
-    // === GROUP CONTAINER ===
+    // === Main group ===
     const group = new THREE.Group();
-    group.position.set(0, 1, -2);
-    group.scale.set(0.1, 0.1, 0.1);
+    group.position.set(0, 1.1, -1.5);
+    group.scale.set(0.05, 0.05, 0.05);
     scene.add(group);
 
-    // === DATA ===
+    // === Data ===
     const data = [10, 20, 30, 40];
-    const spacing = 8;
+    const spacing = 15;
     const boxRefs = [];
 
-    // === TITLE LABEL ===
+    // === Title ===
     const title = makeTextSprite("Array Data Structure", {
-      fontsize: 90,
+      fontsize: 140,
       textColor: "#ffffff",
       fontface: "Arial",
     });
-    title.position.set(0, 25, 0);
+    title.position.set(0, 55, 0);
     group.add(title);
 
-    // === BOXES + LABELS ===
+    // === Boxes + Labels ===
     data.forEach((value, i) => {
       const box = new THREE.Mesh(
-        new THREE.BoxGeometry(6, 6, 6),
+        new THREE.BoxGeometry(8, 6, 4),
         new THREE.MeshStandardMaterial({
           color: i % 2 === 0 ? "#60a5fa" : "#34d399",
+          roughness: 0.5,
+          metalness: 0.2,
         })
       );
-      box.position.set((i - (data.length - 1) / 2) * spacing, 3, 0);
+      box.position.set((i - (data.length - 1) / 2) * spacing, 6, 0);
       box.userData = { index: i, value };
       group.add(box);
       boxRefs.push(box);
 
-      // Value label (above box)
-      const valueLabel = makeTextSprite(`${value}`, {
-        fontsize: 70,
+      // Value label
+      const valueLabel = makeTextSprite(String(value), {
+        fontsize: 100,
         textColor: "#ffffff",
       });
-      valueLabel.position.set(box.position.x, 9, 3);
+      valueLabel.position.set(box.position.x, 12, 2.5);
       group.add(valueLabel);
 
-      // Index label (below box)
+      // Index label
       const indexLabel = makeTextSprite(`[${i}]`, {
-        fontsize: 60,
+        fontsize: 80,
         textColor: "#facc15",
       });
-      indexLabel.position.set(box.position.x, -1, 3);
+      indexLabel.position.set(box.position.x, -2, 2.5);
       group.add(indexLabel);
     });
 
-    // === INFO PANEL (initially hidden) ===
-    const panel = makeTextSprite(
-      "📘 Understanding Index in Arrays:\n\n• Index starts at 0\n• Access is O(1) in arrays",
-      { fontsize: 70, textColor: "#fde68a" }
+    // === Info Panel ===
+    const infoPanel = makeTextSprite(
+      "📘 Understanding Index in Arrays:\n\n• Index starts at 0\n• Access is O(1) in arrays\n• Stored in contiguous memory",
+      { fontsize: 80, textColor: "#fde68a" }
     );
-    panel.position.set(60, 5, 0);
-    panel.visible = false;
-    group.add(panel);
+    infoPanel.position.set(70, 10, 0);
+    infoPanel.visible = false;
+    group.add(infoPanel);
 
-    // === RAYCASTER SETUP ===
+    // === Raycaster for AR tap interaction ===
     const raycaster = new THREE.Raycaster();
-    const tapPos = new THREE.Vector2();
 
     const onSelect = (event) => {
-      const session = renderer.xr.getSession();
-      const viewerPose = event.frame.getViewerPose(
-        renderer.xr.getReferenceSpace()
-      );
-      if (!viewerPose) return;
+      const referenceSpace = renderer.xr.getReferenceSpace();
+      const frame = event.frame;
+      const inputSource = event.inputSource;
 
-      const ray = event.inputSource.targetRaySpace;
-      const pose = event.frame.getPose(ray, renderer.xr.getReferenceSpace());
+      if (!inputSource.targetRaySpace || !frame) return;
+
+      const pose = frame.getPose(inputSource.targetRaySpace, referenceSpace);
       if (!pose) return;
 
       const origin = new THREE.Vector3().fromArray(pose.transform.position);
@@ -119,35 +119,35 @@ const ARPage1 = () => {
       );
 
       raycaster.set(origin, direction);
-      const intersects = raycaster.intersectObjects(boxRefs);
+      const intersects = raycaster.intersectObjects(boxRefs, false);
 
       if (intersects.length > 0) {
         const hit = intersects[0].object;
         const { index, value } = hit.userData;
 
-        // Visual feedback
+        // Highlight
         hit.material.color.set("#facc15");
         setTimeout(
           () => hit.material.color.set(index % 2 === 0 ? "#60a5fa" : "#34d399"),
           1000
         );
 
-        // Debug text
-        setDebugText(`📦 Value ${value} at index ${index}`);
-        setTimeout(() => setDebugText(""), 2000);
-
         // Floating label
         const floatLabel = makeTextSprite(`Value ${value} at index ${index}`, {
-          fontsize: 70,
+          fontsize: 90,
           textColor: "#fde68a",
         });
-        floatLabel.position.set(hit.position.x, 15, 0);
+        floatLabel.position.set(hit.position.x, 20, 0);
         group.add(floatLabel);
         setTimeout(() => group.remove(floatLabel), 2000);
 
-        // Show info panel
-        panel.visible = true;
-        setTimeout(() => (panel.visible = false), 4000);
+        // Show panel
+        infoPanel.visible = true;
+        setTimeout(() => (infoPanel.visible = false), 4000);
+
+        // Debug HUD
+        setDebugText(`📦 Value ${value} at index ${index}`);
+        setTimeout(() => setDebugText(""), 1500);
       }
     };
 
@@ -155,22 +155,22 @@ const ARPage1 = () => {
     controller.addEventListener("select", onSelect);
     scene.add(controller);
 
-    // === ANIMATION LOOP ===
+    // === Render loop ===
     renderer.setAnimationLoop(() => {
       renderer.render(scene, camera);
     });
 
-    // === HANDLE RESIZE ===
-    const handleResize = () => {
+    // === Resize ===
+    const onResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     };
-    window.addEventListener("resize", handleResize);
+    window.addEventListener("resize", onResize);
 
-    // === CLEANUP ===
+    // === Cleanup ===
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("resize", onResize);
       renderer.setAnimationLoop(null);
       renderer.dispose();
       if (container.contains(renderer.domElement))
@@ -189,7 +189,7 @@ const ARPage1 = () => {
   );
 };
 
-// === HELPER FUNCTION FOR TEXT SPRITES ===
+// === Helper to make text ===
 function makeTextSprite(message, parameters) {
   const fontface = parameters.fontface || "Arial";
   const fontsize = parameters.fontsize || 60;
@@ -205,26 +205,26 @@ function makeTextSprite(message, parameters) {
     if (width > maxWidth) maxWidth = width;
   });
 
-  canvas.width = maxWidth + 50;
-  canvas.height = fontsize * lines.length * 1.4;
+  canvas.width = maxWidth + 80;
+  canvas.height = fontsize * lines.length * 1.5;
 
   context.font = `${fontsize}px ${fontface}`;
   context.fillStyle = textColor;
   context.textBaseline = "top";
 
   lines.forEach((line, i) => {
-    context.fillText(line, 10, i * fontsize * 1.4);
+    context.fillText(line, 10, i * fontsize * 1.3);
   });
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.needsUpdate = true;
 
-  const spriteMaterial = new THREE.SpriteMaterial({
+  const material = new THREE.SpriteMaterial({
     map: texture,
     transparent: true,
   });
-  const sprite = new THREE.Sprite(spriteMaterial);
-  const scaleFactor = 0.1;
+  const sprite = new THREE.Sprite(material);
+  const scaleFactor = 0.02; // fixed consistent size
   sprite.scale.set(canvas.width * scaleFactor, canvas.height * scaleFactor, 1);
   return sprite;
 }
