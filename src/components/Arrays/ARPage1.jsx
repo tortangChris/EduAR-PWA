@@ -1,238 +1,232 @@
-import React, { useMemo, useState, useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Text, OrbitControls } from "@react-three/drei";
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { ARButton, XR, useHitTest, Interactive } from "@react-three/xr";
 
-const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
-  const [showPanel, setShowPanel] = useState(false);
-  const [page, setPage] = useState(0);
-  const [selectedBox, setSelectedBox] = useState(null);
-  const [position, setPosition] = useState([0, 0, -2]);
+const ARPage1 = () => {
+  const containerRef = useRef();
+  const [debugText, setDebugText] = useState("");
 
-  const positions = useMemo(() => {
-    const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [data, spacing]);
+  useEffect(() => {
+    const container = containerRef.current;
+
+    // === SCENE SETUP ===
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(
+      70,
+      window.innerWidth / window.innerHeight,
+      0.01,
+      20
+    );
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.xr.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // === START AR SESSION ===
+    if (navigator.xr) {
+      navigator.xr
+        .requestSession("immersive-ar", { requiredFeatures: ["local-floor"] })
+        .then((session) => renderer.xr.setSession(session))
+        .catch((err) => console.error("❌ AR session failed:", err));
+    }
+
+    // === LIGHTING ===
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+    hemiLight.position.set(0, 1, 0);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(1, 3, 2);
+    scene.add(dirLight);
+
+    // === GROUP CONTAINER ===
+    const group = new THREE.Group();
+    group.position.set(0, 1, -2);
+    group.scale.set(0.1, 0.1, 0.1);
+    scene.add(group);
+
+    // === DATA ===
+    const data = [10, 20, 30, 40];
+    const spacing = 8;
+    const boxRefs = [];
+
+    // === TITLE LABEL ===
+    const title = makeTextSprite("Array Data Structure", {
+      fontsize: 90,
+      textColor: "#ffffff",
+      fontface: "Arial",
+    });
+    title.position.set(0, 25, 0);
+    group.add(title);
+
+    // === BOXES + LABELS ===
+    data.forEach((value, i) => {
+      const box = new THREE.Mesh(
+        new THREE.BoxGeometry(6, 6, 6),
+        new THREE.MeshStandardMaterial({
+          color: i % 2 === 0 ? "#60a5fa" : "#34d399",
+        })
+      );
+      box.position.set((i - (data.length - 1) / 2) * spacing, 3, 0);
+      box.userData = { index: i, value };
+      group.add(box);
+      boxRefs.push(box);
+
+      // Value label (above box)
+      const valueLabel = makeTextSprite(`${value}`, {
+        fontsize: 70,
+        textColor: "#ffffff",
+      });
+      valueLabel.position.set(box.position.x, 9, 3);
+      group.add(valueLabel);
+
+      // Index label (below box)
+      const indexLabel = makeTextSprite(`[${i}]`, {
+        fontsize: 60,
+        textColor: "#facc15",
+      });
+      indexLabel.position.set(box.position.x, -1, 3);
+      group.add(indexLabel);
+    });
+
+    // === INFO PANEL (initially hidden) ===
+    const panel = makeTextSprite(
+      "📘 Understanding Index in Arrays:\n\n• Index starts at 0\n• Access is O(1) in arrays",
+      { fontsize: 70, textColor: "#fde68a" }
+    );
+    panel.position.set(60, 5, 0);
+    panel.visible = false;
+    group.add(panel);
+
+    // === RAYCASTER SETUP ===
+    const raycaster = new THREE.Raycaster();
+    const tapPos = new THREE.Vector2();
+
+    const onSelect = (event) => {
+      const session = renderer.xr.getSession();
+      const viewerPose = event.frame.getViewerPose(
+        renderer.xr.getReferenceSpace()
+      );
+      if (!viewerPose) return;
+
+      const ray = event.inputSource.targetRaySpace;
+      const pose = event.frame.getPose(ray, renderer.xr.getReferenceSpace());
+      if (!pose) return;
+
+      const origin = new THREE.Vector3().fromArray(pose.transform.position);
+      const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(
+        new THREE.Quaternion().fromArray(pose.transform.orientation)
+      );
+
+      raycaster.set(origin, direction);
+      const intersects = raycaster.intersectObjects(boxRefs);
+
+      if (intersects.length > 0) {
+        const hit = intersects[0].object;
+        const { index, value } = hit.userData;
+
+        // Visual feedback
+        hit.material.color.set("#facc15");
+        setTimeout(
+          () => hit.material.color.set(index % 2 === 0 ? "#60a5fa" : "#34d399"),
+          1000
+        );
+
+        // Debug text
+        setDebugText(`📦 Value ${value} at index ${index}`);
+        setTimeout(() => setDebugText(""), 2000);
+
+        // Floating label
+        const floatLabel = makeTextSprite(`Value ${value} at index ${index}`, {
+          fontsize: 70,
+          textColor: "#fde68a",
+        });
+        floatLabel.position.set(hit.position.x, 15, 0);
+        group.add(floatLabel);
+        setTimeout(() => group.remove(floatLabel), 2000);
+
+        // Show info panel
+        panel.visible = true;
+        setTimeout(() => (panel.visible = false), 4000);
+      }
+    };
+
+    const controller = renderer.xr.getController(0);
+    controller.addEventListener("select", onSelect);
+    scene.add(controller);
+
+    // === ANIMATION LOOP ===
+    renderer.setAnimationLoop(() => {
+      renderer.render(scene, camera);
+    });
+
+    // === HANDLE RESIZE ===
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener("resize", handleResize);
+
+    // === CLEANUP ===
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      renderer.setAnimationLoop(null);
+      renderer.dispose();
+      if (container.contains(renderer.domElement))
+        container.removeChild(renderer.domElement);
+    };
+  }, []);
 
   return (
-    <div className="w-full h-screen">
-      <ARButton />
-      <Canvas
-        camera={{ fov: 60 }}
-        onCreated={({ gl }) => {
-          gl.xr.enabled = true;
-        }}
-      >
-        <XR>
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[5, 10, 5]} intensity={0.8} />
-
-          <HitTestReticle setPosition={setPosition} />
-
-          <group position={position}>
-            <FadeInText
-              show={true}
-              text={"Array Data Structure"}
-              position={[0, 3, 0]}
-              fontSize={0.7}
-              color="white"
-            />
-
-            {data.map((value, i) => (
-              <Box
-                key={i}
-                index={i}
-                value={value}
-                position={positions[i]}
-                selected={selectedBox === i}
-                onValueClick={() =>
-                  setSelectedBox((prev) => (prev === i ? null : i))
-                }
-                onIndexClick={() => {
-                  setShowPanel((prev) => !prev);
-                  setPage(0);
-                }}
-              />
-            ))}
-
-            {showPanel && (
-              <DefinitionPanel
-                page={page}
-                data={data}
-                position={[8, 1, 0]}
-                onNextClick={() => {
-                  if (page < 2) setPage(page + 1);
-                  else setShowPanel(false);
-                }}
-              />
-            )}
-          </group>
-
-          <OrbitControls />
-        </XR>
-      </Canvas>
+    <div ref={containerRef} className="w-full h-screen relative bg-black">
+      {debugText && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-xl text-lg">
+          {debugText}
+        </div>
+      )}
     </div>
   );
 };
 
-// ✅ FIXED HitTestReticle (now valid inside XR Canvas)
-const HitTestReticle = ({ setPosition }) => {
-  useHitTest((hitMatrix) => {
-    const position = new THREE.Vector3();
-    position.setFromMatrixPosition(hitMatrix);
-    setPosition([position.x, position.y, position.z]);
-  });
-  return null;
-};
+// === HELPER FUNCTION FOR TEXT SPRITES ===
+function makeTextSprite(message, parameters) {
+  const fontface = parameters.fontface || "Arial";
+  const fontsize = parameters.fontsize || 60;
+  const textColor = parameters.textColor || "#ffffff";
 
-// 🔹 Fade-in text
-const FadeInText = ({ show, text, position, fontSize, color }) => {
-  const ref = useRef();
-  const opacity = useRef(0);
-  const scale = useRef(0.6);
-
-  useFrame(() => {
-    if (show) {
-      opacity.current = Math.min(opacity.current + 0.06, 1);
-      scale.current = Math.min(scale.current + 0.06, 1);
-    } else {
-      opacity.current = Math.max(opacity.current - 0.06, 0);
-      scale.current = 0.6;
-    }
-    if (ref.current && ref.current.material) {
-      ref.current.material.opacity = opacity.current;
-      ref.current.scale.set(scale.current, scale.current, scale.current);
-    }
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  context.font = `${fontsize}px ${fontface}`;
+  const lines = message.split("\n");
+  let maxWidth = 0;
+  lines.forEach((line) => {
+    const width = context.measureText(line).width;
+    if (width > maxWidth) maxWidth = width;
   });
 
-  return (
-    <Text
-      ref={ref}
-      position={position}
-      fontSize={fontSize}
-      color={color}
-      anchorX="center"
-      anchorY="middle"
-      material-transparent
-      maxWidth={8}
-      textAlign="center"
-    >
-      {text}
-    </Text>
-  );
-};
+  canvas.width = maxWidth + 50;
+  canvas.height = fontsize * lines.length * 1.4;
 
-// 🔹 Box component with proper AR interaction
-const Box = ({
-  index,
-  value,
-  position,
-  selected,
-  onValueClick,
-  onIndexClick,
-}) => {
-  const size = [1.6, 1.2, 1];
-  const color = selected ? "#facc15" : index % 2 === 0 ? "#60a5fa" : "#34d399";
+  context.font = `${fontsize}px ${fontface}`;
+  context.fillStyle = textColor;
+  context.textBaseline = "top";
 
-  return (
-    <group position={position}>
-      <Interactive onSelect={onValueClick}>
-        <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
-          <boxGeometry args={size} />
-          <meshStandardMaterial
-            color={color}
-            emissive={selected ? "#fbbf24" : "#000000"}
-            emissiveIntensity={selected ? 0.4 : 0}
-          />
-        </mesh>
-      </Interactive>
+  lines.forEach((line, i) => {
+    context.fillText(line, 10, i * fontsize * 1.4);
+  });
 
-      <FadeInText
-        show={true}
-        text={String(value)}
-        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        fontSize={0.4}
-        color="white"
-      />
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
 
-      <Interactive onSelect={onIndexClick}>
-        <Text
-          position={[0, -0.3, size[2] / 2 + 0.01]}
-          fontSize={0.3}
-          color="yellow"
-          anchorX="center"
-          anchorY="middle"
-        >
-          [{index}]
-        </Text>
-      </Interactive>
-
-      {selected && (
-        <Text
-          position={[0, size[1] + 0.8, 0]}
-          fontSize={0.3}
-          color="#fde68a"
-          anchorX="center"
-          anchorY="middle"
-        >
-          Value {value} at index {index}
-        </Text>
-      )}
-    </group>
-  );
-};
-
-// 🔹 Definition panel
-const DefinitionPanel = ({ page, data, position, onNextClick }) => {
-  let content = "";
-
-  if (page === 0) {
-    content = [
-      "📘 Understanding Index in Arrays:",
-      "",
-      "• Index is the position assigned to each element.",
-      "• Starts at 0, so first element → index 0.",
-    ].join("\n");
-  } else if (page === 1) {
-    content = [
-      "📗 In Data Structures & Algorithms:",
-      "",
-      "• Indexing gives O(1) access time.",
-      "• Arrays are stored in contiguous memory.",
-    ].join("\n");
-  } else if (page === 2) {
-    content = [
-      "📊 Index Summary:",
-      "",
-      ...data.map((v, i) => `• Index ${i} → value ${v}`),
-    ].join("\n");
-  }
-
-  const nextLabel = page < 2 ? "Next ▶" : "Close ✖";
-
-  return (
-    <group>
-      <FadeInText
-        show={true}
-        text={content}
-        position={position}
-        fontSize={0.32}
-        color="#fde68a"
-      />
-      <Interactive onSelect={onNextClick}>
-        <Text
-          position={[position[0], position[1] - 2.8, position[2]]}
-          fontSize={0.45}
-          color="#38bdf8"
-          anchorX="center"
-          anchorY="middle"
-        >
-          {nextLabel}
-        </Text>
-      </Interactive>
-    </group>
-  );
-};
+  const spriteMaterial = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+  });
+  const sprite = new THREE.Sprite(spriteMaterial);
+  const scaleFactor = 0.1;
+  sprite.scale.set(canvas.width * scaleFactor, canvas.height * scaleFactor, 1);
+  return sprite;
+}
 
 export default ARPage1;
