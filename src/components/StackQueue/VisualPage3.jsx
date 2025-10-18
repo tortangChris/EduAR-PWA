@@ -1,78 +1,108 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
+import * as THREE from "three";
 
-const VisualPage3 = ({ spacing = 2 }) => {
-  const [queue, setQueue] = useState([]);
-  const [explanation, setExplanation] = useState(
-    "Queue visualization starting..."
-  );
-  const [step, setStep] = useState(0);
+const VisualPage3 = () => {
+  const [queue, setQueue] = useState([10, 20, 30]);
+  const [highlighted, setHighlighted] = useState(null);
+  const [operationInfo, setOperationInfo] = useState(null);
 
-  // Loop through queue operations automatically
-  useEffect(() => {
-    let timer;
-    if (step === 0) {
-      // initial queue
-      setQueue([
-        { value: "A", id: Math.random() },
-        { value: "B", id: Math.random() },
-        { value: "C", id: Math.random() },
-      ]);
-      setExplanation("Initial Queue: [Front] A, B, C [Rear]");
-      timer = setTimeout(() => setStep(1), 2000);
-    } else if (step === 1) {
-      // Enqueue D
-      setQueue((prev) => [...prev, { value: "D", id: Math.random() }]);
-      setExplanation("➡️ ENQUEUE D: added to the rear.");
-      timer = setTimeout(() => setStep(2), 2000);
-    } else if (step === 2) {
-      // Peek front
-      setExplanation("👀 FRONT of queue: A.");
-      timer = setTimeout(() => setStep(3), 2000);
-    } else if (step === 3) {
-      // Dequeue front
+  const spacing = 2; // horizontal distance between boxes
+
+  const positions = useMemo(() => {
+    return queue.map((_, i) => [i * spacing, 0, 0]);
+  }, [queue]);
+
+  const showOperationInfo = (title, complexity, description) => {
+    setOperationInfo({ title, complexity, description });
+  };
+
+  // === Queue Operations ===
+  const handleEnqueue = () => {
+    const newVal = Math.floor(Math.random() * 90) + 10;
+    setQueue((prev) => [...prev, newVal]);
+    showOperationInfo(
+      "Enqueue()",
+      "O(1)",
+      "Adds an element to the rear of the queue."
+    );
+  };
+
+  const handleDequeue = () => {
+    if (queue.length === 0) return;
+    setHighlighted(0);
+    setTimeout(() => {
       setQueue((prev) => prev.slice(1));
-      setExplanation("❌ DEQUEUE: removed A from the front.");
-      timer = setTimeout(() => setStep(4), 2000);
-    } else if (step === 4) {
-      // Restart after 3s
-      setExplanation("⏳ Loop complete. Restarting in 3s...");
-      timer = setTimeout(() => setStep(0), 3000);
-    }
-    return () => clearTimeout(timer);
-  }, [step]);
+      setHighlighted(null);
+    }, 600);
+    showOperationInfo(
+      "Dequeue()",
+      "O(1)",
+      "Removes the element from the front of the queue."
+    );
+  };
 
   return (
-    <div className="w-full h-[500px]">
-      <Canvas camera={{ position: [8, 6, 12], fov: 50 }}>
-        <ambientLight intensity={0.6} />
+    <div className="w-full h-[400px]">
+      <Canvas camera={{ position: [0, 4, 10], fov: 50 }}>
+        <ambientLight intensity={0.5} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {queue.map((item, i) => (
-          <AnimatedBox
-            key={item.id}
-            index={i}
-            value={item.value}
-            targetX={i * spacing}
+        {/* Header */}
+        <FadeInText
+          show={true}
+          text={"Introduction to Queues"}
+          position={[0, 4.5, 0]}
+          fontSize={0.55}
+          color="white"
+        />
+
+        <FadeInText
+          show={true}
+          text={"FIFO (First In, First Out) Principle"}
+          position={[0, 3.7, 0]}
+          fontSize={0.35}
+          color="#fde68a"
+        />
+
+        {/* Queue Base */}
+        <QueueBase width={queue.length * spacing + 2} />
+
+        {/* Boxes */}
+        {queue.map((value, i) => (
+          <QueueBox
+            key={i}
+            value={value}
+            position={positions[i]}
             isFront={i === 0}
             isRear={i === queue.length - 1}
+            highlight={highlighted === i}
           />
         ))}
 
-        {/* Explanation floating in 3D */}
-        <Text
-          position={[6, 4, 0]}
-          fontSize={0.45}
-          maxWidth={6}
-          lineHeight={1.2}
-          textAlign="left"
-          color="yellow"
-          anchorX="left"
-          anchorY="top"
-        >
-          {explanation}
-        </Text>
+        {/* Operation Info Panel (Left side) */}
+        {operationInfo && (
+          <OperationInfoPanel info={operationInfo} position={[-6, 1.5, 0]} />
+        )}
+
+        {/* Operations Panel (Right side) */}
+        <OperationsPanel
+          position={[6, 1.5, 0]}
+          onEnqueue={handleEnqueue}
+          onDequeue={handleDequeue}
+        />
+
+        {/* Analogy */}
+        <FadeInText
+          show={true}
+          text={
+            "Real-Life Example: A line at the ticket counter —\nfirst person served first."
+          }
+          position={[0, -2.5, 0]}
+          fontSize={0.3}
+          color="#a5f3fc"
+        />
 
         <OrbitControls makeDefault />
       </Canvas>
@@ -80,85 +110,163 @@ const VisualPage3 = ({ spacing = 2 }) => {
   );
 };
 
-const AnimatedBox = ({ index, value, targetX, isFront, isRear }) => {
-  const meshRef = useRef();
-  const size = [1.5, 1, 1.5];
+// === Queue Base ===
+const QueueBase = ({ width }) => {
+  const geometry = useMemo(() => new THREE.BoxGeometry(width, 0.2, 2), [width]);
+  return (
+    <mesh position={[width / 2 - 2, -0.1, 0]}>
+      <primitive object={geometry} />
+      <meshBasicMaterial color="#1e293b" opacity={0.3} transparent />
+    </mesh>
+  );
+};
 
-  const position = useRef([targetX, 5, 0]);
-  const velocity = useRef(-0.15);
-  const settled = useRef(false);
+// === Fade-in Text ===
+const FadeInText = ({ show, text, position, fontSize, color }) => {
+  const ref = useRef();
+  const opacity = useRef(0);
+  const scale = useRef(0.6);
 
   useFrame(() => {
-    if (meshRef.current && !settled.current) {
-      position.current[1] += velocity.current;
-      velocity.current -= 0.01;
+    if (show) {
+      opacity.current = Math.min(opacity.current + 0.05, 1);
+      scale.current = Math.min(scale.current + 0.05, 1);
+    } else {
+      opacity.current = Math.max(opacity.current - 0.05, 0);
+      scale.current = 0.6;
+    }
 
-      if (position.current[1] <= 0) {
-        position.current[1] = 0;
-        velocity.current *= -0.3;
-        if (Math.abs(velocity.current) < 0.02) {
-          settled.current = true;
-        }
-      }
-      meshRef.current.position.set(...position.current);
+    if (ref.current && ref.current.material) {
+      ref.current.material.opacity = opacity.current;
+      ref.current.scale.set(scale.current, scale.current, scale.current);
     }
   });
 
   return (
-    <group ref={meshRef} position={position.current}>
-      {/* Box */}
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={size} />
-        <meshStandardMaterial
-          color={isFront ? "#34d399" : isRear ? "#f87171" : "#60a5fa"}
-          emissive={isFront ? "green" : isRear ? "red" : "black"}
-          emissiveIntensity={isFront || isRear ? 0.6 : 0}
-        />
+    <Text
+      ref={ref}
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      material-transparent
+      maxWidth={10}
+      textAlign="center"
+    >
+      {text}
+    </Text>
+  );
+};
+
+// === Queue Box ===
+const QueueBox = ({ value, position, isFront, isRear, highlight }) => {
+  const color = highlight ? "#facc15" : "#34d399";
+  const meshRef = useRef();
+
+  useFrame(() => {
+    if (meshRef.current && meshRef.current.scale.y < 1) {
+      meshRef.current.scale.y += 0.1;
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh ref={meshRef} position={[0, 0.5, 0]}>
+        <boxGeometry args={[1.5, 1, 1]} />
+        <meshStandardMaterial color={color} />
       </mesh>
 
-      {/* Value text */}
-      <Text
-        position={[0, size[1] / 2 + 0.05, size[2] / 2 + 0.01]}
-        fontSize={0.35}
-        anchorX="center"
-        anchorY="middle"
-      >
-        {String(value)}
-      </Text>
+      <FadeInText
+        show={true}
+        text={String(value)}
+        position={[0, 1, 0.5]}
+        fontSize={0.4}
+        color="white"
+      />
 
-      {/* Index */}
-      <Text
-        position={[0, -0.3, size[2] / 2 + 0.01]}
-        fontSize={0.2}
-        anchorX="center"
-        anchorY="middle"
-      >
-        {`[${index}]`}
-      </Text>
-
-      {/* Front / Rear labels */}
       {isFront && (
         <Text
-          position={[-size[0] / 1.5 - 0.5, size[1] / 2, 0]}
-          fontSize={0.25}
-          color="yellow"
-          anchorX="right"
+          position={[0, 1.6, 0]}
+          fontSize={0.3}
+          color="#60a5fa"
+          anchorX="center"
           anchorY="middle"
         >
-          FRONT
+          🔵 Front
         </Text>
       )}
       {isRear && (
         <Text
-          position={[size[0] / 1.5 + 0.5, size[1] / 2, 0]}
-          fontSize={0.25}
-          color="yellow"
-          anchorX="left"
+          position={[0, 1.6, 0]}
+          fontSize={0.3}
+          color="#f472b6"
+          anchorX="center"
           anchorY="middle"
         >
-          REAR
+          🟣 Rear
         </Text>
       )}
+    </group>
+  );
+};
+
+// === Operations Panel ===
+const OperationsPanel = ({ position, onEnqueue, onDequeue }) => {
+  const buttonStyle = {
+    fontSize: 0.35,
+    color: "#38bdf8",
+    anchorX: "center",
+    anchorY: "middle",
+    cursor: "pointer",
+  };
+
+  return (
+    <group position={position}>
+      <FadeInText
+        show={true}
+        text={"Queue Functions:"}
+        position={[0, 2, 0]}
+        fontSize={0.35}
+        color="#fde68a"
+      />
+
+      <Text position={[0, 1.2, 0]} {...buttonStyle} onClick={onEnqueue}>
+        ➕ Enqueue (Add Rear)
+      </Text>
+      <Text position={[0, 0.4, 0]} {...buttonStyle} onClick={onDequeue}>
+        ➖ Dequeue (Remove Front)
+      </Text>
+
+      <FadeInText
+        show={true}
+        text={"Operations → O(1)\nFIFO Order"}
+        position={[0, -2, 0]}
+        fontSize={0.28}
+        color="#fef9c3"
+      />
+    </group>
+  );
+};
+
+// === Operation Info Panel (Left Side Indicator) ===
+const OperationInfoPanel = ({ info, position }) => {
+  const content = [
+    `🔹 ${info.title}`,
+    `Complexity: ${info.complexity}`,
+    "",
+    info.description,
+  ].join("\n");
+
+  return (
+    <group>
+      <FadeInText
+        show={true}
+        text={content}
+        position={position}
+        fontSize={0.32}
+        color="#a5f3fc"
+      />
     </group>
   );
 };

@@ -1,77 +1,99 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
+import * as THREE from "three";
 
-const VisualPage2 = ({ spacing = 1.5 }) => {
-  const [stack, setStack] = useState([]);
-  const [explanation, setExplanation] = useState(
-    "Stack visualization starting..."
-  );
-  const [step, setStep] = useState(0);
+const VisualPage2 = () => {
+  const [stack, setStack] = useState([10, 20, 30]);
+  const [highlighted, setHighlighted] = useState(null);
+  const [operationInfo, setOperationInfo] = useState(null);
 
-  // Loop through operations automatically
-  useEffect(() => {
-    let timer;
-    if (step === 0) {
-      // initial stack
-      setStack([
-        { value: 10, id: Math.random() },
-        { value: 20, id: Math.random() },
-        { value: 30, id: Math.random() },
-      ]);
-      setExplanation("Initial Stack: [Bottom] 10, 20, 30 [Top]");
-      timer = setTimeout(() => setStep(1), 2000);
-    } else if (step === 1) {
-      // Push 40
-      setStack((prev) => [...prev, { value: 40, id: Math.random() }]);
-      setExplanation("➡️ PUSH 40: placed on top.");
-      timer = setTimeout(() => setStep(2), 2000);
-    } else if (step === 2) {
-      // Peek top
-      setExplanation("👀 PEEK: Top item is 40.");
-      timer = setTimeout(() => setStep(3), 2000);
-    } else if (step === 3) {
-      // Pop top
-      setStack((prev) => prev.slice(0, -1));
-      setExplanation("❌ POP: removed 40 from top.");
-      timer = setTimeout(() => setStep(4), 2000);
-    } else if (step === 4) {
-      // Restart after 3s
-      setExplanation("⏳ Loop complete. Restarting in 3s...");
-      timer = setTimeout(() => setStep(0), 3000);
-    }
-    return () => clearTimeout(timer);
-  }, [step]);
+  const spacing = 1.6;
+
+  const positions = useMemo(() => {
+    return stack.map((_, i) => [0, i * spacing, 0]);
+  }, [stack]);
+
+  // === Utility: Show operation info ===
+  const showOperationInfo = (title, complexity, description) => {
+    setOperationInfo({ title, complexity, description });
+  };
+
+  // === Operations ===
+  const handlePush = () => {
+    const newVal = Math.floor(Math.random() * 90) + 10;
+    setStack((prev) => [...prev, newVal]);
+    showOperationInfo(
+      "Push()",
+      "O(1)",
+      "Adds a new element on top of the stack."
+    );
+  };
+
+  const handlePop = () => {
+    if (stack.length === 0) return;
+    setStack((prev) => prev.slice(0, -1));
+    showOperationInfo(
+      "Pop()",
+      "O(1)",
+      "Removes the top element from the stack."
+    );
+  };
+
+  const handlePeek = () => {
+    if (stack.length === 0) return;
+    const topIndex = stack.length - 1;
+    setHighlighted(topIndex);
+    setTimeout(() => setHighlighted(null), 1000);
+    showOperationInfo(
+      "Peek()",
+      "O(1)",
+      "Views the top element without removing it."
+    );
+  };
 
   return (
-    <div className="w-full h-[500px]">
-      <Canvas camera={{ position: [6, 6, 12], fov: 50 }}>
-        <ambientLight intensity={0.6} />
+    <div className="w-full h-[400px]">
+      <Canvas camera={{ position: [0, 4, 10], fov: 50 }}>
+        <ambientLight intensity={0.5} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {stack.map((item, i) => (
-          <AnimatedBox
-            key={item.id}
+        {/* Header */}
+        <FadeInText
+          show={true}
+          text={"Stack Operations & Complexity"}
+          position={[0, 5, 0]}
+          fontSize={0.6}
+          color="white"
+        />
+
+        {/* Stack Base */}
+        <StackBackground height={stack.length * spacing + 2} />
+
+        {/* Boxes */}
+        {stack.map((value, i) => (
+          <StackBox
+            key={i}
             index={i}
-            value={item.value}
-            targetY={i * spacing}
+            value={value}
+            position={[0, i * spacing, 0]}
             isTop={i === stack.length - 1}
+            highlight={highlighted === i}
           />
         ))}
 
-        {/* Explanation floating in 3D */}
-        <Text
-          position={[6, 4, 0]}
-          fontSize={0.45}
-          maxWidth={6}
-          lineHeight={1.2}
-          textAlign="left"
-          color="yellow"
-          anchorX="left"
-          anchorY="top"
-        >
-          {explanation}
-        </Text>
+        {/* Operation Info Panel (Left side) */}
+        {operationInfo && (
+          <OperationInfoPanel info={operationInfo} position={[-6, 2, 0]} />
+        )}
+
+        {/* Operations Panel (Right side) */}
+        <OperationsPanel
+          position={[5, 2, 0]}
+          onPush={handlePush}
+          onPop={handlePop}
+          onPeek={handlePeek}
+        />
 
         <OrbitControls makeDefault />
       </Canvas>
@@ -79,74 +101,166 @@ const VisualPage2 = ({ spacing = 1.5 }) => {
   );
 };
 
-const AnimatedBox = ({ index, value, targetY, isTop }) => {
-  const meshRef = useRef();
-  const size = [2, 1, 1.5];
+// === Stack Background ===
+const StackBackground = ({ height }) => {
+  const geometry = useMemo(
+    () => new THREE.BoxGeometry(3.5, height, 0.08),
+    [height]
+  );
+  const edges = useMemo(() => new THREE.EdgesGeometry(geometry), [geometry]);
 
-  const position = useRef([0, targetY + 5, 0]);
-  const velocity = useRef(-0.15);
-  const settled = useRef(false);
+  return (
+    <group position={[0, height / 2 - 1, -0.5]}>
+      <mesh geometry={geometry}>
+        <meshBasicMaterial color="#1e293b" opacity={0.3} transparent />
+      </mesh>
+      <lineSegments geometry={edges}>
+        <lineBasicMaterial color="#64748b" linewidth={2} />
+      </lineSegments>
+    </group>
+  );
+};
+
+// === Fade-in Text ===
+const FadeInText = ({ show, text, position, fontSize, color }) => {
+  const ref = useRef();
+  const opacity = useRef(0);
+  const scale = useRef(0.6);
 
   useFrame(() => {
-    if (meshRef.current && !settled.current) {
-      position.current[1] += velocity.current;
-      velocity.current -= 0.01;
-
-      if (position.current[1] <= targetY) {
-        position.current[1] = targetY;
-        velocity.current *= -0.3;
-        if (Math.abs(velocity.current) < 0.02) {
-          settled.current = true;
-        }
-      }
-      meshRef.current.position.set(...position.current);
+    if (show) {
+      opacity.current = Math.min(opacity.current + 0.05, 1);
+      scale.current = Math.min(scale.current + 0.05, 1);
+    } else {
+      opacity.current = Math.max(opacity.current - 0.05, 0);
+      scale.current = 0.6;
+    }
+    if (ref.current && ref.current.material) {
+      ref.current.material.opacity = opacity.current;
+      ref.current.scale.set(scale.current, scale.current, scale.current);
     }
   });
 
   return (
-    <group ref={meshRef} position={position.current}>
-      {/* Box */}
-      <mesh castShadow receiveShadow>
+    <Text
+      ref={ref}
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      material-transparent
+      maxWidth={8}
+      textAlign="center"
+    >
+      {text}
+    </Text>
+  );
+};
+
+// === Stack Box ===
+const StackBox = ({ index, value, position, isTop, highlight }) => {
+  const size = [2, 1, 1];
+  const color = highlight ? "#facc15" : isTop ? "#60a5fa" : "#34d399";
+
+  const meshRef = useRef();
+
+  // Smooth pop-in animation for new box
+  useFrame(() => {
+    if (meshRef.current && meshRef.current.scale.y < 1) {
+      meshRef.current.scale.y += 0.1;
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh ref={meshRef} position={[0, 0.5, 0]}>
         <boxGeometry args={size} />
-        <meshStandardMaterial
-          color={isTop ? "#f87171" : "#60a5fa"}
-          emissive={isTop ? "red" : "black"}
-          emissiveIntensity={isTop ? 0.6 : 0}
-        />
+        <meshStandardMaterial color={color} />
       </mesh>
 
-      {/* Value text */}
-      <Text
-        position={[0, size[1] / 2 + 0.05, size[2] / 2 + 0.01]}
-        fontSize={0.35}
-        anchorX="center"
-        anchorY="middle"
-      >
-        {String(value)}
-      </Text>
+      <FadeInText
+        show={true}
+        text={String(value)}
+        position={[0, 1, 0.5]}
+        fontSize={0.4}
+        color="white"
+      />
 
-      {/* Index */}
-      <Text
-        position={[0, -0.3, size[2] / 2 + 0.01]}
-        fontSize={0.2}
-        anchorX="center"
-        anchorY="middle"
-      >
-        {`[${index}]`}
-      </Text>
-
-      {/* Top label */}
       {isTop && (
         <Text
-          position={[size[0] / 1.5 + 0.5, size[1] / 2, 0]}
-          fontSize={0.25}
-          color="yellow"
-          anchorX="left"
+          position={[0, 1.6, 0]}
+          fontSize={0.3}
+          color="#fde68a"
+          anchorX="center"
           anchorY="middle"
         >
-          TOP
+          🟢 Top
         </Text>
       )}
+    </group>
+  );
+};
+
+// === Operations Panel (Right Side Buttons) ===
+const OperationsPanel = ({ position, onPush, onPop, onPeek }) => {
+  const buttonStyle = {
+    fontSize: 0.35,
+    color: "#38bdf8",
+    anchorX: "center",
+    anchorY: "middle",
+    cursor: "pointer",
+  };
+
+  return (
+    <group position={position}>
+      <FadeInText
+        show={true}
+        text={"Stack Functions:"}
+        position={[0, 2, 0]}
+        fontSize={0.35}
+        color="#fde68a"
+      />
+
+      <Text position={[0, 1.2, 0]} {...buttonStyle} onClick={onPush}>
+        ➕ Push (Add)
+      </Text>
+      <Text position={[0, 0.4, 0]} {...buttonStyle} onClick={onPop}>
+        ➖ Pop (Remove)
+      </Text>
+      <Text position={[0, -0.4, 0]} {...buttonStyle} onClick={onPeek}>
+        👁️ Peek (View Top)
+      </Text>
+
+      <FadeInText
+        show={true}
+        text={"All operations → O(1)"}
+        position={[0, -2, 0]}
+        fontSize={0.28}
+        color="#fef9c3"
+      />
+    </group>
+  );
+};
+
+// === Operation Info Panel (Left Side Indicator) ===
+const OperationInfoPanel = ({ info, position }) => {
+  const content = [
+    `🔹 ${info.title}`,
+    `Complexity: ${info.complexity}`,
+    "",
+    info.description,
+  ].join("\n");
+
+  return (
+    <group>
+      <FadeInText
+        show={true}
+        text={content}
+        position={position}
+        fontSize={0.32}
+        color="#a5f3fc"
+      />
     </group>
   );
 };
