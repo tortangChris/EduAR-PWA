@@ -1,208 +1,246 @@
 import React, { useState, useRef } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
-import { Play, Square, RotateCcw } from "lucide-react";
+import * as THREE from "three";
 
-const VisualPage5 = ({
-  data = [10, 20, 30, 40, 50],
-  spacing = 2.0,
-  deleteIndex = 2,
-  stepDuration = 700,
-}) => {
-  const originalRef = useRef(data.slice());
-  const [boxes, setBoxes] = useState(() =>
-    createBoxes(originalRef.current, spacing)
-  );
-  const animRef = useRef({ cancelled: false });
-  const [status, setStatus] = useState("Idle");
-  const [progress, setProgress] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+const VisualPage5 = () => {
+  const [traversalType, setTraversalType] = useState(null);
+  const [highlightNode, setHighlightNode] = useState(null);
 
-  function createBoxes(arr, spacingVal) {
-    const n = arr.length;
-    const mid = (n - 1) / 2;
-    return arr.map((v, i) => ({
-      id: `b${i}`,
-      value: v,
-      x: (i - mid) * spacingVal,
-      targetX: (i - mid) * spacingVal,
-      opacity: 1,
-    }));
-  }
+  // Simple binary tree nodes with positions
+  const nodes = [
+    { id: "A", pos: [0, 3, 0] },
+    { id: "B", pos: [-2, 1.5, 0] },
+    { id: "C", pos: [2, 1.5, 0] },
+    { id: "D", pos: [-3, 0, 0] },
+    { id: "E", pos: [-1, 0, 0] },
+    { id: "F", pos: [1, 0, 0] },
+    { id: "G", pos: [3, 0, 0] },
+  ];
 
-  const reset = () => {
-    animRef.current.cancelled = true;
-    setBoxes(createBoxes(originalRef.current, spacing));
-    setStatus("Idle");
-    setProgress(0);
-    setIsPlaying(false);
+  const edges = [
+    ["A", "B"],
+    ["A", "C"],
+    ["B", "D"],
+    ["B", "E"],
+    ["C", "F"],
+    ["C", "G"],
+  ];
+
+  const handleTraversal = (type) => {
+    setTraversalType(type);
+    setHighlightNode(null);
+
+    // Define traversal sequences
+    const traversals = {
+      Preorder: ["A", "B", "D", "E", "C", "F", "G"], // Root-Left-Right
+      Inorder: ["D", "B", "E", "A", "F", "C", "G"], // Left-Root-Right
+      Postorder: ["D", "E", "B", "F", "G", "C", "A"], // Left-Right-Root
+      Breadth: ["A", "B", "C", "D", "E", "F", "G"], // Level order
+    };
+
+    const sequence = traversals[type];
+    let i = 0;
+
+    const interval = setInterval(() => {
+      setHighlightNode(sequence[i]);
+      i++;
+      if (i >= sequence.length) clearInterval(interval);
+    }, 800);
   };
-
-  const animateMove = (boxId, toX) => {
-    return new Promise((resolve) => {
-      const startX = boxes.find((b) => b.id === boxId).x;
-      const duration = stepDuration;
-      const startTime = performance.now();
-
-      function frame(now) {
-        if (animRef.current.cancelled) return resolve();
-        const t = Math.min((now - startTime) / duration, 1);
-        setBoxes((prev) =>
-          prev.map((b) =>
-            b.id === boxId ? { ...b, x: startX + (toX - startX) * t } : b
-          )
-        );
-        if (t < 1) requestAnimationFrame(frame);
-        else resolve();
-      }
-
-      requestAnimationFrame(frame);
-    });
-  };
-
-  const animateFadeOut = (boxId) => {
-    return new Promise((resolve) => {
-      const duration = stepDuration / 2;
-      const startTime = performance.now();
-
-      function frame(now) {
-        if (animRef.current.cancelled) return resolve();
-        const t = Math.min((now - startTime) / duration, 1);
-        setBoxes((prev) =>
-          prev.map((b) => (b.id === boxId ? { ...b, opacity: 1 - t } : b))
-        );
-        if (t < 1) requestAnimationFrame(frame);
-        else resolve();
-      }
-
-      requestAnimationFrame(frame);
-    });
-  };
-
-  const handlePlay = async () => {
-    if (isPlaying) return;
-    animRef.current.cancelled = false;
-    setBoxes(createBoxes(originalRef.current, spacing));
-    setProgress(0);
-    setStatus(`Deleting element at index ${deleteIndex}...`);
-    setIsPlaying(true);
-
-    const n = boxes.length;
-
-    // Fade out the deleted box
-    await animateFadeOut(boxes[deleteIndex].id);
-
-    // Shift left the boxes on the right
-    for (let i = deleteIndex + 1; i < n; i++) {
-      if (animRef.current.cancelled) break;
-      const targetX = boxes[i].x - spacing;
-      setStatus(`Shifting element at index ${i} left`);
-      await animateMove(boxes[i].id, targetX);
-      setProgress(Math.round(((i - deleteIndex) / (n - deleteIndex)) * 100));
-    }
-
-    // Remove the deleted element and finalize array
-    const newArr = originalRef.current.slice();
-    newArr.splice(deleteIndex, 1);
-    setBoxes(createBoxes(newArr, spacing));
-    setStatus(`✅ Deletion complete`);
-    setProgress(100);
-    setIsPlaying(false);
-  };
-
-  const handleStop = () => {
-    animRef.current.cancelled = true;
-    setIsPlaying(false);
-    setStatus("Stopped");
-  };
-
-  const handleReset = () => reset();
 
   return (
-    <div className="w-full h-[300px] flex flex-col items-center justify-center">
-      {/* Video Player Controls */}
-      <div className="w-2/3 mb-4">
-        <div className="flex items-center gap-3 mb-2">
-          <button
-            onClick={handlePlay}
-            disabled={isPlaying}
-            className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600"
-          >
-            <Play size={20} />
-          </button>
-          <button
-            onClick={handleStop}
-            disabled={!isPlaying}
-            className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600"
-          >
-            <Square size={20} />
-          </button>
-          <button
-            onClick={handleReset}
-            className="p-2 bg-gray-500 text-white rounded-full hover:bg-gray-600"
-          >
-            <RotateCcw size={20} />
-          </button>
-        </div>
-        <div className="w-full h-2 bg-gray-300 rounded">
-          <div
-            className="h-2 bg-green-500 rounded"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <div className="mt-2 text-gray-700 font-mono text-sm text-center">
-          {status}
-        </div>
+    <div className="w-full h-[430px] relative">
+      {/* Traversal Buttons */}
+      <div className="absolute top-2 left-2 z-10 flex gap-2">
+        <button
+          className="btn btn-sm btn-outline-primary"
+          onClick={() => handleTraversal("Preorder")}
+        >
+          🔁 Preorder
+        </button>
+        <button
+          className="btn btn-sm btn-outline-success"
+          onClick={() => handleTraversal("Inorder")}
+        >
+          🔁 Inorder
+        </button>
+        <button
+          className="btn btn-sm btn-outline-warning"
+          onClick={() => handleTraversal("Postorder")}
+        >
+          🔁 Postorder
+        </button>
+        <button
+          className="btn btn-sm btn-outline-info"
+          onClick={() => handleTraversal("Breadth")}
+        >
+          🌐 Breadth-First
+        </button>
       </div>
 
-      {/* 3D Canvas */}
-      <div className="w-full h-[60%]">
-        <Canvas camera={{ position: [0, 4, 8], fov: 50 }}>
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[5, 10, 5]} intensity={0.8} />
-          {boxes.map((b, i) => (
-            <Box
-              key={b.id}
-              value={b.value}
-              index={i}
-              position={[b.x, 0, 0]}
-              opacity={b.opacity}
-            />
-          ))}
-          <OrbitControls makeDefault />
-        </Canvas>
-      </div>
+      <Canvas camera={{ position: [0, 4, 10], fov: 50 }}>
+        <ambientLight intensity={0.7} />
+        <directionalLight position={[5, 10, 5]} intensity={0.8} />
+
+        {/* Title */}
+        <FadeInText
+          show={true}
+          text={"Tree Traversals"}
+          position={[0, 5, 0]}
+          fontSize={0.7}
+          color="white"
+        />
+        <FadeInText
+          show={true}
+          text={
+            "Preorder (Root→Left→Right) • Inorder (Left→Root→Right) • Postorder (Left→Right→Root) • Breadth-First (Level Order)"
+          }
+          position={[0, 4.3, 0]}
+          fontSize={0.33}
+          color="#fde68a"
+        />
+
+        {/* Tree */}
+        <TreeTraversal
+          nodes={nodes}
+          edges={edges}
+          highlightNode={highlightNode}
+        />
+
+        {/* Info Panel */}
+        {traversalType && (
+          <TraversalInfo type={traversalType} position={[7, 2, 0]} />
+        )}
+
+        <OrbitControls makeDefault />
+      </Canvas>
     </div>
   );
 };
 
-const Box = ({ value, index, position, opacity = 1 }) => {
-  const size = [1.6, 1.2, 1];
+// === Tree Visualization ===
+const TreeTraversal = ({ nodes, edges, highlightNode }) => {
+  return (
+    <group>
+      {edges.map(([a, b], i) => {
+        const start = nodes.find((n) => n.id === a).pos;
+        const end = nodes.find((n) => n.id === b).pos;
+        return <Connection key={i} start={start} end={end} />;
+      })}
+
+      {nodes.map((node) => (
+        <TreeNode
+          key={node.id}
+          position={node.pos}
+          label={node.id}
+          isHighlighted={highlightNode === node.id}
+        />
+      ))}
+    </group>
+  );
+};
+
+// === Node ===
+const TreeNode = ({ position, label, isHighlighted }) => {
+  const color = isHighlighted ? "#f87171" : "#60a5fa";
+
   return (
     <group position={position}>
-      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
-        <boxGeometry args={size} />
-        <meshStandardMaterial color="#60a5fa" transparent opacity={opacity} />
+      <mesh>
+        <sphereGeometry args={[0.35, 32, 32]} />
+        <meshStandardMaterial color={color} />
       </mesh>
       <Text
-        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
+        position={[0, 0.8, 0]}
         fontSize={0.35}
+        color="#ffffff"
         anchorX="center"
         anchorY="middle"
-        color={`rgba(0,0,0,${opacity})`}
       >
-        {value}
-      </Text>
-      <Text
-        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        fontSize={0.2}
-        anchorX="center"
-        anchorY="middle"
-        color={`rgba(0,0,0,${opacity})`}
-      >
-        [{index}]
+        {label}
       </Text>
     </group>
+  );
+};
+
+// === Connection Line ===
+const Connection = ({ start, end }) => {
+  const points = [new THREE.Vector3(...start), new THREE.Vector3(...end)];
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  return (
+    <line>
+      <primitive object={geometry} />
+      <lineBasicMaterial color="#94a3b8" linewidth={2} />
+    </line>
+  );
+};
+
+// === Info Panel (Right Side) ===
+const TraversalInfo = ({ type, position }) => {
+  let details = "";
+
+  if (type === "Preorder") {
+    details =
+      "Preorder Traversal: Visit Root first, then Left subtree, then Right subtree.";
+  } else if (type === "Inorder") {
+    details =
+      "Inorder Traversal: Visit Left subtree, then Root, then Right subtree.";
+  } else if (type === "Postorder") {
+    details =
+      "Postorder Traversal: Visit Left subtree, then Right subtree, then Root.";
+  } else if (type === "Breadth") {
+    details =
+      "Breadth-First Traversal (Level Order): Visit nodes level by level from top to bottom.";
+  }
+
+  const text = `🔹 ${type} Traversal\n${details}`;
+
+  return (
+    <FadeInText
+      show={true}
+      text={text}
+      position={position}
+      fontSize={0.33}
+      color="#a5f3fc"
+    />
+  );
+};
+
+// === Fade-in Text ===
+const FadeInText = ({ show, text, position, fontSize, color }) => {
+  const ref = useRef();
+  const opacity = useRef(0);
+  const scale = useRef(0.6);
+
+  useFrame(() => {
+    if (show) {
+      opacity.current = Math.min(opacity.current + 0.05, 1);
+      scale.current = Math.min(scale.current + 0.05, 1);
+    } else {
+      opacity.current = Math.max(opacity.current - 0.05, 0);
+      scale.current = 0.6;
+    }
+    if (ref.current && ref.current.material) {
+      ref.current.material.opacity = opacity.current;
+      ref.current.scale.set(scale.current, scale.current, scale.current);
+    }
+  });
+
+  return (
+    <Text
+      ref={ref}
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      material-transparent
+      maxWidth={9}
+      textAlign="left"
+    >
+      {text}
+    </Text>
   );
 };
 

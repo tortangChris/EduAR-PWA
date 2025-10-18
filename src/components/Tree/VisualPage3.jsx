@@ -1,273 +1,229 @@
-// VisualPage3.jsx
-import React from "react";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Line, Text } from "@react-three/drei";
+import React, { useRef, useState } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { OrbitControls, Text } from "@react-three/drei";
+import * as THREE from "three";
 
-// --- Helper Component for Node (Sphere + Label) ---
-const Node = ({ position, label, color = "orange" }) => (
-  <group position={position}>
-    <mesh>
-      <sphereGeometry args={[0.2, 32, 32]} />
-      <meshStandardMaterial color={color} />
-    </mesh>
-    {label && (
+const VisualPage3 = () => {
+  const [selectedNode, setSelectedNode] = useState(null);
+
+  // Example nodes for multiple tree types
+  const nodes = [
+    { id: "A", pos: [0, 3, 0], type: "Binary Search Tree" },
+    { id: "B", pos: [-2, 1.5, 0], type: "Binary Search Tree" },
+    { id: "C", pos: [2, 1.5, 0], type: "Binary Search Tree" },
+    { id: "D", pos: [-3, 0, 0], type: "Binary Tree" },
+    { id: "E", pos: [-1, 0, 0], type: "Full Binary Tree" },
+    { id: "F", pos: [1, 0, 0], type: "Complete Binary Tree" },
+    { id: "G", pos: [3, 0, 0], type: "General Tree" },
+  ];
+
+  const edges = [
+    ["A", "B"],
+    ["A", "C"],
+    ["B", "D"],
+    ["B", "E"],
+    ["C", "F"],
+    ["C", "G"],
+  ];
+
+  const handleNodeClick = (node) => {
+    setSelectedNode(node);
+  };
+
+  return (
+    <div className="w-full h-[400px]">
+      <Canvas camera={{ position: [0, 4, 10], fov: 50 }}>
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[5, 10, 5]} intensity={0.8} />
+
+        {/* Title */}
+        <FadeInText
+          show={true}
+          text={"Types of Trees"}
+          position={[0, 5, 0]}
+          fontSize={0.7}
+          color="white"
+        />
+        <FadeInText
+          show={true}
+          text={
+            "General Tree • Binary Tree • Full Binary Tree • Complete Binary Tree • BST"
+          }
+          position={[0, 4.3, 0]}
+          fontSize={0.35}
+          color="#fde68a"
+        />
+
+        {/* Tree Visualization */}
+        <TreeVisualization
+          nodes={nodes}
+          edges={edges}
+          onNodeClick={handleNodeClick}
+          selectedNode={selectedNode}
+        />
+
+        {/* Info Panel (Right Side) */}
+        {selectedNode && (
+          <NodeInfoPanel node={selectedNode} position={[7, 2, 0]} />
+        )}
+
+        <OrbitControls makeDefault />
+      </Canvas>
+    </div>
+  );
+};
+
+// === Tree Visualization ===
+const TreeVisualization = ({ nodes, edges, onNodeClick, selectedNode }) => {
+  return (
+    <group>
+      {edges.map(([a, b], i) => {
+        const start = nodes.find((n) => n.id === a).pos;
+        const end = nodes.find((n) => n.id === b).pos;
+        return <Connection key={i} start={start} end={end} />;
+      })}
+
+      {nodes.map((node) => (
+        <TreeNode
+          key={node.id}
+          position={node.pos}
+          label={node.id}
+          type={node.type}
+          onClick={() => onNodeClick(node)}
+          isSelected={selectedNode?.id === node.id}
+        />
+      ))}
+    </group>
+  );
+};
+
+// === Node (Sphere + Label) ===
+const TreeNode = ({ position, label, type, onClick, isSelected }) => {
+  const baseColor =
+    type === "Binary Search Tree"
+      ? "#60a5fa"
+      : type === "Binary Tree"
+      ? "#34d399"
+      : type === "Full Binary Tree"
+      ? "#fbbf24"
+      : type === "Complete Binary Tree"
+      ? "#a78bfa"
+      : "#f87171";
+
+  const color = isSelected ? "#f472b6" : baseColor;
+
+  return (
+    <group position={position} onClick={onClick}>
+      <mesh>
+        <sphereGeometry args={[0.35, 32, 32]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
       <Text
-        position={[0, 0.5, 0]}
-        fontSize={0.25}
-        color="white"
+        position={[0, 0.8, 0]}
+        fontSize={0.35}
+        color="#ffffff"
         anchorX="center"
         anchorY="middle"
       >
         {label}
       </Text>
-    )}
-  </group>
-);
+    </group>
+  );
+};
 
-// --- Example Trees ---
-const GeneralTree = ({ position }) => (
-  <group position={position}>
-    <Node position={[0, 0, 0]} label="Root" color="blue" />
-    <Node position={[-1, -1, 0]} label="A" />
-    <Node position={[0, -1, 0]} label="B" />
-    <Node position={[1, -1, 0]} label="C" />
-    <Line
-      points={[
-        [0, 0, 0],
-        [-1, -1, 0],
-      ]}
-      color="white"
-      lineWidth={2}
-    />
-    <Line
-      points={[
-        [0, 0, 0],
-        [0, -1, 0],
-      ]}
-      color="white"
-      lineWidth={2}
-    />
-    <Line
-      points={[
-        [0, 0, 0],
-        [1, -1, 0],
-      ]}
-      color="white"
-      lineWidth={2}
-    />
-    <Text position={[0, 2, 0]} fontSize={0.4} color="yellow" anchorX="center">
-      General Tree
-    </Text>
-  </group>
-);
+// === Edge (Line between nodes) ===
+const Connection = ({ start, end }) => {
+  const points = [new THREE.Vector3(...start), new THREE.Vector3(...end)];
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  return (
+    <line>
+      <primitive object={geometry} />
+      <lineBasicMaterial color="#94a3b8" linewidth={2} />
+    </line>
+  );
+};
 
-const BinaryTree = ({ position }) => (
-  <group position={position}>
-    <Node position={[0, 0, 0]} label="Root" color="green" />
-    <Node position={[-1, -1, 0]} label="L" />
-    <Node position={[1, -1, 0]} label="R" />
-    <Line
-      points={[
-        [0, 0, 0],
-        [-1, -1, 0],
-      ]}
-      color="white"
-      lineWidth={2}
-    />
-    <Line
-      points={[
-        [0, 0, 0],
-        [1, -1, 0],
-      ]}
-      color="white"
-      lineWidth={2}
-    />
-    <Text position={[0, 2, 0]} fontSize={0.4} color="yellow" anchorX="center">
-      Binary Tree
-    </Text>
-  </group>
-);
+// === Node Info Panel (Right Side) ===
+const NodeInfoPanel = ({ node, position }) => {
+  let description = "";
 
-const FullBinaryTree = ({ position }) => (
-  <group position={position}>
-    <Node position={[0, 0, 0]} label="Root" color="red" />
-    <Node position={[-1, -1, 0]} label="L" />
-    <Node position={[1, -1, 0]} label="R" />
-    <Node position={[-1.5, -2, 0]} label="LL" />
-    <Node position={[-0.5, -2, 0]} label="LR" />
-    <Node position={[0.5, -2, 0]} label="RL" />
-    <Node position={[1.5, -2, 0]} label="RR" />
-    <Line
-      points={[
-        [0, 0, 0],
-        [-1, -1, 0],
-      ]}
-      color="white"
-    />
-    <Line
-      points={[
-        [0, 0, 0],
-        [1, -1, 0],
-      ]}
-      color="white"
-    />
-    <Line
-      points={[
-        [-1, -1, 0],
-        [-1.5, -2, 0],
-      ]}
-      color="white"
-    />
-    <Line
-      points={[
-        [-1, -1, 0],
-        [-0.5, -2, 0],
-      ]}
-      color="white"
-    />
-    <Line
-      points={[
-        [1, -1, 0],
-        [0.5, -2, 0],
-      ]}
-      color="white"
-    />
-    <Line
-      points={[
-        [1, -1, 0],
-        [1.5, -2, 0],
-      ]}
-      color="white"
-    />
-    <Text position={[0, 2, 0]} fontSize={0.4} color="yellow" anchorX="center">
-      Full Binary Tree
-    </Text>
-  </group>
-);
+  switch (node.type) {
+    case "General Tree":
+      description =
+        "A tree with no restriction on the number of children each node can have.";
+      break;
+    case "Binary Tree":
+      description = "Each node can have at most two children: left and right.";
+      break;
+    case "Full Binary Tree":
+      description =
+        "Every node has either 0 or 2 children. No node has only one child.";
+      break;
+    case "Complete Binary Tree":
+      description =
+        "All levels are completely filled except possibly the last, which is filled from left to right.";
+      break;
+    case "Binary Search Tree":
+      description =
+        "A binary tree where left child < root < right child. Used for fast searching and sorting.";
+      break;
+    default:
+      description = "Tree type information not available.";
+  }
 
-const CompleteBinaryTree = ({ position }) => (
-  <group position={position}>
-    <Node position={[0, 0, 0]} label="Root" color="purple" />
-    <Node position={[-1, -1, 0]} label="L" />
-    <Node position={[1, -1, 0]} label="R" />
-    <Node position={[-1.5, -2, 0]} label="LL" />
-    <Node position={[-0.5, -2, 0]} label="LR" />
-    <Node position={[0.5, -2, 0]} label="RL" />
-    {/* RR missing to show "complete" */}
-    <Line
-      points={[
-        [0, 0, 0],
-        [-1, -1, 0],
-      ]}
-      color="white"
-    />
-    <Line
-      points={[
-        [0, 0, 0],
-        [1, -1, 0],
-      ]}
-      color="white"
-    />
-    <Line
-      points={[
-        [-1, -1, 0],
-        [-1.5, -2, 0],
-      ]}
-      color="white"
-    />
-    <Line
-      points={[
-        [-1, -1, 0],
-        [-0.5, -2, 0],
-      ]}
-      color="white"
-    />
-    <Line
-      points={[
-        [1, -1, 0],
-        [0.5, -2, 0],
-      ]}
-      color="white"
-    />
-    <Text position={[0, 2, 0]} fontSize={0.4} color="yellow" anchorX="center">
-      Complete Binary Tree
-    </Text>
-  </group>
-);
-
-const BST = ({ position }) => (
-  <group position={position}>
-    <Node position={[0, 0, 0]} label="8" color="orange" />
-    <Node position={[-1, -1, 0]} label="3" />
-    <Node position={[1, -1, 0]} label="10" />
-    <Node position={[-1.5, -2, 0]} label="1" />
-    <Node position={[-0.5, -2, 0]} label="6" />
-    <Node position={[1.5, -2, 0]} label="14" />
-    <Line
-      points={[
-        [0, 0, 0],
-        [-1, -1, 0],
-      ]}
-      color="white"
-    />
-    <Line
-      points={[
-        [0, 0, 0],
-        [1, -1, 0],
-      ]}
-      color="white"
-    />
-    <Line
-      points={[
-        [-1, -1, 0],
-        [-1.5, -2, 0],
-      ]}
-      color="white"
-    />
-    <Line
-      points={[
-        [-1, -1, 0],
-        [-0.5, -2, 0],
-      ]}
-      color="white"
-    />
-    <Line
-      points={[
-        [1, -1, 0],
-        [1.5, -2, 0],
-      ]}
-      color="white"
-    />
-    <Text position={[0, 2, 0]} fontSize={0.4} color="yellow" anchorX="center">
-      Binary Search Tree
-    </Text>
-  </group>
-);
-
-// --- Main Page ---
-export default function VisualPage3() {
-  const radius = 10; // layo ng trees sa gitna
-  const trees = [
-    { comp: GeneralTree, angle: 0 },
-    { comp: BinaryTree, angle: (2 * Math.PI) / 5 },
-    { comp: FullBinaryTree, angle: (4 * Math.PI) / 5 },
-    { comp: CompleteBinaryTree, angle: (6 * Math.PI) / 5 },
-    { comp: BST, angle: (8 * Math.PI) / 5 },
-  ];
+  const content = [
+    `🔹 Node: ${node.id}`,
+    `Tree Type: ${node.type}`,
+    "",
+    description,
+  ].join("\n");
 
   return (
-    <div className="w-screen h-screen">
-      <Canvas camera={{ position: [0, 2, 15], fov: 60 }}>
-        <ambientLight intensity={0.7} />
-        <directionalLight position={[5, 10, 5]} intensity={1} />
-        <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
-
-        {trees.map(({ comp: Tree, angle }, idx) => {
-          const x = radius * Math.cos(angle);
-          const z = radius * Math.sin(angle);
-          return <Tree key={idx} position={[x, 0, z]} />;
-        })}
-      </Canvas>
-    </div>
+    <FadeInText
+      show={true}
+      text={content}
+      position={position}
+      fontSize={0.33}
+      color="#a5f3fc"
+    />
   );
-}
+};
+
+// === Fade-in Text ===
+const FadeInText = ({ show, text, position, fontSize, color }) => {
+  const ref = useRef();
+  const opacity = useRef(0);
+  const scale = useRef(0.6);
+
+  useFrame(() => {
+    if (show) {
+      opacity.current = Math.min(opacity.current + 0.05, 1);
+      scale.current = Math.min(scale.current + 0.05, 1);
+    } else {
+      opacity.current = Math.max(opacity.current - 0.05, 0);
+      scale.current = 0.6;
+    }
+    if (ref.current && ref.current.material) {
+      ref.current.material.opacity = opacity.current;
+      ref.current.scale.set(scale.current, scale.current, scale.current);
+    }
+  });
+
+  return (
+    <Text
+      ref={ref}
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      material-transparent
+      maxWidth={9}
+      textAlign="left"
+    >
+      {text}
+    </Text>
+  );
+};
+
+export default VisualPage3;
