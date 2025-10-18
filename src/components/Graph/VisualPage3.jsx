@@ -1,166 +1,307 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Text } from "@react-three/drei";
-import { Play, Square, RotateCcw } from "lucide-react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { OrbitControls, Text, Line } from "@react-three/drei";
+import * as THREE from "three";
 
-const VisualPage3 = ({
-  data = [10, 20, 30, 40, 50],
-  spacing = 2.0,
-  target = 40,
-}) => {
-  const [activeIndex, setActiveIndex] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState("Idle");
-  const intervalRef = useRef(null);
+const VisualPage3 = () => {
+  const [showPanel, setShowPanel] = useState(false);
+  const [page, setPage] = useState(0);
+  const [highlighted, setHighlighted] = useState(null);
+  const [mode, setMode] = useState(null); // "DFS" or "BFS"
 
-  // positions for boxes along the X axis
-  const positions = useMemo(() => {
-    const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [data, spacing]);
+  const handleIndexClick = () => {
+    setShowPanel((prev) => !prev);
+    setPage(0);
+  };
 
-  const handlePlay = () => {
-    if (isPlaying) return;
-    setProgress(0);
-    setActiveIndex(null);
-    setStatus("Starting search...");
-    setIsPlaying(true);
+  const handleNextClick = () => {
+    if (page < 2) setPage(page + 1);
+    else setShowPanel(false);
+  };
 
-    let currentIndex = 0;
-    intervalRef.current = setInterval(() => {
-      setActiveIndex(currentIndex);
-      setStatus(`Checking index ${currentIndex}...`);
-      setProgress(((currentIndex + 1) / data.length) * 100);
+  // Graph nodes (A, B, C, D)
+  const nodes = useMemo(
+    () => [
+      { id: "A", position: [0, 3, 0] },
+      { id: "B", position: [-2, 0, 0] },
+      { id: "C", position: [2, 0, 0] },
+      { id: "D", position: [0, -3, 0] },
+    ],
+    []
+  );
 
-      if (data[currentIndex] === target) {
-        setStatus(`✅ Found ${target} at index ${currentIndex}`);
-        clearInterval(intervalRef.current);
-        setIsPlaying(false);
-      } else if (currentIndex === data.length - 1) {
-        setStatus(`❌ ${target} not found`);
-        clearInterval(intervalRef.current);
-        setIsPlaying(false);
-      } else {
-        currentIndex++;
+  // Graph edges
+  const edges = useMemo(
+    () => [
+      ["A", "B"],
+      ["A", "C"],
+      ["B", "C"],
+      ["B", "D"],
+      ["C", "D"],
+    ],
+    []
+  );
+
+  const getNodePosition = (id) => nodes.find((n) => n.id === id).position;
+
+  const handleNodeClick = (id) => {
+    setHighlighted((prev) => (prev === id ? null : id));
+  };
+
+  // === Traversal animation ===
+  useEffect(() => {
+    if (!mode) return;
+
+    const dfsOrder = ["A", "B", "D", "C"];
+    const bfsOrder = ["A", "B", "C", "D"];
+    const order = mode === "DFS" ? dfsOrder : bfsOrder;
+
+    let i = 0;
+    const interval = setInterval(() => {
+      setHighlighted(order[i]);
+      i++;
+      if (i >= order.length) {
+        clearInterval(interval);
+        setTimeout(() => setHighlighted(null), 1000);
       }
-    }, 1000);
-  };
+    }, 800);
 
-  const handleStop = () => {
-    clearInterval(intervalRef.current);
-    setIsPlaying(false);
-    setStatus("Stopped");
-  };
-
-  const handleReset = () => {
-    clearInterval(intervalRef.current);
-    setIsPlaying(false);
-    setProgress(0);
-    setActiveIndex(null);
-    setStatus("Idle");
-  };
+    return () => clearInterval(interval);
+  }, [mode]);
 
   return (
-    <div className="w-full h-[300px] flex flex-col items-center justify-center">
-      <div className="w-2/3 mb-4">
-        <div className="flex items-center gap-3 mb-2">
-          <button
-            onClick={handlePlay}
-            className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50"
-            disabled={isPlaying}
-          >
-            <Play size={20} />
-          </button>
-          <button
-            onClick={handleStop}
-            className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 disabled:opacity-50"
-            disabled={!isPlaying}
-          >
-            <Square size={20} />
-          </button>
-          <button
-            onClick={handleReset}
-            className="p-2 bg-gray-500 text-white rounded-full hover:bg-gray-600"
-          >
-            <RotateCcw size={20} />
-          </button>
-        </div>
-        <div className="w-full h-2 bg-gray-300 rounded">
-          <div
-            className="h-2 bg-green-500 rounded"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <div className="mt-2 text-gray-700 font-mono text-sm text-center">
-          {status}
-        </div>
-      </div>
+    <div className="w-full h-[400px]">
+      <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[5, 10, 5]} intensity={1} />
 
-      {/* 3D Scene */}
-      <div className="w-full h-[60%]">
-        <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
-          {/* Lighting */}
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[5, 10, 5]} intensity={0.8} />
+        {/* Title */}
+        <FadeInText
+          show={true}
+          text={"Graph Traversals"}
+          position={[0, 5, 0]}
+          fontSize={0.8}
+          color="white"
+        />
 
-          {/* Row of boxes */}
-          {data.map((value, i) => (
-            <Box
-              key={i}
-              index={i}
-              value={value}
-              position={positions[i]}
-              fade={activeIndex === i ? 1 : 0}
-            />
-          ))}
+        {/* Subtitle */}
+        <FadeInText
+          show={true}
+          text={"DFS and BFS Visualization"}
+          position={[0, 4.3, 0]}
+          fontSize={0.45}
+          color="#93c5fd"
+        />
 
-          <OrbitControls makeDefault />
-        </Canvas>
-      </div>
+        {/* Edges */}
+        {edges.map(([a, b], i) => (
+          <Line
+            key={i}
+            points={[getNodePosition(a), getNodePosition(b)]}
+            color="#94a3b8"
+            lineWidth={1.5}
+            dashed={false}
+          />
+        ))}
+
+        {/* Nodes */}
+        {nodes.map((node, i) => (
+          <NodeSphere
+            key={i}
+            id={node.id}
+            position={node.position}
+            highlighted={highlighted === node.id}
+            onClick={() => handleNodeClick(node.id)}
+          />
+        ))}
+
+        {/* Definition Panel */}
+        {showPanel && (
+          <DefinitionPanel
+            page={page}
+            position={[8, 1, 0]}
+            onNextClick={handleNextClick}
+          />
+        )}
+
+        {/* 3D Buttons for DFS/BFS */}
+        <Button3D
+          label="Run DFS"
+          position={[-2.5, -5, 0]}
+          color={mode === "DFS" ? "#facc15" : "#60a5fa"}
+          onClick={() => setMode("DFS")}
+        />
+        <Button3D
+          label="Run BFS"
+          position={[2.5, -5, 0]}
+          color={mode === "BFS" ? "#facc15" : "#60a5fa"}
+          onClick={() => setMode("BFS")}
+        />
+
+        {/* Info Toggle */}
+        <Text
+          position={[0, -6, 0]}
+          fontSize={0.4}
+          color="#38bdf8"
+          anchorX="center"
+          anchorY="middle"
+          onClick={handleIndexClick}
+        >
+          📘 Learn DFS/BFS ▶
+        </Text>
+
+        <OrbitControls makeDefault />
+      </Canvas>
     </div>
   );
 };
 
-const Box = ({ index, value, position = [0, 0, 0], fade }) => {
-  const size = [1.6, 1.2, 1];
-
+// === NodeSphere ===
+const NodeSphere = ({ id, position, highlighted, onClick }) => {
+  const color = highlighted ? "#facc15" : "#60a5fa";
   return (
     <group position={position}>
-      {/* Box */}
-      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
-        <boxGeometry args={size} />
+      <mesh onClick={onClick}>
+        <sphereGeometry args={[0.4, 32, 32]} />
         <meshStandardMaterial
-          color={index % 2 === 0 ? "#60a5fa" : "#34d399"}
-          emissive={fade ? "#facc15" : "#000000"}
-          emissiveIntensity={fade ? 0.9 : 0}
+          color={color}
+          emissive={highlighted ? "#fbbf24" : "#000000"}
+          emissiveIntensity={highlighted ? 0.5 : 0}
         />
       </mesh>
-
-      {/* Number shown on the front face (3D text) */}
       <Text
-        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
-        fontSize={0.35}
-        textAlign="center"
+        position={[0, 0.9, 0]}
+        fontSize={0.4}
+        color="white"
         anchorX="center"
         anchorY="middle"
-        depthOffset={1}
       >
-        {String(value)}
+        {id}
       </Text>
+    </group>
+  );
+};
 
-      {/* Index shown below the value on the front face */}
+// === Button3D ===
+const Button3D = ({ label, position, color, onClick }) => {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <group position={position}>
+      <mesh
+        onClick={onClick}
+        onPointerOver={() => setHovered(true)}
+        onPointerOut={() => setHovered(false)}
+      >
+        <boxGeometry args={[2.4, 0.8, 0.2]} />
+        <meshStandardMaterial
+          color={hovered ? "#38bdf8" : color}
+          emissive={hovered ? "#0284c7" : "#000000"}
+          emissiveIntensity={hovered ? 0.4 : 0}
+        />
+      </mesh>
       <Text
-        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
-        fontSize={0.2}
-        textAlign="center"
+        position={[0, 0, 0.15]}
+        fontSize={0.35}
+        color="white"
         anchorX="center"
         anchorY="middle"
-        depthOffset={1}
       >
-        {`[${index}]`}
+        {label}
+      </Text>
+    </group>
+  );
+};
+
+// === Fade-in Text ===
+const FadeInText = ({ show, text, position, fontSize, color }) => {
+  const ref = useRef();
+  const opacity = useRef(0);
+  const scale = useRef(0.6);
+
+  useFrame(() => {
+    if (show) {
+      opacity.current = Math.min(opacity.current + 0.06, 1);
+      scale.current = Math.min(scale.current + 0.06, 1);
+    } else {
+      opacity.current = Math.max(opacity.current - 0.06, 0);
+      scale.current = 0.6;
+    }
+    if (ref.current && ref.current.material) {
+      ref.current.material.opacity = opacity.current;
+      ref.current.scale.set(scale.current, scale.current, scale.current);
+    }
+  });
+
+  return (
+    <Text
+      ref={ref}
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      material-transparent
+      maxWidth={8}
+      textAlign="center"
+    >
+      {text}
+    </Text>
+  );
+};
+
+// === Definition Panel ===
+const DefinitionPanel = ({ page, position, onNextClick }) => {
+  let content = "";
+
+  if (page === 0) {
+    content = [
+      "🔍 Graph Traversal:",
+      "",
+      "Process of visiting all nodes in a graph.",
+      "Two major methods:",
+      "1️⃣ Depth-First Search (DFS)",
+      "2️⃣ Breadth-First Search (BFS)",
+    ].join("\n");
+  } else if (page === 1) {
+    content = [
+      "📘 DFS (Depth-First Search):",
+      "",
+      "• Explore deep before backtracking.",
+      "• Implemented via recursion or stack.",
+      "• Example: solving puzzles, topological sort.",
+    ].join("\n");
+  } else if (page === 2) {
+    content = [
+      "📗 BFS (Breadth-First Search):",
+      "",
+      "• Explore level by level.",
+      "• Implemented via queue.",
+      "• Example: shortest path in unweighted graphs.",
+      "",
+      "Complexity: O(V + E)",
+    ].join("\n");
+  }
+
+  const nextLabel = page < 2 ? "Next ▶" : "Close ✖";
+
+  return (
+    <group>
+      <FadeInText
+        show={true}
+        text={content}
+        position={position}
+        fontSize={0.32}
+        color="#fde68a"
+      />
+      <Text
+        position={[position[0], position[1] - 2.8, position[2]]}
+        fontSize={0.45}
+        color="#38bdf8"
+        anchorX="center"
+        anchorY="middle"
+        onClick={onNextClick}
+      >
+        {nextLabel}
       </Text>
     </group>
   );
