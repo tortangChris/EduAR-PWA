@@ -26,7 +26,7 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
     return boxes.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [boxes, spacing]);
 
-  // === Handle sorting click (toggle) ===
+  // === Handle sorting click (toggle + reset) ===
   const handleSortClick = () => {
     if (!sorted) {
       const sortedData = [...boxes].sort((a, b) => a - b);
@@ -93,7 +93,7 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
           <FadeText
             text={
               sorted
-                ? "The array is now sorted in ascending order! (tap to reset)"
+                ? "The array is now sorted in ascending order! (tap again to reset)"
                 : "Enter AR and tap any box (or click) to visualize sorting"
             }
             position={[0, 3.8, 0]}
@@ -122,9 +122,6 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
         {/* AR Tap Manager */}
         <ARInteractionManager
           boxGroupRefs={boxGroupRefs}
-          setSorted={setSorted}
-          setBoxes={setBoxes}
-          originalData={data}
           onToggleSort={handleSortClick}
         />
 
@@ -134,14 +131,8 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
   );
 };
 
-// === AR Interaction Manager ===
-const ARInteractionManager = ({
-  boxGroupRefs,
-  setSorted,
-  setBoxes,
-  originalData,
-  onToggleSort,
-}) => {
+// === AR Interaction Manager (with reset logic) ===
+const ARInteractionManager = ({ boxGroupRefs, onToggleSort }) => {
   const { gl } = useThree();
 
   useEffect(() => {
