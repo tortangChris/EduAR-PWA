@@ -15,13 +15,14 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   }, [data, spacing]);
 
   const boxRefs = useRef([]);
-  boxRefs.current = [];
 
   const addBoxRef = (r) => {
-    if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
+    if (r && !boxRefs.current.includes(r)) {
+      boxRefs.current.push(r);
+    }
   };
 
-  const handleIndexClick = (i) => {
+  const handleClick = (i) => {
     setSelectedBox(i);
     setShowPanel(true);
     setPage(0);
@@ -30,12 +31,6 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   const handleNextClick = () => {
     if (page < 2) setPage(page + 1);
     else setShowPanel(false);
-  };
-
-  const handleBoxClick = (i) => {
-    setSelectedBox((prev) => (prev === i ? null : i));
-    setShowPanel(true);
-    setPage(0);
   };
 
   return (
@@ -47,7 +42,7 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
           if (navigator.xr) {
             try {
               const arButton = ARButton.createButton(gl, {
-                requiredFeatures: ["hit-test"],
+                requiredFeatures: ["hit-test", "anchors"],
               });
               arButton.style.position = "absolute";
               arButton.style.top = "8px";
@@ -81,8 +76,7 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
               value={value}
               position={positions[i]}
               selected={selectedBox === i}
-              onValueClick={() => handleBoxClick(i)}
-              onIndexClick={() => handleIndexClick(i)}
+              onClick={() => handleClick(i)}
               ref={(r) => addBoxRef(r)}
             />
           ))}
@@ -130,7 +124,6 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
         const origin = cam.getWorldPosition(new THREE.Vector3());
         raycaster.set(origin, dir);
 
-        // include all children (meshes + text)
         const candidates = (boxRefs.current || [])
           .map((group) => (group ? group.children : []))
           .flat();
@@ -142,23 +135,20 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
           while (hit && !hit.userData?.boxIndex && hit.parent) {
             hit = hit.parent;
           }
-          const idx = hit && hit.userData ? hit.userData.boxIndex : null;
-          if (idx !== null && idx !== undefined) {
+          const idx = hit?.userData?.boxIndex;
+          if (idx !== undefined && idx !== null) {
             setSelectedBox(idx);
           }
         }
       };
 
       session.addEventListener("select", onSelect);
-      session.addEventListener("end", () => {
-        session.removeEventListener("select", onSelect);
-      });
+      const onEnd = () => session.removeEventListener("select", onSelect);
+      session.addEventListener("end", onEnd);
     };
 
     gl.xr.addEventListener("sessionstart", onSessionStart);
-    return () => {
-      gl.xr.removeEventListener("sessionstart", onSessionStart);
-    };
+    return () => gl.xr.removeEventListener("sessionstart", onSessionStart);
   }, [gl, xrRef, boxRefs, setSelectedBox]);
 
   return null;
@@ -224,85 +214,77 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
 };
 
 // === Box ===
-const Box = forwardRef(
-  ({ index, value, position, selected, onValueClick, onIndexClick }, ref) => {
-    const size = [1.6, 1.2, 1];
-    const color = selected
-      ? "#facc15"
-      : index % 2 === 0
-      ? "#60a5fa"
-      : "#34d399";
+const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
+  const size = [1.6, 1.2, 1];
+  const color = selected ? "#facc15" : index % 2 === 0 ? "#60a5fa" : "#34d399";
+  const groupRef = useRef();
 
-    const groupRef = useRef();
-    useEffect(() => {
-      if (groupRef.current) {
-        groupRef.current.userData = { boxIndex: index };
-      }
-    }, [index]);
+  useEffect(() => {
+    if (groupRef.current) {
+      groupRef.current.userData = { boxIndex: index };
+    }
+  }, [index]);
 
-    return (
-      <group
-        position={position}
-        ref={(g) => {
-          groupRef.current = g;
-          if (typeof ref === "function") ref(g);
-          else if (ref) ref.current = g;
-        }}
+  return (
+    <group
+      position={position}
+      ref={(g) => {
+        groupRef.current = g;
+        if (typeof ref === "function") ref(g);
+        else if (ref) ref.current = g;
+      }}
+    >
+      <mesh
+        castShadow
+        receiveShadow
+        position={[0, size[1] / 2, 0]}
+        onClick={onClick}
       >
-        {/* main box */}
-        <mesh
-          castShadow
-          receiveShadow
-          position={[0, size[1] / 2, 0]}
-          onClick={onValueClick}
-        >
-          <boxGeometry args={size} />
-          <meshStandardMaterial
-            color={color}
-            emissive={selected ? "#fbbf24" : "#000000"}
-            emissiveIntensity={selected ? 0.4 : 0}
-          />
-        </mesh>
-
-        {/* value text */}
-        <FadeInText
-          show={true}
-          text={String(value)}
-          position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-          fontSize={0.4}
-          color="white"
+        <boxGeometry args={size} />
+        <meshStandardMaterial
+          color={color}
+          emissive={selected ? "#fbbf24" : "#000000"}
+          emissiveIntensity={selected ? 0.4 : 0}
         />
+      </mesh>
 
-        {/* transparent clickable plane for index */}
-        <mesh onClick={onIndexClick} position={[0, -0.3, size[2] / 2 + 0.01]}>
-          <planeGeometry args={[0.8, 0.4]} />
-          <meshBasicMaterial transparent opacity={0} />
-          <Text
-            position={[0, 0, 0.01]}
-            fontSize={0.3}
-            color="yellow"
-            anchorX="center"
-            anchorY="middle"
-          >
-            [{index}]
-          </Text>
-        </mesh>
+      <FadeInText
+        show={true}
+        text={String(value)}
+        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
+        fontSize={0.4}
+        color="white"
+      />
 
-        {selected && (
-          <Text
-            position={[0, size[1] + 0.8, 0]}
-            fontSize={0.3}
-            color="#fde68a"
-            anchorX="center"
-            anchorY="middle"
-          >
-            Value {value} at index {index}
-          </Text>
-        )}
-      </group>
-    );
-  }
-);
+      {/* Invisible plane behind the index text for AR click */}
+      <mesh onClick={onClick} position={[0, -0.3, size[2] / 2 + 0.01]}>
+        <planeGeometry args={[0.9, 0.4]} />
+        <meshBasicMaterial transparent opacity={0} />
+        <Text
+          position={[0, 0, 0.01]}
+          fontSize={0.3}
+          color="yellow"
+          anchorX="center"
+          anchorY="middle"
+        >
+          [{index}]
+        </Text>
+      </mesh>
+
+      {selected && (
+        <Text
+          position={[0, size[1] + 0.8, 0]}
+          fontSize={0.3}
+          color="#fde68a"
+          anchorX="center"
+          anchorY="middle"
+        >
+          Value {value} at index {index}
+        </Text>
+      )}
+    </group>
+  );
+});
 
 // === Definition Panel ===
 const DefinitionPanel = ({ page, data, index, position, onNextClick }) => {
@@ -313,18 +295,18 @@ const DefinitionPanel = ({ page, data, index, position, onNextClick }) => {
       `📘 Index ${index}`,
       "",
       `• Value: ${data[index]}`,
-      `• Index starts from 0.`,
+      "• Remember: indexes start from 0.",
     ].join("\n");
   } else if (page === 1) {
     content = [
-      "📗 Array Access:",
+      "📗 Array Property:",
       "",
       "• Access time: O(1)",
-      "• Direct access via index.",
+      "• Stored in contiguous memory.",
     ].join("\n");
-  } else if (page === 2) {
+  } else {
     content = [
-      "📊 Array Summary:",
+      "📊 Summary:",
       "",
       ...data.map((v, i) => `• Index ${i} → value ${v}`),
     ].join("\n");
