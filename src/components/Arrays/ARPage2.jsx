@@ -4,12 +4,10 @@ import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
-// === Main AR Component ===
 const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   const [selectedBox, setSelectedBox] = useState(null);
   const boxRefs = useRef([]);
 
-  // X positions of boxes
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
@@ -19,7 +17,6 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
     setSelectedBox((prev) => (prev === i ? null : i));
   };
 
-  // Pseudo code text
   const generateCode = (index, value) => {
     return [
       "📘 Pseudo Code Example:",
@@ -73,7 +70,6 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
             color="white"
           />
 
-          {/* Boxes */}
           {data.map((value, i) => (
             <Box
               key={i}
@@ -86,7 +82,6 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
             />
           ))}
 
-          {/* Pseudo Code Panel */}
           {selectedBox !== null && (
             <CodePanel
               code={generateCode(selectedBox, data[selectedBox])}
@@ -128,6 +123,7 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
         const objects = boxRefs.current
           .filter(Boolean)
           .flatMap((g) => g.children || []);
+
         const intersects = raycaster.intersectObjects(objects, true);
         if (intersects.length > 0) {
           let hit = intersects[0].object;
@@ -154,7 +150,7 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
   return null;
 };
 
-// === Box Component ===
+// === Box (with invisible collider mesh) ===
 const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
   const size = [1.6, 1.2, 1];
   const color = selected ? "#f87171" : index % 2 === 0 ? "#60a5fa" : "#34d399";
@@ -174,6 +170,7 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
         if (ref) ref.current = g;
       }}
     >
+      {/* Main box */}
       <mesh
         castShadow
         receiveShadow
@@ -186,6 +183,16 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
           emissive={selected ? "#fbbf24" : "#000000"}
           emissiveIntensity={selected ? 0.6 : 0}
         />
+      </mesh>
+
+      {/* Clickable invisible box (for raycast) */}
+      <mesh
+        position={[0, size[1] / 2, 0]}
+        userData={{ boxIndex: index }}
+        onClick={onClick}
+      >
+        <boxGeometry args={size} />
+        <meshBasicMaterial transparent opacity={0} />
       </mesh>
 
       {/* Texts */}
@@ -223,14 +230,12 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
   );
 });
 
-// === Code Panel ===
 const CodePanel = ({ code, position }) => (
   <group>
     <FadeText text={code} position={position} fontSize={0.3} color="#c7d2fe" />
   </group>
 );
 
-// === Fade Text ===
 const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
   const [opacity, setOpacity] = useState(0);
 
