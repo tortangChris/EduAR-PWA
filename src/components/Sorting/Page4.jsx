@@ -1,7 +1,7 @@
 import React from "react";
 import VisualPage4 from "./VisualPage1";
 import ARButton from "./ARButton";
-import SortingPage04 from "./Contents/SortingPage05";
+import SortingPage04 from "./Contents/SortingPage04";
 
 const Page4 = () => {
   return (
