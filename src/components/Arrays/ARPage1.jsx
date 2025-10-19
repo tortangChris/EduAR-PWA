@@ -7,14 +7,13 @@ import { ARButton } from "three/examples/jsm/webxr/ARButton";
 const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   const [showPanel, setShowPanel] = useState(false);
   const [page, setPage] = useState(0);
-  const [selectedBox, setSelectedBox] = useState(null); // for value click
+  const [selectedBox, setSelectedBox] = useState(null);
 
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  // refs to boxes for raycasting in AR
   const boxRefs = useRef([]);
   boxRefs.current = [];
 
@@ -33,7 +32,6 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   };
 
   const handleBoxClick = (i) => {
-    // Toggle selection
     setSelectedBox((prev) => (prev === i ? null : i));
   };
 
@@ -42,22 +40,18 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
       <Canvas
         camera={{ position: [0, 4, 25], fov: 50 }}
         onCreated={({ gl, scene, camera }) => {
-          // enable xr on renderer
           gl.xr.enabled = true;
-          // attach AR button
           if (navigator.xr) {
             try {
               const arButton = ARButton.createButton(gl, {
                 requiredFeatures: ["hit-test", "anchors"],
               });
-              // add near top-left, avoid overlap with header:
               arButton.style.position = "absolute";
               arButton.style.top = "8px";
               arButton.style.left = "8px";
               arButton.style.zIndex = 999;
               document.body.appendChild(arButton);
             } catch (e) {
-              // if ARButton not supported it will throw; ignore gracefully
               console.warn("ARButton create failed", e);
             }
           }
@@ -66,45 +60,47 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        <FadeInText
-          show={true}
-          text={"Array Data Structure"}
-          position={[0, 3, 0]}
-          fontSize={0.7}
-          color="white"
-        />
-
-        <ArrayBackground data={data} spacing={spacing} />
-
-        {/* Boxes */}
-        {data.map((value, i) => (
-          <Box
-            key={i}
-            index={i}
-            value={value}
-            position={positions[i]}
-            selected={selectedBox === i}
-            onValueClick={() => handleBoxClick(i)}
-            onIndexClick={handleIndexClick}
-            ref={(r) => addBoxRef(r)}
+        {/* 👇 Moved group away from camera for AR visibility */}
+        <group position={[0, 0, -3]}>
+          <FadeInText
+            show={true}
+            text={"Array Data Structure"}
+            position={[0, 3, 0]}
+            fontSize={0.7}
+            color="white"
           />
-        ))}
 
-        {/* Side Panel */}
-        {showPanel && (
-          <DefinitionPanel
-            page={page}
-            data={data}
-            position={[8, 1, 0]}
-            onNextClick={handleNextClick}
-          />
-        )}
+          <ArrayBackground data={data} spacing={spacing} />
+
+          {/* Boxes */}
+          {data.map((value, i) => (
+            <Box
+              key={i}
+              index={i}
+              value={value}
+              position={positions[i]}
+              selected={selectedBox === i}
+              onValueClick={() => handleBoxClick(i)}
+              onIndexClick={handleIndexClick}
+              ref={(r) => addBoxRef(r)}
+            />
+          ))}
+
+          {/* Side Panel */}
+          {showPanel && (
+            <DefinitionPanel
+              page={page}
+              data={data}
+              position={[8, 1, 0]}
+              onNextClick={handleNextClick}
+            />
+          )}
+        </group>
 
         <ARInteractionManager
           boxRefs={boxRefs}
           setSelectedBox={setSelectedBox}
         />
-
         <OrbitControls makeDefault />
       </Canvas>
     </div>
@@ -112,14 +108,11 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
 };
 
 // --- AR Interaction Manager ---
-// Handles select events in XR session: raycast from camera center,
-// select box if hit, else place anchor object 1m in front of camera.
 const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
   const { gl, scene } = useThree();
   const xrRef = gl.xr;
-  const spawnedObjectRef = useRef(null); // a visual marker/anchored object we can move to front
+  const spawnedObjectRef = useRef(null);
 
-  // create a simple anchor visual (small sphere) so user sees where object is placed
   useEffect(() => {
     const geo = new THREE.SphereGeometry(0.08, 16, 16);
     const mat = new THREE.MeshStandardMaterial({
@@ -145,38 +138,24 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
       const session = xrRef.getSession();
       if (!session) return;
 
-      // listen to select events - fired on tap / controller click
       const onSelect = (event) => {
-        // we'll raycast from center of camera to detect hits with boxRefs
-        // get XR camera
         const xrCamera = gl.xr.getCamera();
-
-        // create a ray from camera center (NDC 0,0)
         const raycaster = new THREE.Raycaster();
-        // For XR camera, use its children (left/right) - use the "camera" returned by r3f:
-        // easiest is to use xrCamera.cameras[0] (works for mono)
         const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
-        // direction vector (camera forward)
         const dir = new THREE.Vector3(0, 0, -1)
           .applyQuaternion(cam.quaternion)
           .normalize();
         const origin = cam.getWorldPosition(new THREE.Vector3());
         raycaster.set(origin, dir);
 
-        // collect candidate meshes from refs
         const candidates = (boxRefs.current || [])
-          .map((group) => {
-            // group might be a <group> containing meshes; find mesh children
-            return group ? group.children.filter((c) => c.isMesh) : [];
-          })
+          .map((group) => (group ? group.children.filter((c) => c.isMesh) : []))
           .flat();
 
         const intersects = raycaster.intersectObjects(candidates, true);
 
         if (intersects && intersects.length > 0) {
-          // find which box index was clicked (walk up parent until group with name/index)
           let hit = intersects[0].object;
-          // traverse upward to find the parent group that we attached as Box group
           while (hit && !hit.userData?.boxIndex && hit.parent) {
             hit = hit.parent;
           }
@@ -187,29 +166,23 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
           }
         }
 
-        // If no hit -> place anchor visual 1 meter in front of camera
-        const distance = 1.0; // 1 meter
+        const distance = 1.0;
         const placementPos = origin.clone().add(dir.multiplyScalar(distance));
         if (spawnedObjectRef.current) {
           spawnedObjectRef.current.position.copy(placementPos);
           spawnedObjectRef.current.visible = true;
-          // optionally orient to face camera
           spawnedObjectRef.current.lookAt(origin);
         }
       };
 
       session.addEventListener("select", onSelect);
-
-      // cleanup on end
       const onEnd = () => {
         session.removeEventListener("select", onSelect);
       };
       session.addEventListener("end", onEnd);
     };
 
-    // watch session start
     gl.xr.addEventListener("sessionstart", onSessionStart);
-
     return () => {
       gl.xr.removeEventListener("sessionstart", onSessionStart);
     };
@@ -287,11 +260,9 @@ const Box = forwardRef(
       ? "#60a5fa"
       : "#34d399";
 
-    // groupRef for raycasting upward traversal
     const groupRef = useRef();
     useEffect(() => {
       if (groupRef.current) {
-        // store index so AR raycast can find which box was hit
         groupRef.current.userData = { boxIndex: index };
       }
     }, [index]);
@@ -305,7 +276,6 @@ const Box = forwardRef(
           else if (ref) ref.current = g;
         }}
       >
-        {/* Main Box */}
         <mesh
           castShadow
           receiveShadow
@@ -320,7 +290,6 @@ const Box = forwardRef(
           />
         </mesh>
 
-        {/* Value label */}
         <FadeInText
           show={true}
           text={String(value)}
@@ -329,7 +298,6 @@ const Box = forwardRef(
           color="white"
         />
 
-        {/* Index clickable */}
         <Text
           position={[0, -0.3, size[2] / 2 + 0.01]}
           fontSize={0.3}
@@ -341,7 +309,6 @@ const Box = forwardRef(
           [{index}]
         </Text>
 
-        {/* 3D label when selected */}
         {selected && (
           <Text
             position={[0, size[1] + 0.8, 0]}
