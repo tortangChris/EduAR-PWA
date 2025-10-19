@@ -1,257 +1,195 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
+import { Text, ARButton, XR, Interactive } from "@react-three/drei";
 import * as THREE from "three";
 import useSound from "use-sound";
-import dingSfx from "/sounds/ding.mp3";
+import dingSfx from "/sounds/ding.mp3"; // Ensure file exists in /public/sounds/
 
-const ARPage3 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
-  const [stage, setStage] = useState(0);
+const ARPage3 = ({ data = [5, 10, 15, 20, 25], spacing = 0.45 }) => {
+  const [searching, setSearching] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(null);
+  const [foundIndex, setFoundIndex] = useState(null);
   const [statusText, setStatusText] = useState("");
-  const [placed, setPlaced] = useState(true);
+  const [infoText, setInfoText] = useState("");
+  const [showCode, setShowCode] = useState(false);
+  const [pseudoCode, setPseudoCode] = useState([]);
   const [play] = useSound(dingSfx, { volume: 0.5 });
 
-  // compute box positions
+  // 🔹 Positions in AR (closer and smaller scale)
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
+    return data.map((_, i) => [(i - mid) * spacing, 0, -1.5]); // forward 1.5m
   }, [data, spacing]);
 
-  // timeline (loop every 25s)
-  useEffect(() => {
-    if (!placed) return;
+  // 🔹 Linear Search animation
+  const handleClick = (index) => {
+    if (searching) return;
+    setSearching(true);
+    setHighlightIndex(null);
+    setFoundIndex(null);
+    setStatusText("");
+    setInfoText("");
+    setShowCode(false);
 
-    const timeline = [
-      {
-        time: 0,
-        action: () => {
-          setStage(1);
-          setStatusText("");
-          play();
-        },
-      },
-      {
-        time: 3,
-        action: () => {
-          setStage(2);
-          play();
-        },
-      },
-      {
-        time: 6,
-        action: () => {
-          setStage(3);
-          play();
-        },
-      },
-      {
-        time: 9,
-        action: () => {
-          setHighlightIndex(0);
-          setStatusText("Checking index 0...");
-          play();
-        },
-      },
-      {
-        time: 10.5,
-        action: () => {
-          setHighlightIndex(1);
-          setStatusText("Checking index 1...");
-          play();
-        },
-      },
-      {
-        time: 12,
-        action: () => {
-          setHighlightIndex(2);
-          setStatusText("Found at index 2!");
-          play();
-          setStage(4);
-        },
-      },
-      {
-        time: 18,
-        action: () => {
-          setStage(5);
-          play();
-        },
-      },
-      {
-        time: 20,
-        action: () => {
-          setStage(6);
-          play();
-        },
-      },
-    ];
+    let i = 0;
+    setStatusText("🔍 Starting linear search...");
 
-    let timers = timeline.map((t) => setTimeout(t.action, t.time * 1000));
+    const interval = setInterval(() => {
+      setHighlightIndex(i);
+      setStatusText(`Checking index ${i} → value ${data[i]}`);
 
-    const loop = setInterval(() => {
-      setStage(0);
-      setHighlightIndex(null);
-      setStatusText("");
-      timers.forEach(clearTimeout);
-      timers = timeline.map((t) => setTimeout(t.action, t.time * 1000));
-    }, 25000);
-
-    return () => {
-      timers.forEach(clearTimeout);
-      clearInterval(loop);
-    };
-  }, [play, placed]);
+      if (i === index) {
+        clearInterval(interval);
+        setTimeout(() => {
+          setFoundIndex(i);
+          play();
+          setStatusText(`✅ Found value ${data[i]} at index ${i}`);
+          setInfoText(`Value ${data[i]} located after ${i + 1} comparisons`);
+          setPseudoCode([
+            "📘 Pseudo Code Example:",
+            "",
+            "for i = 0 to n-1:",
+            "   if array[i] == key:",
+            "       return i",
+            "",
+            `// Found at index ${i}`,
+          ]);
+          setShowCode(true);
+          setSearching(false);
+        }, 900);
+      } else {
+        i++;
+        if (i >= data.length) {
+          clearInterval(interval);
+          setTimeout(() => {
+            setStatusText("❌ Value not found in array");
+            setInfoText("Search completed — no match found.");
+            setPseudoCode([
+              "📘 Pseudo Code Example:",
+              "",
+              "for i = 0 to n-1:",
+              "   if array[i] == key:",
+              "       return i",
+              "",
+              "return -1  // not found",
+            ]);
+            setShowCode(true);
+            setSearching(false);
+          }, 800);
+        }
+      }
+    }, 900);
+  };
 
   return (
-    <div className="w-full h-screen">
-      <Canvas
-        camera={{ position: [0, 2, 2], fov: 50 }}
-        gl={{ alpha: true }}
-        shadows
-        onCreated={({ gl }) => {
-          gl.xr.enabled = true;
-          if (navigator.xr) {
-            navigator.xr
-              .requestSession("immersive-ar", {
-                requiredFeatures: ["local-floor"],
-              })
-              .then((session) => gl.xr.setSession(session))
-              .catch((err) => console.error("❌ AR session failed:", err));
-          }
-        }}
-      >
-        <ambientLight intensity={0.45} />
-        <directionalLight position={[5, 10, 5]} intensity={0.8} castShadow />
+    <div className="w-full h-[300px]">
+      <ARButton />
+      <Canvas camera={{ position: [0, 1.6, 0] }}>
+        <XR>
+          <ambientLight intensity={0.4} />
+          <directionalLight position={[2, 3, 2]} intensity={1.2} />
 
-        {/* Fixed AR group */}
-        <group position={[0, 1, -2]} scale={[0.1, 0.1, 0.1]}>
-          {/* Title */}
+          {/* 🔹 Title floating above */}
           <FadeInText
-            show={stage >= 1}
-            text="Search Operation (O(n))"
-            position={[0, 3.5, 0]}
-            fontSize={0.6}
+            show={true}
+            text="🔍 Linear Search (AR Mode)"
+            position={[0, 0.6, -1.5]}
+            fontSize={0.12}
             color="white"
           />
 
-          {/* Definition */}
-          <FadeInText
-            show={stage >= 2}
-            text="Searching = looking for an element in the array"
-            position={[0, 2.9, 0]}
-            fontSize={0.32}
-            color="#ffd166"
-          />
-
-          {/* Boxes */}
-          {stage >= 3 &&
-            data.map((value, i) => (
-              <Box
-                key={i}
-                index={i}
-                value={value}
-                position={positions[i]}
-                highlight={highlightIndex === i && stage < 4}
-                found={highlightIndex === i && stage >= 4}
-              />
-            ))}
-
-          {/* Status label */}
+          {/* 🔹 Status Text */}
           <FadeInText
             show={!!statusText}
             text={statusText}
-            position={[0, -1.5, 0]}
-            fontSize={0.35}
-            color="#ffba08"
+            position={[0, 0.4, -1.5]}
+            fontSize={0.09}
+            color="#ffd166"
           />
 
-          {/* Complexity */}
+          {/* 🔹 Info Text */}
           <FadeInText
-            show={stage >= 5}
-            text="Time Complexity: O(n) → proportional to array size"
-            position={[0, -2.6, 0]}
-            fontSize={0.34}
-            color="#facc15"
-          />
-
-          {/* Example */}
-          <FadeInText
-            show={stage >= 6}
-            text={`arr = [10, 20, 30, 40]\nSearch 30 → Found at index 2 after checking 3 elements`}
-            position={[0, -3.4, 0]}
-            fontSize={0.28}
+            show={!!infoText}
+            text={infoText}
+            position={[0, 0.25, -1.5]}
+            fontSize={0.09}
             color="#9be7a2"
           />
 
-          {/* Ground plane */}
-          <mesh rotation-x={-Math.PI / 2} receiveShadow>
-            <planeGeometry args={[10, 10]} />
-            <shadowMaterial opacity={0.3} />
-          </mesh>
-        </group>
+          {/* 🔹 Boxes in AR */}
+          {data.map((value, i) => (
+            <Interactive key={i} onSelect={() => handleClick(i)}>
+              <Box
+                index={i}
+                value={value}
+                position={positions[i]}
+                highlight={highlightIndex === i}
+                found={foundIndex === i}
+              />
+            </Interactive>
+          ))}
+
+          {/* 🔹 Pseudo code below */}
+          {showCode &&
+            pseudoCode.map((line, i) => (
+              <FadeInText
+                key={i}
+                show={true}
+                text={line}
+                position={[-0.5, -0.1 - i * 0.08, -1.5]}
+                fontSize={0.07}
+                color={line.startsWith("//") ? "#9be7a2" : "#ffeb99"}
+                anchorX="left"
+              />
+            ))}
+        </XR>
       </Canvas>
     </div>
   );
 };
 
-/* ---------- Box component ---------- */
-const Box = ({ index, value, position = [0, 0, 0], highlight, found }) => {
+/* ---------- Box Component (for AR) ---------- */
+const Box = ({ index, value, position, highlight, found }) => {
   const meshRef = useRef();
-  const size = [1.6, 1.2, 1];
+  const size = [0.15, 0.1, 0.1];
 
   useFrame(() => {
     if (!meshRef.current) return;
     const mat = meshRef.current.material;
-    const baseColor = new THREE.Color("#60a5fa");
+    const baseColor = new THREE.Color(index % 2 === 0 ? "#60a5fa" : "#34d399");
     const targetColor = found
-      ? new THREE.Color("#4ade80")
+      ? new THREE.Color("#fbbf24")
       : highlight
       ? new THREE.Color("#f87171")
       : baseColor;
-    const targetEmissive = highlight || found ? 0.9 : 0;
-
-    mat.color.lerp(targetColor, 0.12);
-    mat.emissive = mat.emissive || new THREE.Color(0x000000);
-    mat.emissive.lerp(new THREE.Color(targetColor), 0.12);
-    mat.emissiveIntensity = THREE.MathUtils.lerp(
-      mat.emissiveIntensity || 0,
-      targetEmissive,
-      0.12
-    );
+    mat.color.lerp(targetColor, 0.15);
   });
 
   return (
     <group position={position}>
-      <mesh
-        ref={meshRef}
-        castShadow
-        receiveShadow
-        position={[0, size[1] / 2, 0]}
-      >
+      <mesh ref={meshRef}>
         <boxGeometry args={size} />
-        <meshStandardMaterial
-          color={"#60a5fa"}
-          emissive={"#000000"}
-          emissiveIntensity={0}
-        />
+        <meshStandardMaterial color={"#60a5fa"} />
       </mesh>
 
+      {/* Value */}
       <Text
-        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        fontSize={0.35}
+        position={[0, 0.08, 0.06]}
+        fontSize={0.06}
         anchorX="center"
         anchorY="middle"
+        color="white"
       >
-        {value}
+        {String(value)}
       </Text>
 
+      {/* Index */}
       <Text
-        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        rotation={[0, 0, 0]}
-        fontSize={0.2}
-        anchorX="right"
+        position={[0, -0.05, 0.06]}
+        fontSize={0.05}
+        color="#e0e0e0"
+        anchorX="center"
         anchorY="middle"
-        color="yellow"
       >
         [{index}]
       </Text>
@@ -259,31 +197,24 @@ const Box = ({ index, value, position = [0, 0, 0], highlight, found }) => {
   );
 };
 
-/* ---------- Fade-in Text ---------- */
+/* ---------- Fade-in Text Component ---------- */
 const FadeInText = ({
   show = false,
   text = "",
   position = [0, 0, 0],
-  fontSize = 0.5,
+  fontSize = 0.08,
   color = "white",
+  anchorX = "center",
 }) => {
   const ref = useRef();
   const opacity = useRef(0);
-  const scale = useRef(0.85);
 
   useFrame(() => {
-    if (show) {
-      opacity.current = Math.min(opacity.current + 0.05, 1);
-      scale.current = Math.min(scale.current + 0.03, 1);
-    } else {
-      opacity.current = Math.max(opacity.current - 0.06, 0);
-      scale.current = Math.max(scale.current - 0.04, 0.85);
-    }
-    if (ref.current && ref.current.material) {
-      ref.current.material.transparent = true;
-      ref.current.material.opacity = opacity.current;
-      ref.current.scale.set(scale.current, scale.current, scale.current);
-    }
+    if (!ref.current || !ref.current.material) return;
+    if (show) opacity.current = Math.min(opacity.current + 0.05, 1);
+    else opacity.current = Math.max(opacity.current - 0.06, 0);
+    ref.current.material.transparent = true;
+    ref.current.material.opacity = opacity.current;
   });
 
   return (
@@ -292,7 +223,7 @@ const FadeInText = ({
       position={position}
       fontSize={fontSize}
       color={color}
-      anchorX="center"
+      anchorX={anchorX}
       anchorY="middle"
     >
       {text}
