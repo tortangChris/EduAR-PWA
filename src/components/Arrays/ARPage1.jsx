@@ -16,6 +16,12 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
 
   const boxRefs = useRef([]);
 
+  const addBoxRef = (r) => {
+    if (r && !boxRefs.current.includes(r)) {
+      boxRefs.current.push(r);
+    }
+  };
+
   const handleClick = (i) => {
     setSelectedBox(i);
     setShowPanel(true);
@@ -71,7 +77,7 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
               position={positions[i]}
               selected={selectedBox === i}
               onClick={() => handleClick(i)}
-              ref={(r) => (boxRefs.current[i] = r)}
+              ref={(r) => addBoxRef(r)}
             />
           ))}
 
@@ -96,15 +102,16 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   );
 };
 
-// === AR Interaction Manager ===
+// --- AR Interaction Manager ---
 const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
   const { gl } = useThree();
+  const xrRef = gl.xr;
 
   useEffect(() => {
     if (!navigator.xr) return;
 
     const onSessionStart = () => {
-      const session = gl.xr.getSession();
+      const session = xrRef.getSession();
       if (!session) return;
 
       const onSelect = () => {
@@ -117,18 +124,20 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
         const origin = cam.getWorldPosition(new THREE.Vector3());
         raycaster.set(origin, dir);
 
-        const objects = boxRefs.current
-          .filter(Boolean)
-          .flatMap((g) => g.children || []);
+        const candidates = (boxRefs.current || [])
+          .map((group) => (group ? group.children : []))
+          .flat();
 
-        const intersects = raycaster.intersectObjects(objects, true);
-        if (intersects.length > 0) {
+        const intersects = raycaster.intersectObjects(candidates, true);
+
+        if (intersects && intersects.length > 0) {
           let hit = intersects[0].object;
           while (hit && !hit.userData?.boxIndex && hit.parent) {
             hit = hit.parent;
           }
-          if (hit.userData?.boxIndex !== undefined) {
-            setSelectedBox(hit.userData.boxIndex);
+          const idx = hit?.userData?.boxIndex;
+          if (idx !== undefined && idx !== null) {
+            setSelectedBox(idx);
           }
         }
       };
@@ -140,12 +149,12 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
 
     gl.xr.addEventListener("sessionstart", onSessionStart);
     return () => gl.xr.removeEventListener("sessionstart", onSessionStart);
-  }, [gl, boxRefs, setSelectedBox]);
+  }, [gl, xrRef, boxRefs, setSelectedBox]);
 
   return null;
 };
 
-// === Array Background ===
+// === Background ===
 const ArrayBackground = ({ data, spacing }) => {
   const width = Math.max(6, (data.length - 1) * spacing + 3);
   const height = 2.4;
@@ -167,7 +176,7 @@ const ArrayBackground = ({ data, spacing }) => {
   );
 };
 
-// === FadeInText ===
+// === Fade-in Text ===
 const FadeInText = ({ show, text, position, fontSize, color }) => {
   const ref = useRef();
   const opacity = useRef(0);
@@ -181,8 +190,7 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
       opacity.current = Math.max(opacity.current - 0.06, 0);
       scale.current = 0.6;
     }
-
-    if (ref.current?.material) {
+    if (ref.current && ref.current.material) {
       ref.current.material.opacity = opacity.current;
       ref.current.scale.set(scale.current, scale.current, scale.current);
     }
@@ -205,7 +213,7 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
   );
 };
 
-// === Box Component ===
+// === Box ===
 const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
   const size = [1.6, 1.2, 1];
   const color = selected ? "#facc15" : index % 2 === 0 ? "#60a5fa" : "#34d399";
@@ -222,10 +230,10 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
       position={position}
       ref={(g) => {
         groupRef.current = g;
-        if (ref) ref.current = g;
+        if (typeof ref === "function") ref(g);
+        else if (ref) ref.current = g;
       }}
     >
-      {/* Main box */}
       <mesh
         castShadow
         receiveShadow
@@ -240,7 +248,6 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
         />
       </mesh>
 
-      {/* Value label */}
       <FadeInText
         show={true}
         text={String(value)}
@@ -249,28 +256,21 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
         color="white"
       />
 
-      {/* Clickable index box */}
-      <mesh
-        onClick={onClick}
-        position={[0, -0.4, size[2] / 2 + 0.01]}
-        userData={{ boxIndex: index }}
-      >
-        <boxGeometry args={[0.9, 0.45, 0.05]} />
+      {/* Invisible plane behind the index text for AR click */}
+      <mesh onClick={onClick} position={[0, -0.3, size[2] / 2 + 0.01]}>
+        <planeGeometry args={[0.9, 0.4]} />
         <meshBasicMaterial transparent opacity={0} />
+        <Text
+          position={[0, 0, 0.01]}
+          fontSize={0.3}
+          color="yellow"
+          anchorX="center"
+          anchorY="middle"
+        >
+          [{index}]
+        </Text>
       </mesh>
 
-      {/* Index text */}
-      <Text
-        position={[0, -0.4, size[2] / 2 + 0.05]}
-        fontSize={0.3}
-        color="yellow"
-        anchorX="center"
-        anchorY="middle"
-      >
-        [{index}]
-      </Text>
-
-      {/* Info above selected box */}
       {selected && (
         <Text
           position={[0, size[1] + 0.8, 0]}
@@ -286,7 +286,7 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
   );
 });
 
-// === Info Panel ===
+// === Definition Panel ===
 const DefinitionPanel = ({ page, data, index, position, onNextClick }) => {
   let content = "";
 
@@ -295,14 +295,14 @@ const DefinitionPanel = ({ page, data, index, position, onNextClick }) => {
       `📘 Index ${index}`,
       "",
       `• Value: ${data[index]}`,
-      "• Index starts from 0.",
+      "• Remember: indexes start from 0.",
     ].join("\n");
   } else if (page === 1) {
     content = [
-      "📗 Array Info:",
+      "📗 Array Property:",
       "",
       "• Access time: O(1)",
-      "• Stored in continuous memory.",
+      "• Stored in contiguous memory.",
     ].join("\n");
   } else {
     content = [
