@@ -1,22 +1,24 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import React, { useMemo, useState } from "react";
+import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
-import { ARButton } from "three/examples/jsm/webxr/ARButton.js";
+// import { XR, ARButton } from "@react-three/xr"; // <-- uncomment for AR mode
 
 const VisualPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   const [selectedBox, setSelectedBox] = useState(null);
-  const [isAR, setIsAR] = useState(false);
 
+  // X positions of boxes — placed in front of camera (z = -8)
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
+    return data.map((_, i) => [(i - mid) * spacing, 1.5, -8]);
   }, [data, spacing]);
 
+  // Toggle selection
   const handleBoxClick = (i) => {
     setSelectedBox((prev) => (prev === i ? null : i));
   };
 
+  // Pseudo code generator
   const generateCode = (index, value) => {
     return [
       "📘 Pseudo Code Example:",
@@ -32,33 +34,30 @@ const VisualPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   };
 
   return (
-    <div className="w-full h-[500px] relative">
+    <div className="w-full h-[300px]">
+      {/* <ARButton />  // uncomment to test AR later */}
       <Canvas
-        camera={{ position: [0, 4, 12], fov: 50 }}
-        onCreated={({ gl }) => {
-          gl.xr.enabled = true;
-          document.body.appendChild(
-            ARButton.createButton(gl, { requiredFeatures: ["hit-test"] })
-          );
-        }}
+        camera={{ position: [0, 1.5, 0], fov: 50 }}
+        gl={{ antialias: true, xrCompatible: true }}
       >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 10, 5]} intensity={0.8} />
+        {/* <XR>  // wrap 3D scene for AR later */}
 
-        {/* Camera follower for AR mode */}
-        {isAR && <ARAnchorGroup />}
+        {/* Lights */}
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[2, 5, 3]} intensity={0.8} />
 
-        {/* Header text */}
+        {/* Header */}
         <FadeText
           text="Array Access Operation (O(1))"
-          position={[0, 4, 0]}
+          position={[0, 3, -8]}
           fontSize={0.6}
           color="#facc15"
         />
 
+        {/* Instruction */}
         <FadeText
           text="Click a box to view its value and pseudo code"
-          position={[0, 3.2, 0]}
+          position={[0, 2.2, -8]}
           fontSize={0.35}
           color="white"
         />
@@ -75,51 +74,20 @@ const VisualPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
           />
         ))}
 
+        {/* Code panel */}
         {selectedBox !== null && (
           <CodePanel
             code={generateCode(selectedBox, data[selectedBox])}
-            position={[8, 1, 0]}
+            position={[4, 1.5, -8]}
           />
         )}
 
-        {/* Works in both 3D and AR */}
-        {!isAR && <OrbitControls makeDefault />}
+        <OrbitControls makeDefault />
+        {/* </XR> */}
       </Canvas>
-
-      {/* Toggle Button */}
-      <button
-        className="absolute bottom-2 left-2 bg-yellow-400 px-3 py-1 rounded-lg"
-        onClick={() => setIsAR(!isAR)}
-      >
-        {isAR ? "Exit AR" : "Enter AR"}
-      </button>
     </div>
   );
 };
-
-function ARAnchorGroup() {
-  const { camera } = useThree();
-  const group = useRef();
-
-  // Position object in front of camera (z = -8)
-  useEffect(() => {
-    if (group.current) {
-      group.current.position.set(0, 0, -8);
-      camera.add(group.current);
-    }
-    return () => {
-      if (group.current) camera.remove(group.current);
-    };
-  }, [camera]);
-
-  return (
-    <group ref={group}>
-      <Text position={[0, 0, 0]} fontSize={0.4} color="#22d3ee">
-        👋 AR Mode Active
-      </Text>
-    </group>
-  );
-}
 
 // === Box ===
 const Box = ({ index, value, position, selected, onClick }) => {
@@ -142,6 +110,7 @@ const Box = ({ index, value, position, selected, onClick }) => {
         />
       </mesh>
 
+      {/* Value (top) */}
       <Text
         position={[0, size[1] / 2 + 0.1, size[2] / 2 + 0.01]}
         fontSize={0.4}
@@ -152,6 +121,7 @@ const Box = ({ index, value, position, selected, onClick }) => {
         {String(value)}
       </Text>
 
+      {/* Index (inside the box, below value) */}
       <Text
         position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.02]}
         fontSize={0.25}
@@ -162,6 +132,7 @@ const Box = ({ index, value, position, selected, onClick }) => {
         [{index}]
       </Text>
 
+      {/* Floating label when selected */}
       {selected && (
         <Text
           position={[0, size[1] + 0.8, 0]}
@@ -184,11 +155,11 @@ const CodePanel = ({ code, position }) => (
   </group>
 );
 
-// === FadeText ===
+// === Fade-in Text ===
 const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
   const [opacity, setOpacity] = useState(0);
 
-  useEffect(() => {
+  React.useEffect(() => {
     let frame;
     let start;
     const duration = 1000;
