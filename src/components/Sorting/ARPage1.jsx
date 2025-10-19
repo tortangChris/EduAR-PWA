@@ -201,6 +201,7 @@ const AnimatedBoxAR = forwardRef(
   ({ value, height, position, sorted, onClick, index }, ref) => {
     const groupRef = useRef();
     const meshRef = useRef();
+    const textRef = useRef();
 
     const targetY = height / 2;
     const targetColor = sorted
@@ -214,13 +215,20 @@ const AnimatedBoxAR = forwardRef(
     }, [index]);
 
     useFrame(() => {
-      if (!meshRef.current) return;
+      if (!meshRef.current || !textRef.current) return;
 
+      // Smooth position animation
       meshRef.current.position.x +=
         (position[0] - meshRef.current.position.x) * 0.1;
       meshRef.current.position.y +=
         (targetY - meshRef.current.position.y) * 0.1;
 
+      // Keep label slightly above box top
+      const labelY = meshRef.current.position.y + height / 2 + 0.3;
+      textRef.current.position.x = meshRef.current.position.x;
+      textRef.current.position.y += (labelY - textRef.current.position.y) * 0.1;
+
+      // Smooth color transition
       meshRef.current.material.color.lerp(targetColor, 0.1);
     });
 
@@ -242,8 +250,9 @@ const AnimatedBoxAR = forwardRef(
           />
         </mesh>
 
-        {/* Value label */}
+        {/* Value label (always aligned) */}
         <Text
+          ref={textRef}
           position={[0, height + 0.3, 0]}
           fontSize={0.35}
           color="white"
