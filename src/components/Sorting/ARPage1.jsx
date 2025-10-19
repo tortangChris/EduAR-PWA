@@ -17,7 +17,7 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
   // === Compute normalized heights ===
   const heights = useMemo(() => {
     const maxVal = Math.max(...boxes);
-    return boxes.map((v) => (v / maxVal) * 2 + 0.5); // scale to 0.5–2.5 range
+    return boxes.map((v) => (v / maxVal) * 2 + 0.5);
   }, [boxes]);
 
   // === Compute X positions ===
@@ -59,18 +59,15 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
         camera={{ position: [0, 5, 13], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
-
           if (navigator.xr) {
             try {
               const arButton = ARButton.createButton(gl, {
                 requiredFeatures: ["hit-test"],
               });
-
               arButton.style.position = "absolute";
               arButton.style.top = "8px";
               arButton.style.left = "8px";
               arButton.style.zIndex = 999;
-
               document.body.appendChild(arButton);
             } catch (e) {
               console.warn("ARButton create failed", e);
@@ -78,11 +75,11 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
           }
         }}
       >
-        {/* Lights */}
+        {/* === Lights === */}
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 10, 5]} intensity={1} />
 
-        {/* Root group — visible in AR space */}
+        {/* === Root Group (AR visible) === */}
         <group position={[0, 0, -8]}>
           {/* Header */}
           <FadeText
@@ -157,7 +154,6 @@ const ARInteractionManager = ({
       const onSelect = () => {
         const xrCamera = gl.xr.getCamera();
         const raycaster = new THREE.Raycaster();
-
         const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
         const dir = new THREE.Vector3(0, 0, -1)
           .applyQuaternion(cam.quaternion)
@@ -170,17 +166,13 @@ const ARInteractionManager = ({
           .flat();
 
         const intersects = raycaster.intersectObjects(candidates, true);
-
         if (intersects && intersects.length > 0) {
           let hit = intersects[0].object;
           while (hit && hit.userData?.boxIndex === undefined && hit.parent) {
             hit = hit.parent;
           }
-
           const idx = hit?.userData?.boxIndex;
-          if (idx !== undefined && idx !== null) {
-            onToggleSort();
-          }
+          if (idx !== undefined && idx !== null) onToggleSort();
         }
       };
 
@@ -201,7 +193,7 @@ const AnimatedBoxAR = forwardRef(
   ({ value, height, position, sorted, onClick, index }, ref) => {
     const groupRef = useRef();
     const meshRef = useRef();
-    const textRef = useRef();
+    const labelRef = useRef();
 
     const targetY = height / 2;
     const targetColor = sorted
@@ -215,33 +207,39 @@ const AnimatedBoxAR = forwardRef(
     }, [index]);
 
     useFrame(() => {
-      if (!meshRef.current || !textRef.current) return;
+      if (!groupRef.current || !meshRef.current) return;
 
-      // Smooth position animation
+      // Smoothly animate box position
       meshRef.current.position.x +=
         (position[0] - meshRef.current.position.x) * 0.1;
       meshRef.current.position.y +=
         (targetY - meshRef.current.position.y) * 0.1;
 
-      // Keep label slightly above box top
-      const labelY = meshRef.current.position.y + height / 2 + 0.3;
-      textRef.current.position.x = meshRef.current.position.x;
-      textRef.current.position.y += (labelY - textRef.current.position.y) * 0.1;
+      // Keep label centered above the box (locked position)
+      const labelY = meshRef.current.position.y + height / 2 + 0.35;
+      labelRef.current.position.set(
+        meshRef.current.position.x,
+        labelY,
+        meshRef.current.position.z
+      );
 
-      // Smooth color transition
+      // Smooth color blending
       meshRef.current.material.color.lerp(targetColor, 0.1);
     });
 
     return (
       <group
-        position={position}
         ref={(g) => {
           groupRef.current = g;
           if (typeof ref === "function") ref(g);
           else if (ref) ref.current = g;
         }}
       >
-        <mesh ref={meshRef} onClick={onClick} position={[0, height / 2, 0]}>
+        <mesh
+          ref={meshRef}
+          onClick={onClick}
+          position={[position[0], height / 2, 0]}
+        >
           <boxGeometry args={[1.6, height, 1]} />
           <meshStandardMaterial
             color={sorted ? "#34d399" : "#60a5fa"}
@@ -250,10 +248,9 @@ const AnimatedBoxAR = forwardRef(
           />
         </mesh>
 
-        {/* Value label (always aligned) */}
+        {/* Label (aligned perfectly with the box) */}
         <Text
-          ref={textRef}
-          position={[0, height + 0.3, 0]}
+          ref={labelRef}
           fontSize={0.35}
           color="white"
           anchorX="center"
@@ -262,8 +259,8 @@ const AnimatedBoxAR = forwardRef(
           {String(value)}
         </Text>
 
-        {/* Invisible plane for easier AR tapping */}
-        <mesh onClick={onClick} position={[0, height / 2, 0.55]}>
+        {/* Invisible tap plane */}
+        <mesh onClick={onClick} position={[position[0], height / 2, 0.55]}>
           <planeGeometry args={[1.6, height + 0.8]} />
           <meshBasicMaterial transparent opacity={0} />
         </mesh>
@@ -280,23 +277,19 @@ const CodePanel = ({ code, position }) => (
 // === Fade Text ===
 const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
   const [opacity, setOpacity] = useState(0);
-
   useEffect(() => {
     let frame;
     let start;
     const duration = 1000;
-
     const animate = (ts) => {
       if (!start) start = ts;
       const progress = Math.min((ts - start) / duration, 1);
       setOpacity(progress);
       if (progress < 1) frame = requestAnimationFrame(animate);
     };
-
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
   }, []);
-
   return (
     <Text
       position={position}
