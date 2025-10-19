@@ -34,18 +34,20 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
 
   const handleBoxClick = (i) => {
     setSelectedBox((prev) => (prev === i ? null : i));
+    setShowPanel(true);
+    setPage(0);
   };
 
   return (
     <div className="w-full h-[300px]">
       <Canvas
         camera={{ position: [0, 4, 25], fov: 50 }}
-        onCreated={({ gl, scene, camera }) => {
+        onCreated={({ gl }) => {
           gl.xr.enabled = true;
           if (navigator.xr) {
             try {
               const arButton = ARButton.createButton(gl, {
-                requiredFeatures: ["hit-test", "anchors"],
+                requiredFeatures: ["hit-test"],
               });
               arButton.style.position = "absolute";
               arButton.style.top = "8px";
@@ -61,7 +63,6 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* 👇 Group moved for AR visibility */}
         <group position={[0, 0, -8]}>
           <FadeInText
             show={true}
@@ -73,7 +74,6 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
 
           <ArrayBackground data={data} spacing={spacing} />
 
-          {/* Boxes */}
           {data.map((value, i) => (
             <Box
               key={i}
@@ -87,7 +87,6 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
             />
           ))}
 
-          {/* Info Panel */}
           {showPanel && selectedBox !== null && (
             <DefinitionPanel
               page={page}
@@ -111,36 +110,17 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
 
 // --- AR Interaction Manager ---
 const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
-  const { gl, scene } = useThree();
+  const { gl } = useThree();
   const xrRef = gl.xr;
-  const spawnedObjectRef = useRef(null);
-
-  useEffect(() => {
-    const geo = new THREE.SphereGeometry(0.08, 16, 16);
-    const mat = new THREE.MeshStandardMaterial({
-      color: "#ff7f50",
-      emissive: "#ff7f50",
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.visible = false;
-    mesh.name = "ar-anchor-visual";
-    scene.add(mesh);
-    spawnedObjectRef.current = mesh;
-
-    return () => {
-      scene.remove(mesh);
-      geo.dispose();
-      mat.dispose();
-    };
-  }, [scene]);
 
   useEffect(() => {
     if (!navigator.xr) return;
+
     const onSessionStart = () => {
       const session = xrRef.getSession();
       if (!session) return;
 
-      const onSelect = (event) => {
+      const onSelect = () => {
         const xrCamera = gl.xr.getCamera();
         const raycaster = new THREE.Raycaster();
         const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
@@ -150,7 +130,7 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
         const origin = cam.getWorldPosition(new THREE.Vector3());
         raycaster.set(origin, dir);
 
-        // ✅ Include all children (texts + meshes)
+        // include all children (meshes + text)
         const candidates = (boxRefs.current || [])
           .map((group) => (group ? group.children : []))
           .flat();
@@ -164,25 +144,15 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
           }
           const idx = hit && hit.userData ? hit.userData.boxIndex : null;
           if (idx !== null && idx !== undefined) {
-            setSelectedBox((prev) => (prev === idx ? null : idx));
-            return;
+            setSelectedBox(idx);
           }
-        }
-
-        const distance = 1.0;
-        const placementPos = origin.clone().add(dir.multiplyScalar(distance));
-        if (spawnedObjectRef.current) {
-          spawnedObjectRef.current.position.copy(placementPos);
-          spawnedObjectRef.current.visible = true;
-          spawnedObjectRef.current.lookAt(origin);
         }
       };
 
       session.addEventListener("select", onSelect);
-      const onEnd = () => {
+      session.addEventListener("end", () => {
         session.removeEventListener("select", onSelect);
-      };
-      session.addEventListener("end", onEnd);
+      });
     };
 
     gl.xr.addEventListener("sessionstart", onSessionStart);
@@ -279,6 +249,7 @@ const Box = forwardRef(
           else if (ref) ref.current = g;
         }}
       >
+        {/* main box */}
         <mesh
           castShadow
           receiveShadow
@@ -293,6 +264,7 @@ const Box = forwardRef(
           />
         </mesh>
 
+        {/* value text */}
         <FadeInText
           show={true}
           text={String(value)}
@@ -301,7 +273,7 @@ const Box = forwardRef(
           color="white"
         />
 
-        {/* ✅ Transparent mesh wrapper to make index clickable in AR */}
+        {/* transparent clickable plane for index */}
         <mesh onClick={onIndexClick} position={[0, -0.3, size[2] / 2 + 0.01]}>
           <planeGeometry args={[0.8, 0.4]} />
           <meshBasicMaterial transparent opacity={0} />
@@ -341,13 +313,13 @@ const DefinitionPanel = ({ page, data, index, position, onNextClick }) => {
       `📘 Index ${index}`,
       "",
       `• Value: ${data[index]}`,
-      `• Position starts from 0.`,
+      `• Index starts from 0.`,
     ].join("\n");
   } else if (page === 1) {
     content = [
       "📗 Array Access:",
       "",
-      `• Access time: O(1)`,
+      "• Access time: O(1)",
       "• Direct access via index.",
     ].join("\n");
   } else if (page === 2) {
