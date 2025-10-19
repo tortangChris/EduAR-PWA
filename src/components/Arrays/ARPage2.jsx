@@ -60,22 +60,22 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* Header and instruction */}
-        <FadeText
-          text="Array Access Operation (O(1))"
-          position={[0, 4, -2]}
-          fontSize={0.6}
-          color="#facc15"
-        />
-        <FadeText
-          text="Tap a box to view its value and pseudo code"
-          position={[0, 3.2, -2]}
-          fontSize={0.35}
-          color="white"
-        />
-
         {/* Boxes */}
         <group position={[0, 0, -8]}>
+          {/* Header and instruction */}
+          <FadeText
+            text="Array Access Operation (O(1))"
+            position={[0, 4, -2]}
+            fontSize={0.6}
+            color="#facc15"
+          />
+          <FadeText
+            text="Tap a box to view its value and pseudo code"
+            position={[0, 3.2, -2]}
+            fontSize={0.35}
+            color="white"
+          />
+
           {data.map((value, i) => (
             <Box
               key={i}
