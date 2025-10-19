@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Text, ARButton, XR, Interactive } from "@react-three/drei";
+import { Text, ARButton } from "@react-three/drei";
 import * as THREE from "three";
 import useSound from "use-sound";
-import dingSfx from "/sounds/ding.mp3"; // Ensure file exists in /public/sounds/
+import dingSfx from "/sounds/ding.mp3"; // keep this in /public/sounds/
 
-const ARPage3 = ({ data = [5, 10, 15, 20, 25], spacing = 0.45 }) => {
+const ARPage3 = ({ data = [5, 10, 15, 20, 25], spacing = 0.6 }) => {
   const [searching, setSearching] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(null);
   const [foundIndex, setFoundIndex] = useState(null);
@@ -15,13 +15,11 @@ const ARPage3 = ({ data = [5, 10, 15, 20, 25], spacing = 0.45 }) => {
   const [pseudoCode, setPseudoCode] = useState([]);
   const [play] = useSound(dingSfx, { volume: 0.5 });
 
-  // 🔹 Positions in AR (closer and smaller scale)
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, -1.5]); // forward 1.5m
+    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  // 🔹 Linear Search animation
   const handleClick = (index) => {
     if (searching) return;
     setSearching(true);
@@ -82,76 +80,96 @@ const ARPage3 = ({ data = [5, 10, 15, 20, 25], spacing = 0.45 }) => {
   };
 
   return (
-    <div className="w-full h-[300px]">
+    <div className="w-full h-[100vh] bg-black">
+      {/* 🔹 AR START BUTTON */}
       <ARButton />
-      <Canvas camera={{ position: [0, 1.6, 0] }}>
-        <XR>
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[2, 3, 2]} intensity={1.2} />
 
-          {/* 🔹 Title floating above */}
+      <Canvas
+        camera={{ position: [0, 1.6, 0], fov: 70 }}
+        onCreated={({ gl }) => {
+          gl.xr.enabled = true;
+        }}
+      >
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[3, 5, 2]} intensity={0.8} />
+
+        {/* 🔹 GROUP all 3D objects at z = -8 */}
+        <group position={[0, 1, -8]}>
+          {/* Title */}
           <FadeInText
             show={true}
-            text="🔍 Linear Search (AR Mode)"
-            position={[0, 0.6, -1.5]}
-            fontSize={0.12}
+            text="Linear Search (AR Mode)"
+            position={[0, 2, 0]}
+            fontSize={0.25}
             color="white"
           />
 
-          {/* 🔹 Status Text */}
+          {/* Status label */}
           <FadeInText
             show={!!statusText}
             text={statusText}
-            position={[0, 0.4, -1.5]}
-            fontSize={0.09}
+            position={[0, 1.6, 0]}
+            fontSize={0.18}
             color="#ffd166"
           />
 
-          {/* 🔹 Info Text */}
-          <FadeInText
-            show={!!infoText}
-            text={infoText}
-            position={[0, 0.25, -1.5]}
-            fontSize={0.09}
-            color="#9be7a2"
-          />
-
-          {/* 🔹 Boxes in AR */}
+          {/* Boxes */}
           {data.map((value, i) => (
-            <Interactive key={i} onSelect={() => handleClick(i)}>
-              <Box
-                index={i}
-                value={value}
-                position={positions[i]}
-                highlight={highlightIndex === i}
-                found={foundIndex === i}
-              />
-            </Interactive>
+            <Box
+              key={i}
+              index={i}
+              value={value}
+              position={positions[i]}
+              highlight={highlightIndex === i}
+              found={foundIndex === i}
+              disabled={searching}
+              onClick={() => handleClick(i)}
+            />
           ))}
 
-          {/* 🔹 Pseudo code below */}
-          {showCode &&
-            pseudoCode.map((line, i) => (
+          {/* Info text & pseudo code */}
+          {showCode && (
+            <>
               <FadeInText
-                key={i}
                 show={true}
-                text={line}
-                position={[-0.5, -0.1 - i * 0.08, -1.5]}
-                fontSize={0.07}
-                color={line.startsWith("//") ? "#9be7a2" : "#ffeb99"}
+                text={infoText}
+                position={[3.2, 1.5, 0]}
+                fontSize={0.2}
+                color="#9be7a2"
                 anchorX="left"
               />
-            ))}
-        </XR>
+
+              {pseudoCode.map((line, i) => (
+                <FadeInText
+                  key={i}
+                  show={true}
+                  text={line}
+                  position={[3.3, 1.2 - i * 0.25, 0]}
+                  fontSize={0.18}
+                  color={line.startsWith("//") ? "#9be7a2" : "#ffeb99"}
+                  anchorX="left"
+                />
+              ))}
+            </>
+          )}
+        </group>
       </Canvas>
     </div>
   );
 };
 
-/* ---------- Box Component (for AR) ---------- */
-const Box = ({ index, value, position, highlight, found }) => {
+/* ---------- Box Component ---------- */
+const Box = ({
+  index,
+  value,
+  position = [0, 0, 0],
+  highlight,
+  found,
+  disabled,
+  onClick,
+}) => {
   const meshRef = useRef();
-  const size = [0.15, 0.1, 0.1];
+  const size = [0.8, 0.6, 0.5];
 
   useFrame(() => {
     if (!meshRef.current) return;
@@ -162,59 +180,72 @@ const Box = ({ index, value, position, highlight, found }) => {
       : highlight
       ? new THREE.Color("#f87171")
       : baseColor;
-    mat.color.lerp(targetColor, 0.15);
+    const targetEmissive = highlight || found ? 0.9 : 0;
+    mat.color.lerp(targetColor, 0.12);
+    mat.emissive = mat.emissive || new THREE.Color(0x000000);
+    mat.emissive.lerp(targetColor, 0.12);
+    mat.emissiveIntensity = THREE.MathUtils.lerp(
+      mat.emissiveIntensity || 0,
+      targetEmissive,
+      0.12
+    );
   });
 
   return (
-    <group position={position}>
+    <group
+      position={position}
+      onClick={!disabled ? onClick : undefined}
+      style={{ cursor: disabled ? "default" : "pointer" }}
+    >
       <mesh ref={meshRef}>
         <boxGeometry args={size} />
-        <meshStandardMaterial color={"#60a5fa"} />
+        <meshStandardMaterial color={"#60a5fa"} emissive={"#000"} />
       </mesh>
 
       {/* Value */}
       <Text
-        position={[0, 0.08, 0.06]}
-        fontSize={0.06}
+        position={[0, 0.5, 0]}
+        fontSize={0.25}
         anchorX="center"
         anchorY="middle"
-        color="white"
       >
         {String(value)}
       </Text>
 
       {/* Index */}
-      <Text
-        position={[0, -0.05, 0.06]}
-        fontSize={0.05}
-        color="#e0e0e0"
-        anchorX="center"
-        anchorY="middle"
-      >
+      <Text position={[0, -0.35, 0]} fontSize={0.2} color="#e0e0e0">
         [{index}]
       </Text>
     </group>
   );
 };
 
-/* ---------- Fade-in Text Component ---------- */
+/* ---------- Fade-in Text ---------- */
 const FadeInText = ({
   show = false,
   text = "",
   position = [0, 0, 0],
-  fontSize = 0.08,
+  fontSize = 0.2,
   color = "white",
   anchorX = "center",
 }) => {
   const ref = useRef();
   const opacity = useRef(0);
+  const scale = useRef(0.85);
 
   useFrame(() => {
-    if (!ref.current || !ref.current.material) return;
-    if (show) opacity.current = Math.min(opacity.current + 0.05, 1);
-    else opacity.current = Math.max(opacity.current - 0.06, 0);
-    ref.current.material.transparent = true;
-    ref.current.material.opacity = opacity.current;
+    if (show) {
+      opacity.current = Math.min(opacity.current + 0.05, 1);
+      scale.current = Math.min(scale.current + 0.03, 1);
+    } else {
+      opacity.current = Math.max(opacity.current - 0.06, 0);
+      scale.current = Math.max(scale.current - 0.04, 0.85);
+    }
+    if (ref.current && ref.current.material) {
+      ref.current.material.transparent = true;
+      ref.current.material.opacity = opacity.current;
+      ref.current.scale.set(scale.current, scale.current, scale.current);
+    }
   });
 
   return (
