@@ -2,18 +2,19 @@ import React, { useState, useMemo, useEffect, useRef, forwardRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
+import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
 const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
   const [sorted, setSorted] = useState(false);
   const [boxes, setBoxes] = useState(data);
   const boxGroupRefs = useRef([]);
 
-  // === Helper: Store unique refs for each box ===
+  // === Helper to keep unique refs ===
   const addBoxGroupRef = (r) => {
     if (r && !boxGroupRefs.current.includes(r)) boxGroupRefs.current.push(r);
   };
 
-  // === Compute normalized heights (so large values aren’t too tall) ===
+  // === Compute normalized heights ===
   const heights = useMemo(() => {
     const maxVal = Math.max(...boxes);
     return boxes.map((v) => (v / maxVal) * 2 + 0.5); // scale to 0.5–2.5 range
@@ -37,7 +38,7 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
     }
   };
 
-  // === Generate pseudo code (display when sorted) ===
+  // === Pseudo Code ===
   const generateCode = () => {
     return [
       "📘 Pseudo Code Example:",
@@ -54,12 +55,34 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
 
   return (
     <div className="w-full h-[300px]">
-      <Canvas camera={{ position: [0, 5, 13], fov: 50 }}>
+      <Canvas
+        camera={{ position: [0, 5, 13], fov: 50 }}
+        onCreated={({ gl }) => {
+          gl.xr.enabled = true;
+
+          if (navigator.xr) {
+            try {
+              const arButton = ARButton.createButton(gl, {
+                requiredFeatures: ["hit-test"],
+              });
+
+              arButton.style.position = "absolute";
+              arButton.style.top = "8px";
+              arButton.style.left = "8px";
+              arButton.style.zIndex = 999;
+
+              document.body.appendChild(arButton);
+            } catch (e) {
+              console.warn("ARButton create failed", e);
+            }
+          }
+        }}
+      >
         {/* Lights */}
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 10, 5]} intensity={1} />
 
-        {/* Group of boxes (appears in AR space) */}
+        {/* Root group — visible in AR space */}
         <group position={[0, 0, -8]}>
           {/* Header */}
           <FadeText
@@ -74,7 +97,7 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
             text={
               sorted
                 ? "The array is now sorted in ascending order! (tap to reset)"
-                : "Tap any box to visualize sorting"
+                : "Enter AR and tap any box (or click) to visualize sorting"
             }
             position={[0, 3.8, 0]}
             fontSize={0.35}
@@ -99,9 +122,12 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
           {sorted && <CodePanel code={generateCode()} position={[8.8, 1, 0]} />}
         </group>
 
-        {/* AR Interaction Manager */}
+        {/* AR Tap Manager */}
         <ARInteractionManager
           boxGroupRefs={boxGroupRefs}
+          setSorted={setSorted}
+          setBoxes={setBoxes}
+          originalData={data}
           onToggleSort={handleSortClick}
         />
 
@@ -112,7 +138,13 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
 };
 
 // === AR Interaction Manager ===
-const ARInteractionManager = ({ boxGroupRefs, onToggleSort }) => {
+const ARInteractionManager = ({
+  boxGroupRefs,
+  setSorted,
+  setBoxes,
+  originalData,
+  onToggleSort,
+}) => {
   const { gl } = useThree();
 
   useEffect(() => {
@@ -125,6 +157,7 @@ const ARInteractionManager = ({ boxGroupRefs, onToggleSort }) => {
       const onSelect = () => {
         const xrCamera = gl.xr.getCamera();
         const raycaster = new THREE.Raycaster();
+
         const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
         const dir = new THREE.Vector3(0, 0, -1)
           .applyQuaternion(cam.quaternion)
@@ -143,8 +176,11 @@ const ARInteractionManager = ({ boxGroupRefs, onToggleSort }) => {
           while (hit && hit.userData?.boxIndex === undefined && hit.parent) {
             hit = hit.parent;
           }
+
           const idx = hit?.userData?.boxIndex;
-          if (idx !== undefined && idx !== null) onToggleSort();
+          if (idx !== undefined && idx !== null) {
+            onToggleSort();
+          }
         }
       };
 
@@ -165,25 +201,26 @@ const AnimatedBoxAR = forwardRef(
   ({ value, height, position, sorted, onClick, index }, ref) => {
     const groupRef = useRef();
     const meshRef = useRef();
+
     const targetY = height / 2;
     const targetColor = sorted
       ? new THREE.Color("#34d399")
       : new THREE.Color("#60a5fa");
 
     useEffect(() => {
-      if (groupRef.current) groupRef.current.userData = { boxIndex: index };
+      if (groupRef.current) {
+        groupRef.current.userData = { boxIndex: index };
+      }
     }, [index]);
 
     useFrame(() => {
       if (!meshRef.current) return;
 
-      // Smooth position animation
       meshRef.current.position.x +=
         (position[0] - meshRef.current.position.x) * 0.1;
       meshRef.current.position.y +=
         (targetY - meshRef.current.position.y) * 0.1;
 
-      // Smooth color transition
       meshRef.current.material.color.lerp(targetColor, 0.1);
     });
 
@@ -216,7 +253,7 @@ const AnimatedBoxAR = forwardRef(
           {String(value)}
         </Text>
 
-        {/* Invisible hit area for better AR tapping */}
+        {/* Invisible plane for easier AR tapping */}
         <mesh onClick={onClick} position={[0, height / 2, 0.55]}>
           <planeGeometry args={[1.6, height + 0.8]} />
           <meshBasicMaterial transparent opacity={0} />
