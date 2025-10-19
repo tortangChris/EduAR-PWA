@@ -1,272 +1,275 @@
-import React, { useState, useMemo, useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import React, { useMemo, useState, useRef, useEffect, forwardRef } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
-import { ARButton } from "three/examples/jsm/webxr/ARButton.js";
-import useSound from "use-sound";
-import dingSfx from "/sounds/ding.mp3"; // must exist in /public/sounds/
+import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
-const ARPage3 = ({ data = [5, 10, 15, 20, 25], spacing = 0.35 }) => {
-  const [searching, setSearching] = useState(false);
-  const [highlightIndex, setHighlightIndex] = useState(null);
-  const [foundIndex, setFoundIndex] = useState(null);
-  const [statusText, setStatusText] = useState("");
-  const [infoText, setInfoText] = useState("");
-  const [showCode, setShowCode] = useState(false);
-  const [pseudoCode, setPseudoCode] = useState([]);
-  const [play] = useSound(dingSfx, { volume: 0.5 });
+const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
+  const [selectedBox, setSelectedBox] = useState(null);
 
+  // Compute box positions
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, -1]);
+    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  const handleClick = (index) => {
-    if (searching) return;
-    setSearching(true);
-    setHighlightIndex(null);
-    setFoundIndex(null);
-    setStatusText("");
-    setInfoText("");
-    setShowCode(false);
-
-    let i = 0;
-    setStatusText("🔍 Starting linear search...");
-
-    const interval = setInterval(() => {
-      setHighlightIndex(i);
-      setStatusText(`Checking index ${i} → value ${data[i]}`);
-
-      if (i === index) {
-        clearInterval(interval);
-        setTimeout(() => {
-          setFoundIndex(i);
-          play();
-          setStatusText(`✅ Found value ${data[i]} at index ${i}`);
-          setInfoText(`Value ${data[i]} located after ${i + 1} comparisons`);
-          setPseudoCode([
-            "📘 Pseudo Code Example:",
-            "",
-            "for i = 0 to n-1:",
-            "   if array[i] == key:",
-            "       return i",
-            "",
-            `// Found at index ${i}`,
-          ]);
-          setShowCode(true);
-          setSearching(false);
-        }, 900);
-      } else {
-        i++;
-        if (i >= data.length) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setStatusText("❌ Value not found in array");
-            setInfoText("Search completed — no match found.");
-            setPseudoCode([
-              "📘 Pseudo Code Example:",
-              "",
-              "for i = 0 to n-1:",
-              "   if array[i] == key:",
-              "       return i",
-              "",
-              "return -1  // not found",
-            ]);
-            setShowCode(true);
-            setSearching(false);
-          }, 800);
-        }
-      }
-    }, 900);
+  // Box refs for AR raycasting
+  const boxRefs = useRef([]);
+  const addBoxRef = (r) => {
+    if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
   };
 
-  // Inject AR button into DOM
-  React.useEffect(() => {
-    const btn = ARButton.createButton(rendererRef.current);
-    document.body.appendChild(btn);
-  }, []);
-
-  const rendererRef = useRef();
+  // Pseudo code generator
+  const generateCode = (index, value) => {
+    return [
+      "📘 Pseudo Code Example:",
+      "",
+      "array = [10, 20, 30, 40, 50]",
+      `index = ${index}`,
+      "",
+      "value = array[index]",
+      "print('Accessed Value:', value)",
+      "",
+      `// Result: ${value}`,
+    ].join("\n");
+  };
 
   return (
-    <div className="w-full h-[500px]">
+    <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 1.5, 2], fov: 60 }}
+        camera={{ position: [0, 4, 12], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
-          rendererRef.current = gl;
+          if (navigator.xr) {
+            try {
+              const arButton = ARButton.createButton(gl, {
+                requiredFeatures: ["hit-test", "anchors"],
+              });
+              arButton.style.position = "absolute";
+              arButton.style.top = "8px";
+              arButton.style.left = "8px";
+              arButton.style.zIndex = 999;
+              document.body.appendChild(arButton);
+            } catch (e) {
+              console.warn("ARButton create failed", e);
+            }
+          }
         }}
       >
-        <ambientLight intensity={0.8} />
-        <directionalLight position={[2, 3, 1]} intensity={0.8} />
+        {/* Lights */}
+        <ambientLight intensity={0.4} />
+        <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* Floating title */}
-        <FadeInText
-          show={true}
-          text="Search Operation (Linear Search)"
-          position={[0, 0.8, -1.2]}
-          fontSize={0.08}
-          color="white"
-        />
-
-        {/* Status label */}
-        <FadeInText
-          show={!!statusText}
-          text={statusText}
-          position={[0, 0.6, -1.2]}
-          fontSize={0.07}
-          color="#ffd166"
-        />
-
-        {/* Boxes in AR space */}
-        {data.map((value, i) => (
-          <ARBox
-            key={i}
-            index={i}
-            value={value}
-            position={positions[i]}
-            highlight={highlightIndex === i}
-            found={foundIndex === i}
-            disabled={searching}
-            onClick={() => handleClick(i)}
+        {/* Boxes */}
+        <group position={[0, 0, -8]}>
+          {/* Header and instruction */}
+          <FadeText
+            text="Array Access Operation (O(1))"
+            position={[0, 4, -2]}
+            fontSize={0.6}
+            color="#facc15"
           />
-        ))}
+          <FadeText
+            text="Tap a box to view its value and pseudo code"
+            position={[0, 3.2, -2]}
+            fontSize={0.35}
+            color="white"
+          />
 
-        {/* Info + pseudo code floating beside */}
-        {showCode && (
-          <>
-            <FadeInText
-              show={true}
-              text={infoText}
-              position={[0.5, 0.3, -1.2]}
-              fontSize={0.065}
-              color="#9be7a2"
-              anchorX="left"
+          {data.map((value, i) => (
+            <Box
+              key={i}
+              index={i}
+              value={value}
+              position={positions[i]}
+              selected={selectedBox === i}
+              onClick={() => setSelectedBox((prev) => (prev === i ? null : i))}
+              ref={(r) => addBoxRef(r)}
             />
-            {pseudoCode.map((line, i) => (
-              <FadeInText
-                key={i}
-                show={true}
-                text={line}
-                position={[0.5, 0.15 - i * 0.08, -1.2]}
-                fontSize={0.06}
-                color={line.startsWith("//") ? "#9be7a2" : "#ffeb99"}
-                anchorX="left"
-              />
-            ))}
-          </>
-        )}
+          ))}
+
+          {/* Pseudo code panel */}
+          {selectedBox !== null && (
+            <CodePanel
+              code={generateCode(selectedBox, data[selectedBox])}
+              position={[8, 1, 0]}
+            />
+          )}
+        </group>
+
+        {/* AR interaction */}
+        <ARInteractionManager
+          boxRefs={boxRefs}
+          setSelectedBox={setSelectedBox}
+        />
       </Canvas>
     </div>
   );
 };
 
-/* ---------- Box (AR Touchable) ---------- */
-const ARBox = ({
-  index,
-  value,
-  position = [0, 0, 0],
-  highlight,
-  found,
-  disabled,
-  onClick,
-}) => {
-  const meshRef = useRef();
-  const size = [0.15, 0.12, 0.1];
+// === AR Interaction Manager ===
+const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
+  const { gl } = useThree();
+  const xrRef = gl.xr;
 
-  useFrame(() => {
-    if (!meshRef.current) return;
-    const mat = meshRef.current.material;
-    const baseColor = new THREE.Color(index % 2 === 0 ? "#60a5fa" : "#34d399");
-    const targetColor = found
-      ? new THREE.Color("#fbbf24")
-      : highlight
-      ? new THREE.Color("#f87171")
-      : baseColor;
-    const targetEmissive = highlight || found ? 0.9 : 0;
-    mat.color.lerp(targetColor, 0.15);
-    mat.emissive.lerp(targetColor, 0.15);
-    mat.emissiveIntensity = THREE.MathUtils.lerp(
-      mat.emissiveIntensity || 0,
-      targetEmissive,
-      0.15
-    );
-  });
+  useEffect(() => {
+    if (!navigator.xr) return;
+
+    const onSessionStart = () => {
+      const session = xrRef.getSession();
+      if (!session) return;
+
+      const onSelect = () => {
+        const xrCamera = gl.xr.getCamera();
+        const raycaster = new THREE.Raycaster();
+        const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
+        const dir = new THREE.Vector3(0, 0, -1)
+          .applyQuaternion(cam.quaternion)
+          .normalize();
+        const origin = cam.getWorldPosition(new THREE.Vector3());
+        raycaster.set(origin, dir);
+
+        const candidates = (boxRefs.current || [])
+          .map((group) => (group ? group.children : []))
+          .flat();
+
+        const intersects = raycaster.intersectObjects(candidates, true);
+
+        if (intersects && intersects.length > 0) {
+          let hit = intersects[0].object;
+          while (hit && !hit.userData?.boxIndex && hit.parent) {
+            hit = hit.parent;
+          }
+          const idx = hit?.userData?.boxIndex;
+          if (idx !== undefined && idx !== null) {
+            setSelectedBox((prev) => (prev === idx ? null : idx));
+          }
+        }
+      };
+
+      session.addEventListener("select", onSelect);
+      const onEnd = () => session.removeEventListener("select", onSelect);
+      session.addEventListener("end", onEnd);
+    };
+
+    gl.xr.addEventListener("sessionstart", onSessionStart);
+    return () => gl.xr.removeEventListener("sessionstart", onSessionStart);
+  }, [gl, xrRef, boxRefs, setSelectedBox]);
+
+  return null;
+};
+
+// === Box Component ===
+const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
+  const size = [1.6, 1.2, 1];
+  const color = selected ? "#f87171" : index % 2 === 0 ? "#60a5fa" : "#34d399";
+  const groupRef = useRef();
+
+  useEffect(() => {
+    if (groupRef.current) {
+      groupRef.current.userData = { boxIndex: index };
+    }
+  }, [index]);
 
   return (
     <group
       position={position}
-      onClick={!disabled ? onClick : undefined}
-      style={{ cursor: disabled ? "default" : "pointer" }}
+      ref={(g) => {
+        groupRef.current = g;
+        if (typeof ref === "function") ref(g);
+        else if (ref) ref.current = g;
+      }}
     >
-      <mesh ref={meshRef} position={[0, size[1] / 2, 0]}>
+      <mesh
+        castShadow
+        receiveShadow
+        position={[0, size[1] / 2, 0]}
+        onClick={onClick}
+      >
         <boxGeometry args={size} />
-        <meshStandardMaterial color={"#60a5fa"} emissive={"#000"} />
+        <meshStandardMaterial
+          color={color}
+          emissive={selected ? "#fbbf24" : "#000000"}
+          emissiveIntensity={selected ? 0.6 : 0}
+        />
       </mesh>
 
       <Text
-        position={[0, size[1] / 2 + 0.05, size[2] / 2 + 0.01]}
-        fontSize={0.08}
+        position={[0, size[1] / 2 + 0.1, size[2] / 2 + 0.01]}
+        fontSize={0.4}
+        color="white"
         anchorX="center"
         anchorY="middle"
-        color="white"
       >
         {String(value)}
       </Text>
 
       <Text
-        position={[0, size[1] / 2 - 0.05, size[2] / 2 + 0.01]}
-        fontSize={0.06}
+        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.02]}
+        fontSize={0.25}
+        color="#fde68a"
         anchorX="center"
         anchorY="middle"
-        color="#e0e0e0"
       >
         [{index}]
       </Text>
+
+      {selected && (
+        <Text
+          position={[0, size[1] + 0.8, 0]}
+          fontSize={0.32}
+          color="#fde68a"
+          anchorX="center"
+          anchorY="middle"
+        >
+          Value {value} at index {index}
+        </Text>
+      )}
     </group>
   );
-};
+});
 
-/* ---------- Fade-in Text ---------- */
-const FadeInText = ({
-  show = false,
-  text = "",
-  position = [0, 0, 0],
-  fontSize = 0.1,
-  color = "white",
-  anchorX = "center",
-}) => {
-  const ref = useRef();
-  const opacity = useRef(0);
-  const scale = useRef(0.85);
+// === Code Panel ===
+const CodePanel = ({ code, position }) => (
+  <group>
+    <FadeText text={code} position={position} fontSize={0.3} color="#c7d2fe" />
+  </group>
+);
 
-  useFrame(() => {
-    if (show) {
-      opacity.current = Math.min(opacity.current + 0.05, 1);
-      scale.current = Math.min(scale.current + 0.03, 1);
-    } else {
-      opacity.current = Math.max(opacity.current - 0.06, 0);
-      scale.current = Math.max(scale.current - 0.04, 0.85);
-    }
-    if (ref.current && ref.current.material) {
-      ref.current.material.transparent = true;
-      ref.current.material.opacity = opacity.current;
-      ref.current.scale.set(scale.current, scale.current, scale.current);
-    }
-  });
+// === Fade-in Text ===
+const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
+  const [opacity, setOpacity] = useState(0);
+
+  useEffect(() => {
+    let frame;
+    let start;
+    const duration = 1000;
+
+    const animate = (ts) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      setOpacity(progress);
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   return (
     <Text
-      ref={ref}
       position={position}
       fontSize={fontSize}
       color={color}
-      anchorX={anchorX}
+      anchorX="center"
       anchorY="middle"
+      fillOpacity={opacity}
+      maxWidth={10}
+      textAlign="left"
     >
       {text}
     </Text>
   );
 };
 
-export default ARPage3;
+export default ARPage2;
