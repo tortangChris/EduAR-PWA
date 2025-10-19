@@ -1,26 +1,24 @@
-// VisualPageAR.jsx
 import React, { useMemo, useState, useRef, useEffect, forwardRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
+import { ARButton } from "three/examples/jsm/webxr/ARButton.js";
 
-const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
+/**
+ * VisualPage1 - main component
+ */
+const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   const [showPanel, setShowPanel] = useState(false);
   const [page, setPage] = useState(0);
-  const [selectedBox, setSelectedBox] = useState(null); // for value click
+  const [selectedBox, setSelectedBox] = useState(null); // index of selected box
+
+  // refs for boxes so we can reposition them in AR
+  const boxRefs = useRef([]);
 
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
-
-  // refs to boxes for raycasting in AR
-  const boxRefs = useRef([]);
-  boxRefs.current = [];
-
-  const addBoxRef = (r) => {
-    if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
-  };
 
   const handleIndexClick = () => {
     setShowPanel((prev) => !prev);
@@ -40,15 +38,16 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   return (
     <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 4, 25], fov: 50 }}
+        camera={{ position: [0, 4, 12], fov: 50 }}
         onCreated={({ gl }) => {
-          // Enable WebXR support but remove ARButton preview/start UI
+          // enable XR on the WebGL renderer so ARButton can use it
           gl.xr.enabled = true;
         }}
       >
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
+        {/* Header */}
         <FadeInText
           show={true}
           text={"Array Data Structure"}
@@ -69,7 +68,7 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
             selected={selectedBox === i}
             onValueClick={() => handleBoxClick(i)}
             onIndexClick={handleIndexClick}
-            ref={(r) => addBoxRef(r)}
+            ref={(el) => (boxRefs.current[i] = el)}
           />
         ))}
 
@@ -83,104 +82,21 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
           />
         )}
 
-        <ARInteractionManager
-          boxRefs={boxRefs}
-          setSelectedBox={setSelectedBox}
-        />
-
         <OrbitControls makeDefault />
+
+        {/* AR controls component - handles ARButton and select events */}
+        <ARControls
+          boxRefs={boxRefs}
+          selectedBoxIndexRef={{ current: selectedBox }}
+          // default distance in meters to place object in front of camera
+          placeDistance={1.2}
+        />
       </Canvas>
     </div>
   );
 };
 
-// --- AR Interaction Manager ---
-const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
-  const { gl, scene } = useThree();
-  const xrRef = gl.xr;
-  const spawnedObjectRef = useRef(null);
-
-  useEffect(() => {
-    const geo = new THREE.SphereGeometry(0.08, 16, 16);
-    const mat = new THREE.MeshStandardMaterial({
-      color: "#ff7f50",
-      emissive: "#ff7f50",
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.visible = false;
-    mesh.name = "ar-anchor-visual";
-    scene.add(mesh);
-    spawnedObjectRef.current = mesh;
-
-    return () => {
-      scene.remove(mesh);
-      geo.dispose();
-      mat.dispose();
-    };
-  }, [scene]);
-
-  useEffect(() => {
-    if (!navigator.xr) return;
-    const onSessionStart = () => {
-      const session = xrRef.getSession();
-      if (!session) return;
-
-      const onSelect = () => {
-        const xrCamera = gl.xr.getCamera();
-        const raycaster = new THREE.Raycaster();
-        const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
-        const dir = new THREE.Vector3(0, 0, -1)
-          .applyQuaternion(cam.quaternion)
-          .normalize();
-        const origin = cam.getWorldPosition(new THREE.Vector3());
-        raycaster.set(origin, dir);
-
-        const candidates = (boxRefs.current || [])
-          .map((group) => (group ? group.children.filter((c) => c.isMesh) : []))
-          .flat();
-
-        const intersects = raycaster.intersectObjects(candidates, true);
-
-        if (intersects && intersects.length > 0) {
-          let hit = intersects[0].object;
-          while (hit && !hit.userData?.boxIndex && hit.parent) {
-            hit = hit.parent;
-          }
-          const idx = hit && hit.userData ? hit.userData.boxIndex : null;
-          if (idx !== null && idx !== undefined) {
-            setSelectedBox((prev) => (prev === idx ? null : idx));
-            return;
-          }
-        }
-
-        const distance = 1.0;
-        const placementPos = origin.clone().add(dir.multiplyScalar(distance));
-        if (spawnedObjectRef.current) {
-          spawnedObjectRef.current.position.copy(placementPos);
-          spawnedObjectRef.current.visible = true;
-          spawnedObjectRef.current.lookAt(origin);
-        }
-      };
-
-      session.addEventListener("select", onSelect);
-
-      const onEnd = () => {
-        session.removeEventListener("select", onSelect);
-      };
-      session.addEventListener("end", onEnd);
-    };
-
-    gl.xr.addEventListener("sessionstart", onSessionStart);
-
-    return () => {
-      gl.xr.removeEventListener("sessionstart", onSessionStart);
-    };
-  }, [gl, xrRef, boxRefs, setSelectedBox]);
-
-  return null;
-};
-
-// === Background ===
+// === ArrayBackground (kept minimal - you can expand) ===
 const ArrayBackground = ({ data, spacing }) => {
   const width = Math.max(6, (data.length - 1) * spacing + 3);
   const height = 2.4;
@@ -191,12 +107,12 @@ const ArrayBackground = ({ data, spacing }) => {
   const edgesGeo = useMemo(() => new THREE.EdgesGeometry(boxGeo), [boxGeo]);
 
   return (
-    <group position={[0, 0.9, -1]}>
-      <mesh geometry={boxGeo}>
-        <meshStandardMaterial color="#0f172a" />
+    <group position={[0, 0, -0.1]}>
+      <mesh geometry={boxGeo} position={[0, height / 2 - 0.2, 0]}>
+        <meshStandardMaterial color="#0b1221" />
       </mesh>
       <lineSegments geometry={edgesGeo}>
-        <lineBasicMaterial />
+        <lineBasicMaterial linewidth={1} />
       </lineSegments>
     </group>
   );
@@ -217,7 +133,9 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
       scale.current = 0.6;
     }
     if (ref.current && ref.current.material) {
-      ref.current.material.opacity = opacity.current;
+      // drei Text uses material internally; this is best-effort
+      if (ref.current.material.opacity !== undefined)
+        ref.current.material.opacity = opacity.current;
       ref.current.scale.set(scale.current, scale.current, scale.current);
     }
   });
@@ -239,7 +157,7 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
   );
 };
 
-// === Box ===
+// === Box (forwardRef so parent can move it) ===
 const Box = forwardRef(
   ({ index, value, position, selected, onValueClick, onIndexClick }, ref) => {
     const size = [1.6, 1.2, 1];
@@ -249,22 +167,8 @@ const Box = forwardRef(
       ? "#60a5fa"
       : "#34d399";
 
-    const groupRef = useRef();
-    useEffect(() => {
-      if (groupRef.current) {
-        groupRef.current.userData = { boxIndex: index };
-      }
-    }, [index]);
-
     return (
-      <group
-        position={position}
-        ref={(g) => {
-          groupRef.current = g;
-          if (typeof ref === "function") ref(g);
-          else if (ref) ref.current = g;
-        }}
-      >
+      <group position={position} ref={ref}>
         {/* Main Box */}
         <mesh
           castShadow
@@ -369,4 +273,83 @@ const DefinitionPanel = ({ page, data, position, onNextClick }) => {
   );
 };
 
-export default VisualPageAR;
+/**
+ * ARControls
+ * - Adds the three.js ARButton to the DOM
+ * - Listens for XR `select` event and places the currently-selected box
+ *   in front of the camera at a fixed distance.
+ *
+ * Props:
+ * - boxRefs: ref object that holds array of group refs for each Box
+ * - selectedBoxIndexRef: an object with { current } that contains the currently selected box index
+ * - placeDistance: distance in meters (default 1.2)
+ */
+const ARControls = ({ boxRefs, selectedBoxIndexRef, placeDistance = 1.2 }) => {
+  const { gl, camera } = useThree();
+
+  useEffect(() => {
+    if (!gl || !gl.domElement) return;
+
+    // create AR button and append to body
+    const arButton = ARButton.createButton(gl, {
+      requiredFeatures: ["hit-test"],
+    });
+    arButton.classList.add("my-ar-button");
+    document.body.appendChild(arButton);
+
+    // Helper: place a box index in front of camera
+    const placeBoxInFront = (index) => {
+      if (index == null) return;
+      const group = boxRefs.current[index];
+      if (!group) return;
+
+      // compute camera world position & forward direction
+      const camPos = new THREE.Vector3();
+      camera.getWorldPosition(camPos);
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+
+      // target = camPos + dir * distance
+      const target = camPos.add(dir.multiplyScalar(placeDistance));
+
+      group.position.set(target.x, target.y, target.z);
+    };
+
+    // When a session starts, add a 'select' listener
+    const onSessionStart = (session) => {
+      // add select listener to session inputs
+      session.addEventListener("select", (ev) => {
+        // place selected box in front of camera when user taps/selects in AR
+        const idx = selectedBoxIndexRef.current;
+        if (idx != null) {
+          placeBoxInFront(idx);
+        } else {
+          // Optional: if no box selected, put the first box in front
+          if (boxRefs.current && boxRefs.current.length > 0) {
+            placeBoxInFront(0);
+          }
+        }
+      });
+    };
+
+    // There is no uniform event to detect session start from ARButton, but three's renderer
+    // emits 'sessionstart' / 'sessionend' on gl.xr (in three r125+). We'll attach there if available.
+    const xr = gl.xr;
+    const onXRSessionStart = (ev) => onSessionStart(ev.session || ev);
+    xr.addEventListener &&
+      xr.addEventListener("sessionstart", onXRSessionStart);
+
+    // Cleanup
+    return () => {
+      try {
+        arButton.remove();
+      } catch (e) {}
+      xr.removeEventListener &&
+        xr.removeEventListener("sessionstart", onXRSessionStart);
+    };
+  }, [gl, camera, boxRefs, selectedBoxIndexRef, placeDistance]);
+
+  return null;
+};
+
+export default ARPage1;
