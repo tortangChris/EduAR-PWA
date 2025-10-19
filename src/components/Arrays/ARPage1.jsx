@@ -3,7 +3,6 @@ import React, { useMemo, useState, useRef, useEffect, forwardRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
-import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
 const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   const [showPanel, setShowPanel] = useState(false);
@@ -42,26 +41,9 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
     <div className="w-full h-[300px]">
       <Canvas
         camera={{ position: [0, 4, 25], fov: 50 }}
-        onCreated={({ gl, scene, camera }) => {
-          // enable xr on renderer
+        onCreated={({ gl }) => {
+          // Enable WebXR support but remove ARButton preview/start UI
           gl.xr.enabled = true;
-          // attach AR button
-          if (navigator.xr) {
-            try {
-              const arButton = ARButton.createButton(gl, {
-                requiredFeatures: ["hit-test", "anchors"],
-              });
-              // add near top-left, avoid overlap with header:
-              arButton.style.position = "absolute";
-              arButton.style.top = "8px";
-              arButton.style.left = "8px";
-              arButton.style.zIndex = 999;
-              document.body.appendChild(arButton);
-            } catch (e) {
-              // if ARButton not supported it will throw; ignore gracefully
-              console.warn("ARButton create failed", e);
-            }
-          }
         }}
       >
         <ambientLight intensity={0.4} />
@@ -113,14 +95,11 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
 };
 
 // --- AR Interaction Manager ---
-// Handles select events in XR session: raycast from camera center,
-// select box if hit, else place anchor object 1m in front of camera.
 const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
   const { gl, scene } = useThree();
   const xrRef = gl.xr;
-  const spawnedObjectRef = useRef(null); // a visual marker/anchored object we can move to front
+  const spawnedObjectRef = useRef(null);
 
-  // create a simple anchor visual (small sphere) so user sees where object is placed
   useEffect(() => {
     const geo = new THREE.SphereGeometry(0.08, 16, 16);
     const mat = new THREE.MeshStandardMaterial({
@@ -146,38 +125,24 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
       const session = xrRef.getSession();
       if (!session) return;
 
-      // listen to select events - fired on tap / controller click
-      const onSelect = (event) => {
-        // we'll raycast from center of camera to detect hits with boxRefs
-        // get XR camera
+      const onSelect = () => {
         const xrCamera = gl.xr.getCamera();
-
-        // create a ray from camera center (NDC 0,0)
         const raycaster = new THREE.Raycaster();
-        // For XR camera, use its children (left/right) - use the "camera" returned by r3f:
-        // easiest is to use xrCamera.cameras[0] (works for mono)
         const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
-        // direction vector (camera forward)
         const dir = new THREE.Vector3(0, 0, -1)
           .applyQuaternion(cam.quaternion)
           .normalize();
         const origin = cam.getWorldPosition(new THREE.Vector3());
         raycaster.set(origin, dir);
 
-        // collect candidate meshes from refs
         const candidates = (boxRefs.current || [])
-          .map((group) => {
-            // group might be a <group> containing meshes; find mesh children
-            return group ? group.children.filter((c) => c.isMesh) : [];
-          })
+          .map((group) => (group ? group.children.filter((c) => c.isMesh) : []))
           .flat();
 
         const intersects = raycaster.intersectObjects(candidates, true);
 
         if (intersects && intersects.length > 0) {
-          // find which box index was clicked (walk up parent until group with name/index)
           let hit = intersects[0].object;
-          // traverse upward to find the parent group that we attached as Box group
           while (hit && !hit.userData?.boxIndex && hit.parent) {
             hit = hit.parent;
           }
@@ -188,27 +153,23 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
           }
         }
 
-        // If no hit -> place anchor visual 1 meter in front of camera
-        const distance = 1.0; // 1 meter
+        const distance = 1.0;
         const placementPos = origin.clone().add(dir.multiplyScalar(distance));
         if (spawnedObjectRef.current) {
           spawnedObjectRef.current.position.copy(placementPos);
           spawnedObjectRef.current.visible = true;
-          // optionally orient to face camera
           spawnedObjectRef.current.lookAt(origin);
         }
       };
 
       session.addEventListener("select", onSelect);
 
-      // cleanup on end
       const onEnd = () => {
         session.removeEventListener("select", onSelect);
       };
       session.addEventListener("end", onEnd);
     };
 
-    // watch session start
     gl.xr.addEventListener("sessionstart", onSessionStart);
 
     return () => {
@@ -288,11 +249,9 @@ const Box = forwardRef(
       ? "#60a5fa"
       : "#34d399";
 
-    // groupRef for raycasting upward traversal
     const groupRef = useRef();
     useEffect(() => {
       if (groupRef.current) {
-        // store index so AR raycast can find which box was hit
         groupRef.current.userData = { boxIndex: index };
       }
     }, [index]);
