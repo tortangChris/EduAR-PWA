@@ -83,8 +83,8 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
         <group position={[0, 0, -8]}>
           {/* Header */}
           <FadeText
-            text="Introduction to Sorting Algorithms (AR)"
-            position={[0, 4.5, 0]}
+            text="Introduction to Sorting Algorithms"
+            position={[0, 4.6, 0]}
             fontSize={0.6}
             color="#facc15"
           />
@@ -96,7 +96,7 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
                 ? "The array is now sorted in ascending order! (tap again to reset)"
                 : "Enter AR and tap any box (or click) to visualize sorting"
             }
-            position={[0, 3.8, 0]}
+            position={[0, 3.6, 0]}
             fontSize={0.35}
             color="white"
           />
