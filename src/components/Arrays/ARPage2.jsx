@@ -1,22 +1,25 @@
 import React, { useMemo, useState, useRef, useEffect, forwardRef } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
 const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   const [selectedBox, setSelectedBox] = useState(null);
-  const boxRefs = useRef([]);
 
+  // Compute box positions
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  const handleClick = (i) => {
-    setSelectedBox((prev) => (prev === i ? null : i));
+  // Box refs for AR raycasting
+  const boxRefs = useRef([]);
+  const addBoxRef = (r) => {
+    if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
   };
 
+  // Pseudo code generator
   const generateCode = (index, value) => {
     return [
       "📘 Pseudo Code Example:",
@@ -34,7 +37,7 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   return (
     <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 4, 15], fov: 50 }}
+        camera={{ position: [0, 4, 12], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
           if (navigator.xr) {
@@ -48,28 +51,31 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
               arButton.style.zIndex = 999;
               document.body.appendChild(arButton);
             } catch (e) {
-              console.warn("ARButton creation failed", e);
+              console.warn("ARButton create failed", e);
             }
           }
         }}
       >
+        {/* Lights */}
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        <group position={[0, 0, -8]}>
-          <FadeText
-            text="Array Access Operation (O(1))"
-            position={[0, 4, 0]}
-            fontSize={0.6}
-            color="#facc15"
-          />
-          <FadeText
-            text="Tap a box to view its value and pseudo code"
-            position={[0, 3.2, 0]}
-            fontSize={0.35}
-            color="white"
-          />
+        {/* Header and instruction */}
+        <FadeText
+          text="Array Access Operation (O(1))"
+          position={[0, 4, -2]}
+          fontSize={0.6}
+          color="#facc15"
+        />
+        <FadeText
+          text="Tap a box to view its value and pseudo code"
+          position={[0, 3.2, -2]}
+          fontSize={0.35}
+          color="white"
+        />
 
+        {/* Boxes */}
+        <group position={[0, 0, -8]}>
           {data.map((value, i) => (
             <Box
               key={i}
@@ -77,11 +83,12 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
               value={value}
               position={positions[i]}
               selected={selectedBox === i}
-              onClick={() => handleClick(i)}
-              ref={(r) => (boxRefs.current[i] = r)}
+              onClick={() => setSelectedBox((prev) => (prev === i ? null : i))}
+              ref={(r) => addBoxRef(r)}
             />
           ))}
 
+          {/* Pseudo code panel */}
           {selectedBox !== null && (
             <CodePanel
               code={generateCode(selectedBox, data[selectedBox])}
@@ -90,6 +97,7 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
           )}
         </group>
 
+        {/* AR interaction */}
         <ARInteractionManager
           boxRefs={boxRefs}
           setSelectedBox={setSelectedBox}
@@ -102,12 +110,13 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
 // === AR Interaction Manager ===
 const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
   const { gl } = useThree();
+  const xrRef = gl.xr;
 
   useEffect(() => {
     if (!navigator.xr) return;
 
     const onSessionStart = () => {
-      const session = gl.xr.getSession();
+      const session = xrRef.getSession();
       if (!session) return;
 
       const onSelect = () => {
@@ -120,20 +129,20 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
         const origin = cam.getWorldPosition(new THREE.Vector3());
         raycaster.set(origin, dir);
 
-        const objects = boxRefs.current
-          .filter(Boolean)
-          .flatMap((g) => g.children || []);
+        const candidates = (boxRefs.current || [])
+          .map((group) => (group ? group.children : []))
+          .flat();
 
-        const intersects = raycaster.intersectObjects(objects, true);
-        if (intersects.length > 0) {
+        const intersects = raycaster.intersectObjects(candidates, true);
+
+        if (intersects && intersects.length > 0) {
           let hit = intersects[0].object;
           while (hit && !hit.userData?.boxIndex && hit.parent) {
             hit = hit.parent;
           }
-          if (hit.userData?.boxIndex !== undefined) {
-            setSelectedBox((prev) =>
-              prev === hit.userData.boxIndex ? null : hit.userData.boxIndex
-            );
+          const idx = hit?.userData?.boxIndex;
+          if (idx !== undefined && idx !== null) {
+            setSelectedBox((prev) => (prev === idx ? null : idx));
           }
         }
       };
@@ -145,12 +154,12 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
 
     gl.xr.addEventListener("sessionstart", onSessionStart);
     return () => gl.xr.removeEventListener("sessionstart", onSessionStart);
-  }, [gl, boxRefs, setSelectedBox]);
+  }, [gl, xrRef, boxRefs, setSelectedBox]);
 
   return null;
 };
 
-// === Box (with invisible collider mesh) ===
+// === Box Component ===
 const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
   const size = [1.6, 1.2, 1];
   const color = selected ? "#f87171" : index % 2 === 0 ? "#60a5fa" : "#34d399";
@@ -167,10 +176,10 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
       position={position}
       ref={(g) => {
         groupRef.current = g;
-        if (ref) ref.current = g;
+        if (typeof ref === "function") ref(g);
+        else if (ref) ref.current = g;
       }}
     >
-      {/* Main box */}
       <mesh
         castShadow
         receiveShadow
@@ -185,17 +194,6 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
         />
       </mesh>
 
-      {/* Clickable invisible box (for raycast) */}
-      <mesh
-        position={[0, size[1] / 2, 0]}
-        userData={{ boxIndex: index }}
-        onClick={onClick}
-      >
-        <boxGeometry args={size} />
-        <meshBasicMaterial transparent opacity={0} />
-      </mesh>
-
-      {/* Texts */}
       <Text
         position={[0, size[1] / 2 + 0.1, size[2] / 2 + 0.01]}
         fontSize={0.4}
@@ -205,6 +203,7 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
       >
         {String(value)}
       </Text>
+
       <Text
         position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.02]}
         fontSize={0.25}
@@ -230,12 +229,14 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
   );
 });
 
+// === Code Panel ===
 const CodePanel = ({ code, position }) => (
   <group>
     <FadeText text={code} position={position} fontSize={0.3} color="#c7d2fe" />
   </group>
 );
 
+// === Fade-in Text ===
 const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
   const [opacity, setOpacity] = useState(0);
 
@@ -243,12 +244,14 @@ const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
     let frame;
     let start;
     const duration = 1000;
+
     const animate = (ts) => {
       if (!start) start = ts;
       const progress = Math.min((ts - start) / duration, 1);
       setOpacity(progress);
       if (progress < 1) frame = requestAnimationFrame(animate);
     };
+
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
   }, []);
