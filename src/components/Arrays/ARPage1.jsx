@@ -61,7 +61,7 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
         {/* 👇 Moved group away from camera for AR visibility */}
-        <group position={[0, 0, -6]}>
+        <group position={[0, 0, -8]}>
           <FadeInText
             show={true}
             text={"Array Data Structure"}
