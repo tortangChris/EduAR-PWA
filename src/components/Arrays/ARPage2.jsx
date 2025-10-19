@@ -6,6 +6,7 @@ import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
 const VisualPage2AR = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   const [selectedBox, setSelectedBox] = useState(null);
+  const [anchors, setAnchors] = useState([]); // 🆕 store placed anchors
   const boxRefs = useRef([]);
 
   const positions = useMemo(() => {
@@ -95,9 +96,18 @@ const VisualPage2AR = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
           )}
         </group>
 
+        {/* 🆕 Render all placed anchors */}
+        {anchors.map((pos, i) => (
+          <mesh key={i} position={pos}>
+            <boxGeometry args={[0.2, 0.2, 0.2]} />
+            <meshStandardMaterial color="#fbbf24" />
+          </mesh>
+        ))}
+
         <ARInteractionManager
           boxRefs={boxRefs}
           setSelectedBox={setSelectedBox}
+          setAnchors={setAnchors} // 🆕 pass setter for anchors
         />
         <OrbitControls makeDefault />
       </Canvas>
@@ -106,7 +116,7 @@ const VisualPage2AR = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
 };
 
 // === AR Interaction Manager ===
-const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
+const ARInteractionManager = ({ boxRefs, setSelectedBox, setAnchors }) => {
   const { gl } = useThree();
 
   useEffect(() => {
@@ -116,8 +126,22 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
       const session = gl.xr.getSession();
       if (!session) return;
 
-      const onSelect = () => {
+      // 🆕 Hit test source for AR plane detection
+      let hitTestSource = null;
+      let viewerSpace = null;
+
+      session.requestReferenceSpace("viewer").then((refSpace) => {
+        viewerSpace = refSpace;
+        session.requestHitTestSource({ space: viewerSpace }).then((source) => {
+          hitTestSource = source;
+        });
+      });
+
+      const onSelect = (event) => {
+        const frame = event.frame;
         const xrCamera = gl.xr.getCamera();
+
+        // --- Raycast for 3D boxes ---
         const raycaster = new THREE.Raycaster();
         const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
         const dir = new THREE.Vector3(0, 0, -1)
@@ -140,7 +164,23 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
             setSelectedBox((prev) =>
               prev === hit.userData.boxIndex ? null : hit.userData.boxIndex
             );
+            return; // stop if a box was clicked
           }
+        }
+
+        // --- 🆕 If no box clicked, place anchor on AR surface ---
+        const refSpace = gl.xr.getReferenceSpace();
+        const hitTestResults = frame.getHitTestResults(hitTestSource);
+        if (hitTestResults.length > 0) {
+          const hitPose = hitTestResults[0].getPose(refSpace);
+          const pos = [
+            hitPose.transform.position.x,
+            hitPose.transform.position.y,
+            hitPose.transform.position.z,
+          ];
+
+          // add a marker cube to anchors list
+          setAnchors((prev) => [...prev, pos]);
         }
       };
 
@@ -151,7 +191,7 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
 
     gl.xr.addEventListener("sessionstart", onSessionStart);
     return () => gl.xr.removeEventListener("sessionstart", onSessionStart);
-  }, [gl, boxRefs, setSelectedBox]);
+  }, [gl, boxRefs, setSelectedBox, setAnchors]);
 
   return null;
 };
