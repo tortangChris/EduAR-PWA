@@ -1,28 +1,34 @@
-import React, { useState, useMemo, useRef, useEffect, forwardRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, forwardRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
+import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
-// AR-only page converted from VisualPage1 (3D) to run inside a WebXR AR session
-export default function ARPage3({ data = [35, 10, 25, 5, 15], spacing = 2 }) {
+// AR-ready version of VisualPage1
+const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
   const [sorted, setSorted] = useState(false);
   const [boxes, setBoxes] = useState(data);
-  const boxRefs = useRef([]);
+  const boxGroupRefs = useRef([]);
 
-  // prepare positions and heights similar to original
+  // helper to keep refs unique
+  const addBoxGroupRef = (r) => {
+    if (r && !boxGroupRefs.current.includes(r)) boxGroupRefs.current.push(r);
+  };
+
+  // Compute normalized heights (so even large numbers don't get too tall)
   const heights = useMemo(() => {
     const maxVal = Math.max(...boxes);
-    return boxes.map((v) => (v / maxVal) * 2 + 0.5); // 0.5 - 2.5
+    return boxes.map((v) => (v / maxVal) * 2 + 0.5); // scale to 0.5–2.5 range
   }, [boxes]);
 
+  // Compute X positions
   const positions = useMemo(() => {
     const mid = (boxes.length - 1) / 2;
     return boxes.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [boxes, spacing]);
 
-  // toggle sorted/reset state
-  const handleSortToggle = () => {
+  // Handle sorting click (toggle)
+  const handleSortClick = () => {
     if (!sorted) {
       const sortedData = [...boxes].sort((a, b) => a - b);
       setBoxes(sortedData);
@@ -33,188 +39,198 @@ export default function ARPage3({ data = [35, 10, 25, 5, 15], spacing = 2 }) {
     }
   };
 
-  const addBoxRef = (r) => {
-    if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
+  // Pseudo code (display when sorted)
+  const generateCode = () => {
+    return [
+      "📘 Pseudo Code Example:",
+      "",
+      "array = [35, 10, 25, 5, 15]",
+      "print('Before Sorting:', array)",
+      "",
+      "sort(array)   // Arrange values in ascending order",
+      "print('After Sorting:', array)",
+      "",
+      "// Result: [5, 10, 15, 25, 35]",
+    ].join("\n");
   };
 
   return (
-    <div className="w-full h-[100vh]">
+    <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 4, 6], fov: 50 }}
+        camera={{ position: [0, 5, 13], fov: 50 }}
         onCreated={({ gl }) => {
-          // enable XR and add ARButton to enter AR-only session
+          // enable WebXR
           gl.xr.enabled = true;
-          try {
-            const arButton = ARButton.createButton(gl, {
-              requiredFeatures: ["hit-test"],
-              optionalFeatures: ["dom-overlay"],
-              domOverlay: { root: document.body },
-            });
-            arButton.style.position = "absolute";
-            arButton.style.top = "12px";
-            arButton.style.left = "12px";
-            arButton.style.zIndex = 9999;
-            document.body.appendChild(arButton);
-          } catch (e) {
-            console.warn("ARButton creation failed", e);
+          if (navigator.xr) {
+            try {
+              const arButton = ARButton.createButton(gl, {
+                requiredFeatures: ["hit-test"],
+              });
+              arButton.style.position = "absolute";
+              arButton.style.top = "8px";
+              arButton.style.left = "8px";
+              arButton.style.zIndex = 999;
+              document.body.appendChild(arButton);
+            } catch (e) {
+              console.warn("ARButton create failed", e);
+            }
           }
         }}
       >
+        {/* Lights */}
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 10, 5]} intensity={1} />
 
-        {/* Group placed slightly in front of the user in AR */}
-        <group position={[0, 0, -1.8]}>
-          <FadeText
-            text="Introduction to Sorting Algorithms"
-            position={[0, 2.4, 0]}
-            fontSize={0.45}
-            color="#facc15"
-          />
+        {/* Header */}
+        <FadeText
+          text="Introduction to Sorting Algorithms (AR)"
+          position={[0, 4.5, 0]}
+          fontSize={0.6}
+          color="#facc15"
+        />
 
-          <FadeText
-            text={
-              sorted
-                ? "The array is now sorted in ascending order!"
-                : "Tap any box to visualize sorting"
-            }
-            position={[0, 1.9, 0]}
-            fontSize={0.28}
-            color="white"
-          />
+        {/* Instruction */}
+        <FadeText
+          text={
+            sorted
+              ? "The array is now sorted in ascending order! (tap to reset)"
+              : "Enter AR and tap any box (or click) to visualize sorting"
+          }
+          position={[0, 3.8, 0]}
+          fontSize={0.35}
+          color="white"
+        />
 
-          {/* Boxes */}
+        {/* Root group that holds boxes. In AR this will appear roughly in front of the camera. */}
+        <group position={[0, 0, -8]}>
           {boxes.map((value, i) => (
-            <ARBox
+            <AnimatedBoxAR
               key={i}
-              index={i}
               value={value}
               height={heights[i]}
               position={positions[i]}
               sorted={sorted}
-              onSelect={handleSortToggle}
-              ref={(r) => addBoxRef(r)}
+              onClick={handleSortClick}
+              ref={(r) => addBoxGroupRef(r)}
+              index={i}
             />
           ))}
 
-          {/* Code Panel shown when sorted */}
-          {sorted && (
-            <FadeText
-              text={generateCode(boxes)}
-              position={[0, -1.45, 0.1]}
-              fontSize={0.22}
-              color="#c7d2fe"
-            />
-          )}
+          {/* Show code panel when sorted */}
+          {sorted && <CodePanel code={generateCode()} position={[8.8, 1, 0]} />}
         </group>
 
-        {/* AR interaction manager listens for session select events and raycasts against boxes */}
+        {/* AR interaction manager: listens for XR "select" events and raycasts into scene */}
         <ARInteractionManager
-          boxRefs={boxRefs}
-          onAnyBoxSelected={handleSortToggle}
+          boxGroupRefs={boxGroupRefs}
+          setSorted={setSorted}
+          setBoxes={setBoxes}
+          originalData={data}
+          onToggleSort={handleSortClick}
         />
+
+        <OrbitControls makeDefault />
       </Canvas>
     </div>
   );
-}
+};
 
-// ---------- AR Interaction Manager ----------
-function ARInteractionManager({ boxRefs, onAnyBoxSelected }) {
+// === AR Interaction Manager ===
+const ARInteractionManager = ({
+  boxGroupRefs,
+  setSorted,
+  setBoxes,
+  originalData,
+  onToggleSort,
+}) => {
   const { gl } = useThree();
-  const xr = gl.xr;
 
   useEffect(() => {
     if (!navigator.xr) return;
 
     const onSessionStart = () => {
-      const session = xr.getSession();
+      const session = gl.xr.getSession();
       if (!session) return;
 
       const onSelect = () => {
-        try {
-          const xrCamera = gl.xr.getCamera();
-          const raycaster = new THREE.Raycaster();
+        const xrCamera = gl.xr.getCamera();
+        const raycaster = new THREE.Raycaster();
+        const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
+        const dir = new THREE.Vector3(0, 0, -1)
+          .applyQuaternion(cam.quaternion)
+          .normalize();
+        const origin = cam.getWorldPosition(new THREE.Vector3());
+        raycaster.set(origin, dir);
 
-          // use first subcamera if available (VR/AR stereo cameras)
-          const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
-          const dir = new THREE.Vector3(0, 0, -1)
-            .applyQuaternion(cam.quaternion)
-            .normalize();
-          const origin = cam.getWorldPosition(new THREE.Vector3());
-          raycaster.set(origin, dir);
+        const candidates = (boxGroupRefs.current || [])
+          .map((group) => (group ? group.children : []))
+          .flat();
 
-          const candidates = (boxRefs.current || [])
-            .map((g) => (g ? g.children : []))
-            .flat();
+        const intersects = raycaster.intersectObjects(candidates, true);
 
-          const intersects = raycaster.intersectObjects(candidates, true);
-          if (intersects && intersects.length > 0) {
-            let hit = intersects[0].object;
-            // climb up to parent that has userData.boxIndex
-            while (hit && hit.userData?.boxIndex === undefined && hit.parent) {
-              hit = hit.parent;
-            }
-            const idx = hit?.userData?.boxIndex;
-            if (idx !== undefined && idx !== null) {
-              // notify selection
-              onAnyBoxSelected(idx);
-            }
+        if (intersects && intersects.length > 0) {
+          let hit = intersects[0].object;
+          while (hit && hit.userData?.boxIndex === undefined && hit.parent) {
+            hit = hit.parent;
           }
-        } catch (err) {
-          console.warn("AR select handling error", err);
+          const idx = hit?.userData?.boxIndex;
+          if (idx !== undefined && idx !== null) {
+            // Toggle sort (same effect as clicking)
+            onToggleSort();
+          }
         }
       };
 
       session.addEventListener("select", onSelect);
-
       const onEnd = () => session.removeEventListener("select", onSelect);
       session.addEventListener("end", onEnd);
     };
 
     gl.xr.addEventListener("sessionstart", onSessionStart);
     return () => gl.xr.removeEventListener("sessionstart", onSessionStart);
-  }, [gl, xr, boxRefs, onAnyBoxSelected]);
+  }, [gl, boxGroupRefs, onToggleSort]);
 
   return null;
-}
+};
 
-// ---------- ARBox (forwardRef so parent can collect group refs) ----------
-const ARBox = forwardRef(
-  ({ index, value, height, position, sorted, onSelect }, ref) => {
+// === Animated Box for AR ===
+const AnimatedBoxAR = forwardRef(
+  ({ value, height, position, sorted, onClick, index }, ref) => {
     const groupRef = useRef();
     const meshRef = useRef();
-    const targetY = height / 2;
-    const targetColor = new THREE.Color(sorted ? "#34d399" : "#60a5fa");
+    const targetY = height / 2; // ensure it sits on ground plane
+    const targetColor = sorted
+      ? new THREE.Color("#34d399")
+      : new THREE.Color("#60a5fa");
 
     useEffect(() => {
-      if (groupRef.current) groupRef.current.userData = { boxIndex: index };
+      if (groupRef.current) {
+        groupRef.current.userData = { boxIndex: index };
+      }
     }, [index]);
 
     useFrame(() => {
       if (!meshRef.current) return;
-      // smooth position (meshRef sits at group's local origin so we lerp group's children)
+      // Smooth position animation
       meshRef.current.position.x +=
         (position[0] - meshRef.current.position.x) * 0.1;
       meshRef.current.position.y +=
         (targetY - meshRef.current.position.y) * 0.1;
-      meshRef.current.material.color.lerp(targetColor, 0.08);
+
+      // Smooth color transition
+      meshRef.current.material.color.lerp(targetColor, 0.1);
     });
 
     return (
       <group
+        position={position}
         ref={(g) => {
           groupRef.current = g;
           if (typeof ref === "function") ref(g);
           else if (ref) ref.current = g;
         }}
-        position={[position[0], 0, position[2] || 0]}
       >
-        <mesh
-          ref={meshRef}
-          castShadow
-          receiveShadow
-          onClick={() => onSelect(index)}
-        >
+        <mesh ref={meshRef} onClick={onClick} position={[0, height / 2, 0]}>
           <boxGeometry args={[1.6, height, 1]} />
           <meshStandardMaterial
             color={sorted ? "#34d399" : "#60a5fa"}
@@ -223,10 +239,10 @@ const ARBox = forwardRef(
           />
         </mesh>
 
-        {/* Value label above the box */}
+        {/* Value label */}
         <Text
-          position={[0, height + 0.28, 0.02]}
-          fontSize={0.28}
+          position={[0, height + 0.3, 0]}
+          fontSize={0.35}
           color="white"
           anchorX="center"
           anchorY="middle"
@@ -234,12 +250,9 @@ const ARBox = forwardRef(
           {String(value)}
         </Text>
 
-        {/* invisible plane behind text to increase hit area in AR (helps raycasting) */}
-        <mesh
-          position={[0, height - 0.3, 0.51]}
-          onClick={() => onSelect(index)}
-        >
-          <planeGeometry args={[0.9, 0.5]} />
+        {/* Invisible plane to make AR tapping easier */}
+        <mesh onClick={onClick} position={[0, height / 2, 0.55]}>
+          <planeGeometry args={[1.6, height + 0.8]} />
           <meshBasicMaterial transparent opacity={0} />
         </mesh>
       </group>
@@ -247,49 +260,45 @@ const ARBox = forwardRef(
   }
 );
 
-// ---------- FadeText ----------
-function FadeText({ text, position, fontSize = 0.4, color = "white" }) {
-  const ref = useRef();
-  const opacity = useRef(0);
-  const scale = useRef(0.8);
+// === Code Panel ===
+const CodePanel = ({ code, position }) => (
+  <FadeText text={code} position={position} fontSize={0.3} color="#c7d2fe" />
+);
 
-  useFrame(() => {
-    opacity.current = Math.min(opacity.current + 0.03, 1);
-    scale.current = Math.min(scale.current + 0.02, 1);
-    if (ref.current && ref.current.material) {
-      ref.current.material.opacity = opacity.current;
-      ref.current.scale.set(scale.current, scale.current, scale.current);
-    }
-  });
+// === Fade Text ===
+const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
+  const [opacity, setOpacity] = useState(0);
+
+  useEffect(() => {
+    let frame;
+    let start;
+    const duration = 1000;
+
+    const animate = (ts) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      setOpacity(progress);
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   return (
     <Text
-      ref={ref}
       position={position}
       fontSize={fontSize}
       color={color}
       anchorX="center"
       anchorY="middle"
-      maxWidth={6}
-      textAlign="center"
-      material-transparent
+      fillOpacity={opacity}
+      maxWidth={10}
+      textAlign="left"
     >
       {text}
     </Text>
   );
-}
+};
 
-// ---------- Utility: generate pseudo code text ----------
-function generateCode(array) {
-  return [
-    "📘 Pseudo Code Example:",
-    "",
-    `array = [${array.join(", ")}]`,
-    "print('Before Sorting:', array)",
-    "",
-    "sort(array)   // Arrange values in ascending order",
-    "print('After Sorting:', array)",
-    "",
-    `// Result: [${[...array].sort((a, b) => a - b).join(", ")}]`,
-  ].join("\n");
-}
+export default VisualPage1AR;
