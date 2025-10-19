@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Text, ARButton } from "@react-three/drei";
+import { Text } from "@react-three/drei";
 import * as THREE from "three";
+import { ARButton } from "three/examples/jsm/webxr/ARButton.js";
 import useSound from "use-sound";
-import dingSfx from "/sounds/ding.mp3"; // keep this in /public/sounds/
+import dingSfx from "/sounds/ding.mp3"; // must exist in /public/sounds/
 
-const ARPage3 = ({ data = [5, 10, 15, 20, 25], spacing = 0.6 }) => {
+const ARPage3 = ({ data = [5, 10, 15, 20, 25], spacing = 0.35 }) => {
   const [searching, setSearching] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(null);
   const [foundIndex, setFoundIndex] = useState(null);
@@ -17,7 +18,7 @@ const ARPage3 = ({ data = [5, 10, 15, 20, 25], spacing = 0.6 }) => {
 
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
+    return data.map((_, i) => [(i - mid) * spacing, 0, -1]);
   }, [data, spacing]);
 
   const handleClick = (index) => {
@@ -79,87 +80,89 @@ const ARPage3 = ({ data = [5, 10, 15, 20, 25], spacing = 0.6 }) => {
     }, 900);
   };
 
-  return (
-    <div className="w-full h-[100vh] bg-black">
-      {/* 🔹 AR START BUTTON */}
-      <ARButton />
+  // Inject AR button into DOM
+  React.useEffect(() => {
+    const btn = ARButton.createButton(rendererRef.current);
+    document.body.appendChild(btn);
+  }, []);
 
+  const rendererRef = useRef();
+
+  return (
+    <div className="w-full h-[500px]">
       <Canvas
-        camera={{ position: [0, 1.6, 0], fov: 70 }}
+        camera={{ position: [0, 1.5, 2], fov: 60 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
+          rendererRef.current = gl;
         }}
       >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[3, 5, 2]} intensity={0.8} />
+        <ambientLight intensity={0.8} />
+        <directionalLight position={[2, 3, 1]} intensity={0.8} />
 
-        {/* 🔹 GROUP all 3D objects at z = -8 */}
-        <group position={[0, 1, -8]}>
-          {/* Title */}
-          <FadeInText
-            show={true}
-            text="Linear Search (AR Mode)"
-            position={[0, 2, 0]}
-            fontSize={0.25}
-            color="white"
+        {/* Floating title */}
+        <FadeInText
+          show={true}
+          text="Search Operation (Linear Search)"
+          position={[0, 0.8, -1.2]}
+          fontSize={0.08}
+          color="white"
+        />
+
+        {/* Status label */}
+        <FadeInText
+          show={!!statusText}
+          text={statusText}
+          position={[0, 0.6, -1.2]}
+          fontSize={0.07}
+          color="#ffd166"
+        />
+
+        {/* Boxes in AR space */}
+        {data.map((value, i) => (
+          <ARBox
+            key={i}
+            index={i}
+            value={value}
+            position={positions[i]}
+            highlight={highlightIndex === i}
+            found={foundIndex === i}
+            disabled={searching}
+            onClick={() => handleClick(i)}
           />
+        ))}
 
-          {/* Status label */}
-          <FadeInText
-            show={!!statusText}
-            text={statusText}
-            position={[0, 1.6, 0]}
-            fontSize={0.18}
-            color="#ffd166"
-          />
-
-          {/* Boxes */}
-          {data.map((value, i) => (
-            <Box
-              key={i}
-              index={i}
-              value={value}
-              position={positions[i]}
-              highlight={highlightIndex === i}
-              found={foundIndex === i}
-              disabled={searching}
-              onClick={() => handleClick(i)}
+        {/* Info + pseudo code floating beside */}
+        {showCode && (
+          <>
+            <FadeInText
+              show={true}
+              text={infoText}
+              position={[0.5, 0.3, -1.2]}
+              fontSize={0.065}
+              color="#9be7a2"
+              anchorX="left"
             />
-          ))}
-
-          {/* Info text & pseudo code */}
-          {showCode && (
-            <>
+            {pseudoCode.map((line, i) => (
               <FadeInText
+                key={i}
                 show={true}
-                text={infoText}
-                position={[3.2, 1.5, 0]}
-                fontSize={0.2}
-                color="#9be7a2"
+                text={line}
+                position={[0.5, 0.15 - i * 0.08, -1.2]}
+                fontSize={0.06}
+                color={line.startsWith("//") ? "#9be7a2" : "#ffeb99"}
                 anchorX="left"
               />
-
-              {pseudoCode.map((line, i) => (
-                <FadeInText
-                  key={i}
-                  show={true}
-                  text={line}
-                  position={[3.3, 1.2 - i * 0.25, 0]}
-                  fontSize={0.18}
-                  color={line.startsWith("//") ? "#9be7a2" : "#ffeb99"}
-                  anchorX="left"
-                />
-              ))}
-            </>
-          )}
-        </group>
+            ))}
+          </>
+        )}
       </Canvas>
     </div>
   );
 };
 
-/* ---------- Box Component ---------- */
-const Box = ({
+/* ---------- Box (AR Touchable) ---------- */
+const ARBox = ({
   index,
   value,
   position = [0, 0, 0],
@@ -169,7 +172,7 @@ const Box = ({
   onClick,
 }) => {
   const meshRef = useRef();
-  const size = [0.8, 0.6, 0.5];
+  const size = [0.15, 0.12, 0.1];
 
   useFrame(() => {
     if (!meshRef.current) return;
@@ -181,13 +184,12 @@ const Box = ({
       ? new THREE.Color("#f87171")
       : baseColor;
     const targetEmissive = highlight || found ? 0.9 : 0;
-    mat.color.lerp(targetColor, 0.12);
-    mat.emissive = mat.emissive || new THREE.Color(0x000000);
-    mat.emissive.lerp(targetColor, 0.12);
+    mat.color.lerp(targetColor, 0.15);
+    mat.emissive.lerp(targetColor, 0.15);
     mat.emissiveIntensity = THREE.MathUtils.lerp(
       mat.emissiveIntensity || 0,
       targetEmissive,
-      0.12
+      0.15
     );
   });
 
@@ -197,23 +199,28 @@ const Box = ({
       onClick={!disabled ? onClick : undefined}
       style={{ cursor: disabled ? "default" : "pointer" }}
     >
-      <mesh ref={meshRef}>
+      <mesh ref={meshRef} position={[0, size[1] / 2, 0]}>
         <boxGeometry args={size} />
         <meshStandardMaterial color={"#60a5fa"} emissive={"#000"} />
       </mesh>
 
-      {/* Value */}
       <Text
-        position={[0, 0.5, 0]}
-        fontSize={0.25}
+        position={[0, size[1] / 2 + 0.05, size[2] / 2 + 0.01]}
+        fontSize={0.08}
         anchorX="center"
         anchorY="middle"
+        color="white"
       >
         {String(value)}
       </Text>
 
-      {/* Index */}
-      <Text position={[0, -0.35, 0]} fontSize={0.2} color="#e0e0e0">
+      <Text
+        position={[0, size[1] / 2 - 0.05, size[2] / 2 + 0.01]}
+        fontSize={0.06}
+        anchorX="center"
+        anchorY="middle"
+        color="#e0e0e0"
+      >
         [{index}]
       </Text>
     </group>
@@ -225,7 +232,7 @@ const FadeInText = ({
   show = false,
   text = "",
   position = [0, 0, 0],
-  fontSize = 0.2,
+  fontSize = 0.1,
   color = "white",
   anchorX = "center",
 }) => {
