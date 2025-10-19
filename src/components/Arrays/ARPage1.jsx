@@ -21,8 +21,9 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
     if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
   };
 
-  const handleIndexClick = () => {
-    setShowPanel((prev) => !prev);
+  const handleIndexClick = (i) => {
+    setSelectedBox(i);
+    setShowPanel(true);
     setPage(0);
   };
 
@@ -39,7 +40,7 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
     <div className="w-full h-[300px]">
       <Canvas
         camera={{ position: [0, 4, 25], fov: 50 }}
-        onCreated={({ gl, scene }) => {
+        onCreated={({ gl, scene, camera }) => {
           gl.xr.enabled = true;
           if (navigator.xr) {
             try {
@@ -60,6 +61,7 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
+        {/* 👇 Group moved for AR visibility */}
         <group position={[0, 0, -8]}>
           <FadeInText
             show={true}
@@ -80,16 +82,17 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
               position={positions[i]}
               selected={selectedBox === i}
               onValueClick={() => handleBoxClick(i)}
-              onIndexClick={handleIndexClick}
+              onIndexClick={() => handleIndexClick(i)}
               ref={(r) => addBoxRef(r)}
             />
           ))}
 
-          {/* Side Panel */}
-          {showPanel && (
+          {/* Info Panel */}
+          {showPanel && selectedBox !== null && (
             <DefinitionPanel
               page={page}
               data={data}
+              index={selectedBox}
               position={[8, 1, 0]}
               onNextClick={handleNextClick}
             />
@@ -147,7 +150,7 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
         const origin = cam.getWorldPosition(new THREE.Vector3());
         raycaster.set(origin, dir);
 
-        // ✅ Include all children, not just meshes
+        // ✅ Include all children (texts + meshes)
         const candidates = (boxRefs.current || [])
           .map((group) => (group ? group.children : []))
           .flat();
@@ -276,7 +279,6 @@ const Box = forwardRef(
           else if (ref) ref.current = g;
         }}
       >
-        {/* Box */}
         <mesh
           castShadow
           receiveShadow
@@ -291,7 +293,6 @@ const Box = forwardRef(
           />
         </mesh>
 
-        {/* Value Text */}
         <FadeInText
           show={true}
           text={String(value)}
@@ -300,7 +301,7 @@ const Box = forwardRef(
           color="white"
         />
 
-        {/* ✅ Clickable Index (wrapped in invisible plane) */}
+        {/* ✅ Transparent mesh wrapper to make index clickable in AR */}
         <mesh onClick={onIndexClick} position={[0, -0.3, size[2] / 2 + 0.01]}>
           <planeGeometry args={[0.8, 0.4]} />
           <meshBasicMaterial transparent opacity={0} />
@@ -315,7 +316,6 @@ const Box = forwardRef(
           </Text>
         </mesh>
 
-        {/* Selected Label */}
         {selected && (
           <Text
             position={[0, size[1] + 0.8, 0]}
@@ -333,26 +333,26 @@ const Box = forwardRef(
 );
 
 // === Definition Panel ===
-const DefinitionPanel = ({ page, data, position, onNextClick }) => {
+const DefinitionPanel = ({ page, data, index, position, onNextClick }) => {
   let content = "";
 
   if (page === 0) {
     content = [
-      "📘 Understanding Index in Arrays:",
+      `📘 Index ${index}`,
       "",
-      "• Index is the position assigned to each element.",
-      "• Starts at 0, so first element → index 0.",
+      `• Value: ${data[index]}`,
+      `• Position starts from 0.`,
     ].join("\n");
   } else if (page === 1) {
     content = [
-      "📗 In Data Structures & Algorithms:",
+      "📗 Array Access:",
       "",
-      "• Indexing gives O(1) access time.",
-      "• Arrays are stored in contiguous memory.",
+      `• Access time: O(1)`,
+      "• Direct access via index.",
     ].join("\n");
   } else if (page === 2) {
     content = [
-      "📊 Index Summary:",
+      "📊 Array Summary:",
       "",
       ...data.map((v, i) => `• Index ${i} → value ${v}`),
     ].join("\n");
