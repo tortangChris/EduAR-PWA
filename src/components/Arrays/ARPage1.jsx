@@ -39,7 +39,7 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
     <div className="w-full h-[300px]">
       <Canvas
         camera={{ position: [0, 4, 25], fov: 50 }}
-        onCreated={({ gl, scene, camera }) => {
+        onCreated={({ gl, scene }) => {
           gl.xr.enabled = true;
           if (navigator.xr) {
             try {
@@ -60,7 +60,6 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* 👇 Moved group away from camera for AR visibility */}
         <group position={[0, 0, -8]}>
           <FadeInText
             show={true}
@@ -148,8 +147,9 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
         const origin = cam.getWorldPosition(new THREE.Vector3());
         raycaster.set(origin, dir);
 
+        // ✅ Include all children, not just meshes
         const candidates = (boxRefs.current || [])
-          .map((group) => (group ? group.children.filter((c) => c.isMesh) : []))
+          .map((group) => (group ? group.children : []))
           .flat();
 
         const intersects = raycaster.intersectObjects(candidates, true);
@@ -276,6 +276,7 @@ const Box = forwardRef(
           else if (ref) ref.current = g;
         }}
       >
+        {/* Box */}
         <mesh
           castShadow
           receiveShadow
@@ -290,6 +291,7 @@ const Box = forwardRef(
           />
         </mesh>
 
+        {/* Value Text */}
         <FadeInText
           show={true}
           text={String(value)}
@@ -298,17 +300,22 @@ const Box = forwardRef(
           color="white"
         />
 
-        <Text
-          position={[0, -0.3, size[2] / 2 + 0.01]}
-          fontSize={0.3}
-          color="yellow"
-          anchorX="center"
-          anchorY="middle"
-          onClick={onIndexClick}
-        >
-          [{index}]
-        </Text>
+        {/* ✅ Clickable Index (wrapped in invisible plane) */}
+        <mesh onClick={onIndexClick} position={[0, -0.3, size[2] / 2 + 0.01]}>
+          <planeGeometry args={[0.8, 0.4]} />
+          <meshBasicMaterial transparent opacity={0} />
+          <Text
+            position={[0, 0, 0.01]}
+            fontSize={0.3}
+            color="yellow"
+            anchorX="center"
+            anchorY="middle"
+          >
+            [{index}]
+          </Text>
+        </mesh>
 
+        {/* Selected Label */}
         {selected && (
           <Text
             position={[0, size[1] + 0.8, 0]}
