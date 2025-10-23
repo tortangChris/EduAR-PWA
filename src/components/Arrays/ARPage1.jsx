@@ -7,16 +7,17 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   const [showPanel, setShowPanel] = useState(false);
   const [page, setPage] = useState(0);
   const [selectedBox, setSelectedBox] = useState(null);
+  const boxRefs = useRef([]);
+
+  // --- Helper to collect box refs ---
+  const addBoxRef = (r) => {
+    if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
+  };
 
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
-
-  const boxRefs = useRef([]);
-  const addBoxRef = (r) => {
-    if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
-  };
 
   const handleClick = (i) => {
     setSelectedBox(i);
@@ -29,31 +30,33 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
     else setShowPanel(false);
   };
 
+  // === Automatically start AR session ===
+  const startAR = (gl) => {
+    if (navigator.xr) {
+      navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
+        if (supported) {
+          navigator.xr
+            .requestSession("immersive-ar", {
+              requiredFeatures: ["hit-test", "local-floor"],
+            })
+            .then((session) => {
+              gl.xr.setSession(session);
+            })
+            .catch((err) => console.error("AR session failed:", err));
+        } else {
+          console.warn("AR not supported on this device.");
+        }
+      });
+    }
+  };
+
   return (
     <div className="w-full h-[300px]">
       <Canvas
         camera={{ position: [0, 4, 25], fov: 50 }}
-        onCreated={async ({ gl }) => {
+        onCreated={({ gl }) => {
           gl.xr.enabled = true;
-
-          if (navigator.xr) {
-            try {
-              const supported = await navigator.xr.isSessionSupported(
-                "immersive-ar"
-              );
-              if (supported) {
-                const session = await navigator.xr.requestSession(
-                  "immersive-ar",
-                  {
-                    requiredFeatures: ["hit-test", "anchors"],
-                  }
-                );
-                gl.xr.setSession(session);
-              }
-            } catch (e) {
-              console.warn("AR session failed to start automatically:", e);
-            }
-          }
+          startAR(gl); // <-- Start AR automatically here
         }}
       >
         <ambientLight intensity={0.4} />
@@ -106,13 +109,10 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
 // --- AR Interaction Manager ---
 const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
   const { gl } = useThree();
-  const xrRef = gl.xr;
 
   useEffect(() => {
-    if (!navigator.xr) return;
-
     const onSessionStart = () => {
-      const session = xrRef.getSession();
+      const session = gl.xr.getSession();
       if (!session) return;
 
       const onSelect = () => {
@@ -130,16 +130,13 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
           .flat();
 
         const intersects = raycaster.intersectObjects(candidates, true);
-
-        if (intersects && intersects.length > 0) {
+        if (intersects.length > 0) {
           let hit = intersects[0].object;
-          while (hit && !hit.userData?.boxIndex && hit.parent) {
+          while (hit && hit.userData?.boxIndex === undefined && hit.parent) {
             hit = hit.parent;
           }
           const idx = hit?.userData?.boxIndex;
-          if (idx !== undefined && idx !== null) {
-            setSelectedBox(idx);
-          }
+          if (idx !== undefined) setSelectedBox(idx);
         }
       };
 
@@ -150,7 +147,7 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
 
     gl.xr.addEventListener("sessionstart", onSessionStart);
     return () => gl.xr.removeEventListener("sessionstart", onSessionStart);
-  }, [gl, xrRef, boxRefs, setSelectedBox]);
+  }, [gl, boxRefs, setSelectedBox]);
 
   return null;
 };
