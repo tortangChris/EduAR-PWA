@@ -6,19 +6,19 @@ import * as THREE from "three";
 const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   const [selectedBox, setSelectedBox] = useState(null);
 
-  // Compute box positions
+  // === Compute box positions ===
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  // Box refs for AR raycasting
+  // === Box references for AR raycasting ===
   const boxRefs = useRef([]);
   const addBoxRef = (r) => {
     if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
   };
 
-  // Pseudo code generator
+  // === Generate pseudo code when a box is tapped ===
   const generateCode = (index, value) => {
     return [
       "📘 Pseudo Code Example:",
@@ -33,42 +33,41 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
     ].join("\n");
   };
 
+  // === Auto-start AR session ===
+  const startAR = (gl) => {
+    if (navigator.xr) {
+      navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
+        if (supported) {
+          navigator.xr
+            .requestSession("immersive-ar", {
+              requiredFeatures: ["hit-test", "local-floor"],
+            })
+            .then((session) => {
+              gl.xr.setSession(session);
+            })
+            .catch((err) => console.error("AR session failed:", err));
+        } else {
+          console.warn("AR not supported on this device.");
+        }
+      });
+    }
+  };
+
   return (
     <div className="w-full h-[300px]">
       <Canvas
         camera={{ position: [0, 4, 12], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
-
-          // 🔹 Auto-start immersive AR session (no ARButton UI)
-          if (navigator.xr) {
-            navigator.xr
-              .isSessionSupported("immersive-ar")
-              .then((supported) => {
-                if (supported) {
-                  gl.xr
-                    .setSession(
-                      navigator.xr.requestSession("immersive-ar", {
-                        requiredFeatures: ["hit-test", "anchors"],
-                      })
-                    )
-                    .catch((err) =>
-                      console.error("AR session start failed:", err)
-                    );
-                } else {
-                  console.warn("AR not supported on this device/browser");
-                }
-              });
-          }
+          startAR(gl); // ✅ Auto-start AR session here
         }}
       >
-        {/* Lights */}
+        {/* === Lights === */}
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* Boxes */}
+        {/* === Scene Content === */}
         <group position={[0, 0, -8]}>
-          {/* Header and instruction */}
           <FadeText
             text="Array Access Operation (O(1))"
             position={[0, 4, -2]}
@@ -94,7 +93,6 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
             />
           ))}
 
-          {/* Pseudo code panel */}
           {selectedBox !== null && (
             <CodePanel
               code={generateCode(selectedBox, data[selectedBox])}
@@ -103,7 +101,6 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
           )}
         </group>
 
-        {/* AR interaction */}
         <ARInteractionManager
           boxRefs={boxRefs}
           setSelectedBox={setSelectedBox}
@@ -116,19 +113,17 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
 // === AR Interaction Manager ===
 const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
   const { gl } = useThree();
-  const xrRef = gl.xr;
 
   useEffect(() => {
-    if (!navigator.xr) return;
-
     const onSessionStart = () => {
-      const session = xrRef.getSession();
+      const session = gl.xr.getSession();
       if (!session) return;
 
       const onSelect = () => {
         const xrCamera = gl.xr.getCamera();
         const raycaster = new THREE.Raycaster();
         const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
+
         const dir = new THREE.Vector3(0, 0, -1)
           .applyQuaternion(cam.quaternion)
           .normalize();
@@ -140,14 +135,13 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
           .flat();
 
         const intersects = raycaster.intersectObjects(candidates, true);
-
-        if (intersects && intersects.length > 0) {
+        if (intersects.length > 0) {
           let hit = intersects[0].object;
-          while (hit && !hit.userData?.boxIndex && hit.parent) {
+          while (hit && hit.userData?.boxIndex === undefined && hit.parent) {
             hit = hit.parent;
           }
           const idx = hit?.userData?.boxIndex;
-          if (idx !== undefined && idx !== null) {
+          if (idx !== undefined) {
             setSelectedBox((prev) => (prev === idx ? null : idx));
           }
         }
@@ -160,7 +154,7 @@ const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
 
     gl.xr.addEventListener("sessionstart", onSessionStart);
     return () => gl.xr.removeEventListener("sessionstart", onSessionStart);
-  }, [gl, xrRef, boxRefs, setSelectedBox]);
+  }, [gl, boxRefs, setSelectedBox]);
 
   return null;
 };
@@ -237,31 +231,25 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
 
 // === Code Panel ===
 const CodePanel = ({ code, position }) => (
-  <group>
-    <FadeText text={code} position={position} fontSize={0.3} color="#c7d2fe" />
-  </group>
+  <FadeText text={code} position={position} fontSize={0.3} color="#c7d2fe" />
 );
 
 // === Fade-in Text ===
 const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
   const [opacity, setOpacity] = useState(0);
-
   useEffect(() => {
     let frame;
     let start;
     const duration = 1000;
-
     const animate = (ts) => {
       if (!start) start = ts;
       const progress = Math.min((ts - start) / duration, 1);
       setOpacity(progress);
       if (progress < 1) frame = requestAnimationFrame(animate);
     };
-
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
   }, []);
-
   return (
     <Text
       position={position}
