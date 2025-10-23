@@ -2,31 +2,26 @@ import React, { useState, useMemo, useEffect, useRef, forwardRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
-import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
-const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
+const ARPage1 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
   const [sorted, setSorted] = useState(false);
   const [boxes, setBoxes] = useState(data);
   const boxGroupRefs = useRef([]);
 
-  // === Helper to keep unique refs ===
   const addBoxGroupRef = (r) => {
     if (r && !boxGroupRefs.current.includes(r)) boxGroupRefs.current.push(r);
   };
 
-  // === Compute normalized heights ===
   const heights = useMemo(() => {
     const maxVal = Math.max(...boxes);
     return boxes.map((v) => (v / maxVal) * 2 + 0.5);
   }, [boxes]);
 
-  // === Compute X positions ===
   const positions = useMemo(() => {
     const mid = (boxes.length - 1) / 2;
     return boxes.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [boxes, spacing]);
 
-  // === Handle sorting click (toggle + reset) ===
   const handleSortClick = () => {
     if (!sorted) {
       const sortedData = [...boxes].sort((a, b) => a - b);
@@ -38,7 +33,6 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
     }
   };
 
-  // === Pseudo Code ===
   const generateCode = () => {
     return [
       "📘 Pseudo Code Example:",
@@ -53,35 +47,39 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
     ].join("\n");
   };
 
+  // === Automatically start AR session ===
+  const startAR = (gl) => {
+    if (navigator.xr) {
+      navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
+        if (supported) {
+          navigator.xr
+            .requestSession("immersive-ar", {
+              requiredFeatures: ["hit-test", "local-floor"],
+            })
+            .then((session) => {
+              gl.xr.setSession(session);
+            })
+            .catch((err) => console.error("AR session failed:", err));
+        } else {
+          console.warn("AR not supported on this device.");
+        }
+      });
+    }
+  };
+
   return (
     <div className="w-full h-[300px]">
       <Canvas
         camera={{ position: [0, 5, 13], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
-          if (navigator.xr) {
-            try {
-              const arButton = ARButton.createButton(gl, {
-                requiredFeatures: ["hit-test"],
-              });
-              arButton.style.position = "absolute";
-              arButton.style.top = "8px";
-              arButton.style.left = "8px";
-              arButton.style.zIndex = 999;
-              document.body.appendChild(arButton);
-            } catch (e) {
-              console.warn("ARButton create failed", e);
-            }
-          }
+          startAR(gl); // <-- Start AR automatically here
         }}
       >
-        {/* === Lights === */}
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 10, 5]} intensity={1} />
 
-        {/* === Root Group (AR visible) === */}
         <group position={[0, 0, -8]}>
-          {/* Header */}
           <FadeText
             text="Introduction to Sorting Algorithms"
             position={[0, 4.6, 0]}
@@ -89,19 +87,17 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
             color="#facc15"
           />
 
-          {/* Instruction */}
           <FadeText
             text={
               sorted
                 ? "The array is now sorted in ascending order! (tap again to reset)"
-                : "Enter AR and tap any box (or click) to visualize sorting"
+                : "Tap any box to visualize sorting"
             }
             position={[0, 3.6, 0]}
             fontSize={0.35}
             color="white"
           />
 
-          {/* Boxes */}
           {boxes.map((value, i) => (
             <AnimatedBoxAR
               key={i}
@@ -115,11 +111,9 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
             />
           ))}
 
-          {/* Code Panel */}
           {sorted && <CodePanel code={generateCode()} position={[8.8, 1, 0]} />}
         </group>
 
-        {/* AR Tap Manager */}
         <ARInteractionManager
           boxGroupRefs={boxGroupRefs}
           onToggleSort={handleSortClick}
@@ -131,13 +125,11 @@ const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
   );
 };
 
-// === AR Interaction Manager (with reset logic) ===
+// === AR Interaction Manager ===
 const ARInteractionManager = ({ boxGroupRefs, onToggleSort }) => {
   const { gl } = useThree();
 
   useEffect(() => {
-    if (!navigator.xr) return;
-
     const onSessionStart = () => {
       const session = gl.xr.getSession();
       if (!session) return;
@@ -157,13 +149,13 @@ const ARInteractionManager = ({ boxGroupRefs, onToggleSort }) => {
           .flat();
 
         const intersects = raycaster.intersectObjects(candidates, true);
-        if (intersects && intersects.length > 0) {
+        if (intersects.length > 0) {
           let hit = intersects[0].object;
           while (hit && hit.userData?.boxIndex === undefined && hit.parent) {
             hit = hit.parent;
           }
           const idx = hit?.userData?.boxIndex;
-          if (idx !== undefined && idx !== null) onToggleSort();
+          if (idx !== undefined) onToggleSort();
         }
       };
 
@@ -179,7 +171,7 @@ const ARInteractionManager = ({ boxGroupRefs, onToggleSort }) => {
   return null;
 };
 
-// === Animated Box (AR) ===
+// === Animated Box ===
 const AnimatedBoxAR = forwardRef(
   ({ value, height, position, sorted, onClick, index }, ref) => {
     const groupRef = useRef();
@@ -200,13 +192,11 @@ const AnimatedBoxAR = forwardRef(
     useFrame(() => {
       if (!groupRef.current || !meshRef.current) return;
 
-      // Smoothly animate box position
       meshRef.current.position.x +=
         (position[0] - meshRef.current.position.x) * 0.1;
       meshRef.current.position.y +=
         (targetY - meshRef.current.position.y) * 0.1;
 
-      // Keep label centered above the box (locked position)
       const labelY = meshRef.current.position.y + height / 2 + 0.35;
       labelRef.current.position.set(
         meshRef.current.position.x,
@@ -214,7 +204,6 @@ const AnimatedBoxAR = forwardRef(
         meshRef.current.position.z
       );
 
-      // Smooth color blending
       meshRef.current.material.color.lerp(targetColor, 0.1);
     });
 
@@ -239,7 +228,6 @@ const AnimatedBoxAR = forwardRef(
           />
         </mesh>
 
-        {/* Label (aligned perfectly with the box) */}
         <Text
           ref={labelRef}
           fontSize={0.35}
@@ -250,7 +238,6 @@ const AnimatedBoxAR = forwardRef(
           {String(value)}
         </Text>
 
-        {/* Invisible tap plane */}
         <mesh onClick={onClick} position={[position[0], height / 2, 0.55]}>
           <planeGeometry args={[1.6, height + 0.8]} />
           <meshBasicMaterial transparent opacity={0} />
@@ -260,12 +247,10 @@ const AnimatedBoxAR = forwardRef(
   }
 );
 
-// === Code Panel ===
 const CodePanel = ({ code, position }) => (
   <FadeText text={code} position={position} fontSize={0.3} color="#c7d2fe" />
 );
 
-// === Fade Text ===
 const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
   const [opacity, setOpacity] = useState(0);
   useEffect(() => {
@@ -297,4 +282,4 @@ const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
   );
 };
 
-export default VisualPage1AR;
+export default ARPage1;
