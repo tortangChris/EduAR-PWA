@@ -2,7 +2,6 @@ import React, { useMemo, useState, useRef, useEffect, forwardRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
-import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
 const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
   const [selectedBox, setSelectedBox] = useState(null);
@@ -40,19 +39,26 @@ const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
         camera={{ position: [0, 4, 12], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
+
+          // 🔹 Auto-start immersive AR session (no ARButton UI)
           if (navigator.xr) {
-            try {
-              const arButton = ARButton.createButton(gl, {
-                requiredFeatures: ["hit-test", "anchors"],
+            navigator.xr
+              .isSessionSupported("immersive-ar")
+              .then((supported) => {
+                if (supported) {
+                  gl.xr
+                    .setSession(
+                      navigator.xr.requestSession("immersive-ar", {
+                        requiredFeatures: ["hit-test", "anchors"],
+                      })
+                    )
+                    .catch((err) =>
+                      console.error("AR session start failed:", err)
+                    );
+                } else {
+                  console.warn("AR not supported on this device/browser");
+                }
               });
-              arButton.style.position = "absolute";
-              arButton.style.top = "8px";
-              arButton.style.left = "8px";
-              arButton.style.zIndex = 999;
-              document.body.appendChild(arButton);
-            } catch (e) {
-              console.warn("ARButton create failed", e);
-            }
           }
         }}
       >

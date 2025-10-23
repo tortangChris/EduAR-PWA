@@ -2,7 +2,6 @@ import React, { useMemo, useState, useRef, useEffect, forwardRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
-import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
 const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   const [showPanel, setShowPanel] = useState(false);
@@ -15,11 +14,8 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   }, [data, spacing]);
 
   const boxRefs = useRef([]);
-
   const addBoxRef = (r) => {
-    if (r && !boxRefs.current.includes(r)) {
-      boxRefs.current.push(r);
-    }
+    if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
   };
 
   const handleClick = (i) => {
@@ -37,20 +33,25 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
     <div className="w-full h-[300px]">
       <Canvas
         camera={{ position: [0, 4, 25], fov: 50 }}
-        onCreated={({ gl }) => {
+        onCreated={async ({ gl }) => {
           gl.xr.enabled = true;
+
           if (navigator.xr) {
             try {
-              const arButton = ARButton.createButton(gl, {
-                requiredFeatures: ["hit-test", "anchors"],
-              });
-              arButton.style.position = "absolute";
-              arButton.style.top = "8px";
-              arButton.style.left = "8px";
-              arButton.style.zIndex = 999;
-              document.body.appendChild(arButton);
+              const supported = await navigator.xr.isSessionSupported(
+                "immersive-ar"
+              );
+              if (supported) {
+                const session = await navigator.xr.requestSession(
+                  "immersive-ar",
+                  {
+                    requiredFeatures: ["hit-test", "anchors"],
+                  }
+                );
+                gl.xr.setSession(session);
+              }
             } catch (e) {
-              console.warn("ARButton create failed", e);
+              console.warn("AR session failed to start automatically:", e);
             }
           }
         }}
@@ -220,9 +221,7 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
   const groupRef = useRef();
 
   useEffect(() => {
-    if (groupRef.current) {
-      groupRef.current.userData = { boxIndex: index };
-    }
+    if (groupRef.current) groupRef.current.userData = { boxIndex: index };
   }, [index]);
 
   return (
@@ -256,7 +255,6 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
         color="white"
       />
 
-      {/* Invisible plane behind the index text for AR click */}
       <mesh onClick={onClick} position={[0, -0.3, size[2] / 2 + 0.01]}>
         <planeGeometry args={[0.9, 0.4]} />
         <meshBasicMaterial transparent opacity={0} />
