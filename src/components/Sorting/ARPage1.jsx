@@ -2,11 +2,13 @@ import React, { useState, useMemo, useEffect, useRef, forwardRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
+import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
-const ARPage1 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
+const VisualPage1AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
   const [sorted, setSorted] = useState(false);
   const [boxes, setBoxes] = useState(data);
   const boxGroupRefs = useRef([]);
+  const sessionStarted = useRef(false);
 
   const addBoxGroupRef = (r) => {
     if (r && !boxGroupRefs.current.includes(r)) boxGroupRefs.current.push(r);
@@ -47,38 +49,43 @@ const ARPage1 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
     ].join("\n");
   };
 
-  // === Automatically start AR session ===
-  const startAR = (gl) => {
-    if (navigator.xr) {
-      navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
-        if (supported) {
-          navigator.xr
-            .requestSession("immersive-ar", {
-              requiredFeatures: ["hit-test", "local-floor"],
-            })
-            .then((session) => {
-              gl.xr.setSession(session);
-            })
-            .catch((err) => console.error("AR session failed:", err));
-        } else {
-          console.warn("AR not supported on this device.");
-        }
-      });
-    }
-  };
-
   return (
     <div className="w-full h-[300px]">
       <Canvas
         camera={{ position: [0, 5, 13], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
-          startAR(gl); // <-- Start AR automatically here
+
+          // ✅ Directly request immersive-ar session (no ARButton)
+          if (navigator.xr && !sessionStarted.current) {
+            navigator.xr
+              .isSessionSupported("immersive-ar")
+              .then((supported) => {
+                if (supported) {
+                  navigator.xr
+                    .requestSession("immersive-ar", {
+                      requiredFeatures: ["hit-test"],
+                    })
+                    .then((session) => {
+                      gl.xr.setSession(session);
+                      sessionStarted.current = true;
+                    })
+                    .catch((err) =>
+                      console.error("AR session start failed:", err)
+                    );
+                } else {
+                  console.warn("AR not supported on this device.");
+                }
+              })
+              .catch((err) => console.error("XR check failed:", err));
+          }
         }}
       >
+        {/* === Lights === */}
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 10, 5]} intensity={1} />
 
+        {/* === Root Group === */}
         <group position={[0, 0, -8]}>
           <FadeText
             text="Introduction to Sorting Algorithms"
@@ -86,7 +93,6 @@ const ARPage1 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
             fontSize={0.6}
             color="#facc15"
           />
-
           <FadeText
             text={
               sorted
@@ -130,6 +136,8 @@ const ARInteractionManager = ({ boxGroupRefs, onToggleSort }) => {
   const { gl } = useThree();
 
   useEffect(() => {
+    if (!navigator.xr) return;
+
     const onSessionStart = () => {
       const session = gl.xr.getSession();
       if (!session) return;
@@ -149,13 +157,13 @@ const ARInteractionManager = ({ boxGroupRefs, onToggleSort }) => {
           .flat();
 
         const intersects = raycaster.intersectObjects(candidates, true);
-        if (intersects.length > 0) {
+        if (intersects && intersects.length > 0) {
           let hit = intersects[0].object;
           while (hit && hit.userData?.boxIndex === undefined && hit.parent) {
             hit = hit.parent;
           }
           const idx = hit?.userData?.boxIndex;
-          if (idx !== undefined) onToggleSort();
+          if (idx !== undefined && idx !== null) onToggleSort();
         }
       };
 
@@ -171,7 +179,7 @@ const ARInteractionManager = ({ boxGroupRefs, onToggleSort }) => {
   return null;
 };
 
-// === Animated Box ===
+// === Animated Box (AR) ===
 const AnimatedBoxAR = forwardRef(
   ({ value, height, position, sorted, onClick, index }, ref) => {
     const groupRef = useRef();
@@ -282,4 +290,4 @@ const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
   );
 };
 
-export default ARPage1;
+export default VisualPage1AR;
