@@ -24,7 +24,38 @@ const ARButton = () => {
     checkARSupport();
   }, []);
 
-  // kung nag-start na si AR → render ARPage1
+  // Listen for AR session end to show button again
+  useEffect(() => {
+    let session = null;
+
+    if (startAR && navigator.xr) {
+      navigator.xr
+        .requestSession("immersive-ar", { requiredFeatures: ["hit-test"] })
+        .then((xrSession) => {
+          session = xrSession;
+
+          // When session ends → show button again
+          session.addEventListener("end", () => {
+            setStartAR(false);
+          });
+
+          // End session automatically when component unmounts
+          xrSession.addEventListener("end", () => {
+            setStartAR(false);
+          });
+        })
+        .catch((err) => {
+          console.error("Failed to start AR session:", err);
+          setStartAR(false);
+        });
+    }
+
+    return () => {
+      if (session) session.end();
+    };
+  }, [startAR]);
+
+  // Render ARPage1 when AR starts
   if (startAR) {
     return <ARPage1 />;
   }
