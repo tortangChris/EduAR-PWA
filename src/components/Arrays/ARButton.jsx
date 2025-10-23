@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Lock, Unlock } from "lucide-react";
+import { ARButton as ThreeARButton } from "three/examples/jsm/webxr/ARButton";
 import ARPage1 from "./ARPage1";
 
 const ARButton = () => {
   const [isSupported, setIsSupported] = useState(null);
   const [startAR, setStartAR] = useState(false);
+  const [xrSession, setXRSession] = useState(null);
 
   useEffect(() => {
     const checkARSupport = async () => {
@@ -24,38 +26,37 @@ const ARButton = () => {
     checkARSupport();
   }, []);
 
-  // Listen for AR session end to show button again
   useEffect(() => {
-    let session = null;
+    if (startAR && isSupported) {
+      const startThreeAR = async () => {
+        try {
+          // Start an immersive AR session manually
+          const session = await navigator.xr.requestSession("immersive-ar", {
+            requiredFeatures: ["hit-test", "dom-overlay"],
+            optionalFeatures: [],
+            domOverlay: { root: document.body },
+          });
+          setXRSession(session);
 
-    if (startAR && navigator.xr) {
-      navigator.xr
-        .requestSession("immersive-ar", { requiredFeatures: ["hit-test"] })
-        .then((xrSession) => {
-          session = xrSession;
-
-          // When session ends → show button again
           session.addEventListener("end", () => {
-            setStartAR(false);
+            setStartAR(false); // return to button after AR exits
+            setXRSession(null);
           });
 
-          // End session automatically when component unmounts
-          xrSession.addEventListener("end", () => {
-            setStartAR(false);
-          });
-        })
-        .catch((err) => {
-          console.error("Failed to start AR session:", err);
+          // Use Three.js ARButton logic to enter AR context
+          const arButton = ThreeARButton.createButton({ xrSession: session });
+          document.body.appendChild(arButton);
+        } catch (error) {
+          console.error("Error starting AR session:", error);
           setStartAR(false);
-        });
+        }
+      };
+
+      startThreeAR();
     }
+  }, [startAR, isSupported]);
 
-    return () => {
-      if (session) session.end();
-    };
-  }, [startAR]);
-
-  // Render ARPage1 when AR starts
+  // If AR is active, render the AR page
   if (startAR) {
     return <ARPage1 />;
   }
