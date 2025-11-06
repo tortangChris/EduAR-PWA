@@ -50,7 +50,7 @@ const VisualPage5 = () => {
   };
 
   return (
-    <div className="w-full h-[430px] relative">
+    <div className="w-full h-[300px] relative">
       {/* Traversal Buttons */}
       <div className="absolute top-2 left-2 z-10 flex gap-2">
         <button

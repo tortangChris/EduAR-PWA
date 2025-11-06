@@ -52,7 +52,7 @@ const VisualPage4 = ({ nodes = ["A", "B", "C", "D"] }) => {
     ].join("\n");
 
   return (
-    <div className="w-full h-[500px] flex items-center justify-center">
+    <div className="w-full h-[300px] flex items-center justify-center">
       <Canvas camera={{ position: [0, 12, 18], fov: 50 }}>
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />

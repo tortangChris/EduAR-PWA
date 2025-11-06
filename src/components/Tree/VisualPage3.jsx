@@ -31,7 +31,7 @@ const VisualPage3 = () => {
   };
 
   return (
-    <div className="w-full h-[400px]">
+    <div className="w-full h-[300px]">
       <Canvas camera={{ position: [0, 4, 10], fov: 50 }}>
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />

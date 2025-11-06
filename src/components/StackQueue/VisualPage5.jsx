@@ -156,7 +156,7 @@ const VisualPage5 = ({
       </div>
 
       {/* 3D Canvas */}
-      <div className="w-full h-[60%]">
+      <div className="w-full h-[300]">
         <Canvas camera={{ position: [0, 4, 8], fov: 50 }}>
           <ambientLight intensity={0.4} />
           <directionalLight position={[5, 10, 5]} intensity={0.8} />

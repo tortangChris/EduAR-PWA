@@ -100,7 +100,7 @@ const VisualPage4 = () => {
   };
 
   return (
-    <div className="w-full h-[500px]">
+    <div className="w-full h-[300px]">
       <Canvas camera={{ position: [0, 8, 14], fov: 50 }}>
         <ambientLight intensity={0.5} />
         <spotLight
