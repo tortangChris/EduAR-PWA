@@ -28,12 +28,6 @@ const TreePage05 = () => {
           level by level.
         </li>
       </ul>
-
-      <h3 className="text-lg font-semibold">🎨 3D Visual</h3>
-      <p>Animation showing preorder, inorder, postorder paths.</p>
-
-      <h3 className="text-lg font-semibold">🌐 AR Visual</h3>
-      <p>User taps traversal type → nodes light up in that visiting order.</p>
     </div>
   );
 };

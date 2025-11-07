@@ -24,12 +24,6 @@ const TreePage03 = () => {
           right child.
         </li>
       </ul>
-
-      <h3 className="text-lg font-semibold">🎨 3D Visual</h3>
-      <p>Example diagrams for each type of tree.</p>
-
-      <h3 className="text-lg font-semibold">🌐 AR Visual</h3>
-      <p>User can toggle between tree types in AR view.</p>
     </div>
   );
 };

@@ -25,12 +25,6 @@ const TreePage02 = () => {
           <strong>Depth of Node:</strong> Distance from root to that node.
         </li>
       </ul>
-
-      <h3 className="text-lg font-semibold">🎨 3D Visual</h3>
-      <p>Tree diagram with root, child, and leaf nodes labeled.</p>
-
-      <h3 className="text-lg font-semibold">🌐 AR Visual</h3>
-      <p>User taps a node → highlights its parent/children.</p>
     </div>
   );
 };

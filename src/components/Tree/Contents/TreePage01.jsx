@@ -30,15 +30,6 @@ const TreePage01 = () => {
           </ul>
         </li>
       </ul>
-
-      <h3 className="text-lg font-semibold">🎨 3D Visual</h3>
-      <p>Tree diagram: root at top, branches connecting to children.</p>
-
-      <h3 className="text-lg font-semibold">🌐 AR Visual</h3>
-      <p>
-        Floating hierarchical nodes in AR, user can tap to expand/collapse
-        subtrees.
-      </p>
     </div>
   );
 };

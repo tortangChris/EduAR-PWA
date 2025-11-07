@@ -29,12 +29,6 @@ const TreePage04 = () => {
           </ul>
         </li>
       </ul>
-
-      <h3 className="text-lg font-semibold">🎨 3D Visual</h3>
-      <p>BST animation inserting nodes: 10 → 5 → 15 → 7.</p>
-
-      <h3 className="text-lg font-semibold">🌐 AR Visual</h3>
-      <p>User drags a value into the tree, system places it automatically.</p>
     </div>
   );
 };
