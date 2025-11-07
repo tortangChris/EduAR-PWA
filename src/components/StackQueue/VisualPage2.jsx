@@ -62,7 +62,7 @@ const VisualPage2 = () => {
         <FadeInText
           show={true}
           text={"Stack Operations & Complexity"}
-          position={[0, 5, 0]}
+          position={[5, 5, 0]}
           fontSize={0.6}
           color="white"
         />
@@ -162,10 +162,9 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
 const StackBox = ({ index, value, position, isTop, highlight }) => {
   const size = [2, 1, 1];
   const color = highlight ? "#facc15" : isTop ? "#60a5fa" : "#34d399";
-
   const meshRef = useRef();
 
-  // Smooth pop-in animation for new box
+  // Smooth pop-in animation
   useFrame(() => {
     if (meshRef.current && meshRef.current.scale.y < 1) {
       meshRef.current.scale.y += 0.1;
@@ -182,7 +181,7 @@ const StackBox = ({ index, value, position, isTop, highlight }) => {
       <FadeInText
         show={true}
         text={String(value)}
-        position={[0, 1, 0.5]}
+        position={[0, 0.6, 0.57]}
         fontSize={0.4}
         color="white"
       />
@@ -202,18 +201,51 @@ const StackBox = ({ index, value, position, isTop, highlight }) => {
   );
 };
 
-// === Operations Panel (Right Side Buttons) ===
+// === Operations Panel (Right Side Buttons - FIXED) ===
 const OperationsPanel = ({ position, onPush, onPop, onPeek }) => {
-  const buttonStyle = {
-    fontSize: 0.35,
-    color: "#38bdf8",
-    anchorX: "center",
-    anchorY: "middle",
-    cursor: "pointer",
+  const [activeButton, setActiveButton] = useState(null);
+
+  const handleClick = (e, action, callback) => {
+    e.stopPropagation(); // Prevent double trigger
+    setActiveButton(action);
+    callback();
+    setTimeout(() => setActiveButton(null), 250);
+  };
+
+  const renderButton = (label, action, y, callback) => {
+    const isActive = activeButton === action;
+    const color = isActive ? "#22c55e" : "#38bdf8"; // green when clicked, blue default
+
+    return (
+      <group position={[0, y, 0]}>
+        {/* Button Box */}
+        <mesh
+          onClick={(e) => handleClick(e, action, callback)}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[2.6, 0.6, 0.1]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+
+        {/* Button Label */}
+        <Text
+          fontSize={0.33}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+          position={[0, 0, 0.06]}
+          onClick={(e) => handleClick(e, action, callback)}
+        >
+          {label}
+        </Text>
+      </group>
+    );
   };
 
   return (
     <group position={position}>
+      {/* Title */}
       <FadeInText
         show={true}
         text={"Stack Functions:"}
@@ -222,16 +254,12 @@ const OperationsPanel = ({ position, onPush, onPop, onPeek }) => {
         color="#fde68a"
       />
 
-      <Text position={[0, 1.2, 0]} {...buttonStyle} onClick={onPush}>
-        ➕ Push (Add)
-      </Text>
-      <Text position={[0, 0.4, 0]} {...buttonStyle} onClick={onPop}>
-        ➖ Pop (Remove)
-      </Text>
-      <Text position={[0, -0.4, 0]} {...buttonStyle} onClick={onPeek}>
-        👁️ Peek (View Top)
-      </Text>
+      {/* Clickable Buttons */}
+      {renderButton("➕ Push", "push", 1.2, onPush)}
+      {renderButton("➖ Pop", "pop", 0.4, onPop)}
+      {renderButton("👁️ Peek", "peek", -0.4, onPeek)}
 
+      {/* Complexity Info */}
       <FadeInText
         show={true}
         text={"All operations → O(1)"}
