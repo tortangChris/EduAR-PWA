@@ -7,9 +7,8 @@ const VisualPage4 = () => {
   const [selectedOp, setSelectedOp] = useState(null);
   const [highlightNode, setHighlightNode] = useState(null);
 
-  // BST Node Positions (for visual clarity)
   const nodes = [
-    { id: 50, pos: [0, 3, 0] }, // root
+    { id: 50, pos: [0, 3, 0] },
     { id: 30, pos: [-2, 1.5, 0] },
     { id: 70, pos: [2, 1.5, 0] },
     { id: 20, pos: [-3, 0, 0] },
@@ -31,58 +30,22 @@ const VisualPage4 = () => {
     setSelectedOp(op);
     setHighlightNode(null);
 
-    // Simulate operation logic animation
-    if (op === "Search") {
-      const sequence = [50, 30, 40];
-      let i = 0;
-      const interval = setInterval(() => {
-        setHighlightNode(sequence[i]);
-        i++;
-        if (i >= sequence.length) clearInterval(interval);
-      }, 1000);
-    } else if (op === "Insert") {
-      const sequence = [50, 70, 60, 65];
-      let i = 0;
-      const interval = setInterval(() => {
-        setHighlightNode(sequence[i]);
-        i++;
-        if (i >= sequence.length) clearInterval(interval);
-      }, 1000);
-    } else if (op === "Delete") {
-      const sequence = [50, 30, 40];
-      let i = 0;
-      const interval = setInterval(() => {
-        setHighlightNode(sequence[i]);
-        i++;
-        if (i >= sequence.length) clearInterval(interval);
-      }, 1000);
-    }
+    let sequence = [];
+
+    if (op === "Search") sequence = [50, 30, 40];
+    else if (op === "Insert") sequence = [50, 70, 60, 65];
+    else if (op === "Delete") sequence = [50, 30, 40];
+
+    let i = 0;
+    const interval = setInterval(() => {
+      setHighlightNode(sequence[i]);
+      i++;
+      if (i >= sequence.length) clearInterval(interval);
+    }, 1000);
   };
 
   return (
     <div className="w-full h-[300px] relative">
-      {/* Operation Buttons */}
-      <div className="absolute top-2 left-2 z-10 flex gap-2">
-        <button
-          className="btn btn-sm btn-outline-primary"
-          onClick={() => handleOperation("Search")}
-        >
-          🔍 Search
-        </button>
-        <button
-          className="btn btn-sm btn-outline-success"
-          onClick={() => handleOperation("Insert")}
-        >
-          ➕ Insert
-        </button>
-        <button
-          className="btn btn-sm btn-outline-danger"
-          onClick={() => handleOperation("Delete")}
-        >
-          ❌ Delete
-        </button>
-      </div>
-
       <Canvas camera={{ position: [0, 4, 10], fov: 50 }}>
         <ambientLight intensity={0.7} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
@@ -100,7 +63,7 @@ const VisualPage4 = () => {
           text={
             "Left subtree < Root < Right subtree — used for fast searching and sorting"
           }
-          position={[0, 4.3, 0]}
+          position={[0, -1.5, 0]}
           fontSize={0.35}
           color="#fde68a"
         />
@@ -112,9 +75,12 @@ const VisualPage4 = () => {
           highlightNode={highlightNode}
         />
 
-        {/* Info Panel (Right side) */}
+        {/* Operations Panel (3D buttons) */}
+        <OperationsPanel position={[-6, 1, 0]} onOperation={handleOperation} />
+
+        {/* Info Panel */}
         {selectedOp && (
-          <OperationInfo operation={selectedOp} position={[7, 2, 0]} />
+          <OperationInfo operation={selectedOp} position={[8, 2, 0]} />
         )}
 
         <OrbitControls makeDefault />
@@ -123,27 +89,80 @@ const VisualPage4 = () => {
   );
 };
 
-// === BST Visualization ===
-const BSTVisualization = ({ nodes, edges, highlightNode }) => {
-  return (
-    <group>
-      {edges.map(([a, b], i) => {
-        const start = nodes.find((n) => n.id === a).pos;
-        const end = nodes.find((n) => n.id === b).pos;
-        return <Connection key={i} start={start} end={end} />;
-      })}
+// === Operations Panel (Reused 3D Button Logic) ===
+const OperationsPanel = ({ position, onOperation }) => {
+  const [activeButton, setActiveButton] = useState(null);
 
-      {nodes.map((node) => (
-        <TreeNode
-          key={node.id}
-          position={node.pos}
-          label={node.id}
-          isHighlighted={highlightNode === node.id}
-        />
-      ))}
+  const handleClick = (e, action) => {
+    e.stopPropagation();
+    setActiveButton(action);
+    onOperation(action);
+    setTimeout(() => setActiveButton(null), 250);
+  };
+
+  const renderButton = (label, action, y) => {
+    const isActive = activeButton === action;
+    const color = isActive ? "#22c55e" : "#38bdf8"; // green on click, blue default
+
+    return (
+      <group position={[0, y, 0]}>
+        {/* Button Box */}
+        <mesh onClick={(e) => handleClick(e, action)} castShadow receiveShadow>
+          <boxGeometry args={[2.5, 0.6, 0.1]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+
+        {/* Button Label */}
+        <Text
+          fontSize={0.35}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+          position={[0, 0, 0.06]}
+          onClick={(e) => handleClick(e, action)}
+        >
+          {label}
+        </Text>
+      </group>
+    );
+  };
+
+  return (
+    <group position={position}>
+      <FadeInText
+        show={true}
+        text={"BST Operations:"}
+        position={[0, 2, 0]}
+        fontSize={0.35}
+        color="#fde68a"
+      />
+
+      {renderButton("🔍 Search", "Search", 1.2)}
+      {renderButton("➕ Insert", "Insert", 0.4)}
+      {renderButton("❌ Delete", "Delete", -0.4)}
     </group>
   );
 };
+
+// === BST Visualization ===
+const BSTVisualization = ({ nodes, edges, highlightNode }) => (
+  <group>
+    {edges.map(([a, b], i) => {
+      const start = nodes.find((n) => n.id === a).pos;
+      const end = nodes.find((n) => n.id === b).pos;
+      return <Connection key={i} start={start} end={end} />;
+    })}
+
+    {nodes.map((node) => (
+      <TreeNode
+        key={node.id}
+        position={node.pos}
+        label={node.id}
+        isHighlighted={highlightNode === node.id}
+      />
+    ))}
+  </group>
+);
 
 // === Node Component ===
 const TreeNode = ({ position, label, isHighlighted }) => {
