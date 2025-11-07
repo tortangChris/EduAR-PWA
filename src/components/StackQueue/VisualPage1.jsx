@@ -52,7 +52,7 @@ const VisualPage1 = () => {
         <FadeInText
           show={true}
           text={"Introduction to Stacks"}
-          position={[0, 5, 0]}
+          position={[5, 5, 0]}
           fontSize={0.6}
           color="white"
         />
@@ -82,7 +82,7 @@ const VisualPage1 = () => {
 
         {/* Info Button */}
         <Text
-          position={[5, -1.5, 0]}
+          position={[5, -1.6, 0]}
           fontSize={0.45}
           color="#38bdf8"
           anchorX="center"
@@ -96,7 +96,7 @@ const VisualPage1 = () => {
         {showPanel && (
           <DefinitionPanel
             page={page}
-            position={[8, 2, 0]}
+            position={[10, 2.2, 0]}
             onNextClick={handleNextClick}
             stack={stack}
           />
@@ -189,7 +189,7 @@ const StackBox = ({ index, value, position, isTop, highlight }) => {
       <FadeInText
         show={true}
         text={String(value)}
-        position={[0, 1, 0.5]}
+        position={[0, 0.6, 0.57]}
         fontSize={0.4}
         color="white"
       />
@@ -209,18 +209,51 @@ const StackBox = ({ index, value, position, isTop, highlight }) => {
   );
 };
 
-// === Operations Panel ===
+// === Operations Panel (Fixed - No Double Trigger) ===
 const OperationsPanel = ({ position, onPush, onPop, onPeek }) => {
-  const buttonStyle = {
-    fontSize: 0.35,
-    color: "#38bdf8",
-    anchorX: "center",
-    anchorY: "middle",
-    cursor: "pointer",
+  const [activeButton, setActiveButton] = useState(null);
+
+  const handleClick = (e, action, callback) => {
+    e.stopPropagation(); // prevent double triggers
+    setActiveButton(action);
+    callback();
+    setTimeout(() => setActiveButton(null), 250);
+  };
+
+  const renderButton = (label, action, y, callback) => {
+    const isActive = activeButton === action;
+    const color = isActive ? "#22c55e" : "#38bdf8"; // green on click, blue default
+
+    return (
+      <group position={[0, y, 0]}>
+        {/* Button Box */}
+        <mesh
+          onClick={(e) => handleClick(e, action, callback)}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[2.2, 0.6, 0.1]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+
+        {/* Button Label */}
+        <Text
+          fontSize={0.35}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+          position={[0, 0, 0.06]} // slightly in front of the box
+          onClick={(e) => handleClick(e, action, callback)} // same handler, no duplication
+        >
+          {label}
+        </Text>
+      </group>
+    );
   };
 
   return (
     <group position={position}>
+      {/* Title */}
       <FadeInText
         show={true}
         text={"Common Operations:"}
@@ -229,15 +262,10 @@ const OperationsPanel = ({ position, onPush, onPop, onPeek }) => {
         color="#fde68a"
       />
 
-      <Text position={[0, 1.2, 0]} {...buttonStyle} onClick={onPush}>
-        ➕ Push
-      </Text>
-      <Text position={[0, 0.4, 0]} {...buttonStyle} onClick={onPop}>
-        ➖ Pop
-      </Text>
-      <Text position={[0, -0.4, 0]} {...buttonStyle} onClick={onPeek}>
-        👁️ Peek
-      </Text>
+      {/* Buttons */}
+      {renderButton("➕ Push", "push", 1.2, onPush)}
+      {renderButton("➖ Pop", "pop", 0.4, onPop)}
+      {renderButton("👁️ Peek", "peek", -0.4, onPeek)}
     </group>
   );
 };
