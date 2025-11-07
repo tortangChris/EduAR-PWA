@@ -18,7 +18,7 @@ const VisualPage4 = () => {
     setOperationInfo({ title, complexity, description });
   };
 
-  // === Operations ===
+  // === Queue Operations ===
   const handleEnqueue = () => {
     const newVal = Math.floor(Math.random() * 90) + 10;
     setQueue((prev) => [...prev, newVal]);
@@ -92,12 +92,12 @@ const VisualPage4 = () => {
           />
         ))}
 
-        {/* Operation Info Panel (Left Side) */}
+        {/* Operation Info Panel */}
         {operationInfo && (
           <OperationInfoPanel info={operationInfo} position={[-6, 1.5, 0]} />
         )}
 
-        {/* Buttons for operations (Right Side) */}
+        {/* Operations Panel */}
         <OperationsPanel
           position={[6, 1.5, 0]}
           onEnqueue={handleEnqueue}
@@ -105,7 +105,7 @@ const VisualPage4 = () => {
           onPeek={handlePeek}
         />
 
-        {/* Footer Explanation */}
+        {/* Footer */}
         <FadeInText
           show={true}
           text={"Queues process elements in the order they arrive (FIFO)."}
@@ -190,25 +190,25 @@ const QueueBox = ({ value, position, isFront, isRear, highlight }) => {
       <FadeInText
         show={true}
         text={String(value)}
-        position={[0, 1, 0.5]}
+        position={[0, 0.5, 0.6]}
         fontSize={0.4}
         color="white"
       />
 
       {isFront && (
         <Text
-          position={[0, 1.6, 0]}
+          position={[-1.6, 0.5, 0]}
           fontSize={0.3}
           color="#60a5fa"
           anchorX="center"
           anchorY="middle"
         >
-          🔵 Front
+          Front 🔵
         </Text>
       )}
       {isRear && (
         <Text
-          position={[0, 1.6, 0]}
+          position={[1.6, 0.5, 0]}
           fontSize={0.3}
           color="#f472b6"
           anchorX="center"
@@ -221,14 +221,40 @@ const QueueBox = ({ value, position, isFront, isRear, highlight }) => {
   );
 };
 
-// === Operations Panel ===
+// === Operations Panel (Visual Buttons + Peek) ===
 const OperationsPanel = ({ position, onEnqueue, onDequeue, onPeek }) => {
-  const buttonStyle = {
-    fontSize: 0.35,
-    color: "#38bdf8",
-    anchorX: "center",
-    anchorY: "middle",
-    cursor: "pointer",
+  const [activeButton, setActiveButton] = useState(null);
+
+  const handleClick = (e, action, callback) => {
+    e.stopPropagation();
+    setActiveButton(action);
+    callback();
+    setTimeout(() => setActiveButton(null), 250);
+  };
+
+  const renderButton = (label, action, y, callback) => {
+    const isActive = activeButton === action;
+    const color = isActive ? "#22c55e" : "#38bdf8";
+
+    return (
+      <group position={[0, y, 0]}>
+        <mesh onClick={(e) => handleClick(e, action, callback)} castShadow receiveShadow>
+          <boxGeometry args={[2.8, 0.6, 0.1]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+
+        <Text
+          fontSize={0.35}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+          position={[0, 0, 0.06]}
+          onClick={(e) => handleClick(e, action, callback)}
+        >
+          {label}
+        </Text>
+      </group>
+    );
   };
 
   return (
@@ -236,20 +262,14 @@ const OperationsPanel = ({ position, onEnqueue, onDequeue, onPeek }) => {
       <FadeInText
         show={true}
         text={"Queue Functions:"}
-        position={[0, 2, 0]}
+        position={[0, 3, 0]}
         fontSize={0.35}
         color="#fde68a"
       />
 
-      <Text position={[0, 1.2, 0]} {...buttonStyle} onClick={onEnqueue}>
-        ➕ Enqueue (Add Rear)
-      </Text>
-      <Text position={[0, 0.4, 0]} {...buttonStyle} onClick={onDequeue}>
-        ➖ Dequeue (Remove Front)
-      </Text>
-      <Text position={[0, -0.4, 0]} {...buttonStyle} onClick={onPeek}>
-        👁 Peek (View Front)
-      </Text>
+      {renderButton("➕ Enqueue", "enqueue", 2.2, onEnqueue)}
+      {renderButton("➖ Dequeue", "dequeue", 1.4, onDequeue)}
+      {renderButton("👁 Peek", "peek", 0.6, onPeek)}
 
       <FadeInText
         show={true}
