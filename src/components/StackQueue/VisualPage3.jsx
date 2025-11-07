@@ -180,25 +180,25 @@ const QueueBox = ({ value, position, isFront, isRear, highlight }) => {
       <FadeInText
         show={true}
         text={String(value)}
-        position={[0, 1, 0.5]}
+        position={[0, 0.5, 0.6]}
         fontSize={0.4}
         color="white"
       />
 
       {isFront && (
         <Text
-          position={[0, 1.6, 0]}
+          position={[-1.6, 0.5, 0]}
           fontSize={0.3}
           color="#60a5fa"
           anchorX="center"
           anchorY="middle"
         >
-          🔵 Front
+          Front  🔵 
         </Text>
       )}
       {isRear && (
         <Text
-          position={[0, 1.6, 0]}
+          position={[1.6, 0.5, 0]}
           fontSize={0.3}
           color="#f472b6"
           anchorX="center"
@@ -211,14 +211,46 @@ const QueueBox = ({ value, position, isFront, isRear, highlight }) => {
   );
 };
 
-// === Operations Panel ===
+// === Operations Panel (Fixed - No Double Click, Visual Boxes) ===
 const OperationsPanel = ({ position, onEnqueue, onDequeue }) => {
-  const buttonStyle = {
-    fontSize: 0.35,
-    color: "#38bdf8",
-    anchorX: "center",
-    anchorY: "middle",
-    cursor: "pointer",
+  const [activeButton, setActiveButton] = useState(null);
+
+  const handleClick = (e, action, callback) => {
+    e.stopPropagation(); // prevent duplicate clicks
+    setActiveButton(action);
+    callback();
+    setTimeout(() => setActiveButton(null), 250);
+  };
+
+  const renderButton = (label, action, y, callback) => {
+    const isActive = activeButton === action;
+    const color = isActive ? "#22c55e" : "#38bdf8"; // green active, blue default
+
+    return (
+      <group position={[0, y, 0]}>
+        {/* Button Box */}
+        <mesh
+          onClick={(e) => handleClick(e, action, callback)}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[2.8, 0.6, 0.1]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+
+        {/* Button Label */}
+        <Text
+          fontSize={0.35}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+          position={[0, 0, 0.06]} // slightly above box
+          onClick={(e) => handleClick(e, action, callback)}
+        >
+          {label}
+        </Text>
+      </group>
+    );
   };
 
   return (
@@ -226,17 +258,13 @@ const OperationsPanel = ({ position, onEnqueue, onDequeue }) => {
       <FadeInText
         show={true}
         text={"Queue Functions:"}
-        position={[0, 2, 0]}
+        position={[0, 3, 0]}
         fontSize={0.35}
         color="#fde68a"
       />
 
-      <Text position={[0, 1.2, 0]} {...buttonStyle} onClick={onEnqueue}>
-        ➕ Enqueue (Add Rear)
-      </Text>
-      <Text position={[0, 0.4, 0]} {...buttonStyle} onClick={onDequeue}>
-        ➖ Dequeue (Remove Front)
-      </Text>
+      {renderButton("➕ Enqueue", "enqueue", 2.2, onEnqueue)}
+      {renderButton("➖ Dequeue", "dequeue", 1.4, onDequeue)}
 
       <FadeInText
         show={true}
@@ -248,6 +276,7 @@ const OperationsPanel = ({ position, onEnqueue, onDequeue }) => {
     </group>
   );
 };
+
 
 // === Operation Info Panel (Left Side Indicator) ===
 const OperationInfoPanel = ({ info, position }) => {
