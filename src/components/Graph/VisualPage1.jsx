@@ -4,8 +4,6 @@ import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 
 const VisualPage1 = ({ spacing = 4.0 }) => {
-  const [showPanel, setShowPanel] = useState(false);
-  const [page, setPage] = useState(0);
   const [selectedNode, setSelectedNode] = useState(null);
 
   const data = [
@@ -14,6 +12,13 @@ const VisualPage1 = ({ spacing = 4.0 }) => {
     { id: 2, label: "C", connections: [0, 3] },
     { id: 3, label: "D", connections: [1, 2] },
   ];
+
+  const nodeDefinitions = {
+    A: "Vertices (nodes) represent entities in a graph. Each vertex is a data point or object.",
+    B: "Edges represent relationships or connections between vertices.",
+    C: "Graphs can be directed or undirected — showing one-way or two-way relationships.",
+    D: "Graphs are used in real life, such as in social networks, maps, and computer networks.",
+  };
 
   const positions = useMemo(() => {
     const angleStep = (2 * Math.PI) / data.length;
@@ -24,16 +29,6 @@ const VisualPage1 = ({ spacing = 4.0 }) => {
       0,
     ]);
   }, [data.length]);
-
-  const handleIndexClick = () => {
-    setShowPanel((prev) => !prev);
-    setPage(0);
-  };
-
-  const handleNextClick = () => {
-    if (page < 2) setPage(page + 1);
-    else setShowPanel(false);
-  };
 
   const handleNodeClick = (i) => {
     setSelectedNode((prev) => (prev === i ? null : i));
@@ -49,7 +44,7 @@ const VisualPage1 = ({ spacing = 4.0 }) => {
         <FadeInText
           show={true}
           text={"Introduction to Graphs"}
-          position={[0, 4, 0]}
+          position={[0, 6, 0]}
           fontSize={0.7}
           color="white"
         />
@@ -75,17 +70,16 @@ const VisualPage1 = ({ spacing = 4.0 }) => {
             position={positions[i]}
             selected={selectedNode === i}
             onClick={() => handleNodeClick(i)}
-            onIndexClick={handleIndexClick}
           />
         ))}
 
-        {/* Info Panel */}
-        {showPanel && (
+        {/* Definition Panel */}
+        {selectedNode !== null && (
           <DefinitionPanel
-            page={page}
-            data={data}
-            position={[8, 1, 0]}
-            onNextClick={handleNextClick}
+            node={data[selectedNode]}
+            definition={nodeDefinitions[data[selectedNode].label]}
+            position={[10, 1, 0]}
+            onClose={() => setSelectedNode(null)}
           />
         )}
 
@@ -96,7 +90,7 @@ const VisualPage1 = ({ spacing = 4.0 }) => {
 };
 
 // === Node ===
-const GraphNode = ({ node, position, selected, onClick, onIndexClick }) => {
+const GraphNode = ({ node, position, selected, onClick }) => {
   const color = selected ? "#facc15" : "#60a5fa";
   const emissive = selected ? "#fbbf24" : "#000000";
 
@@ -118,17 +112,6 @@ const GraphNode = ({ node, position, selected, onClick, onIndexClick }) => {
         fontSize={0.4}
         color="white"
       />
-
-      <Text
-        position={[0, -0.8, 0]}
-        fontSize={0.3}
-        color="yellow"
-        anchorX="center"
-        anchorY="middle"
-        onClick={onIndexClick}
-      >
-        [{node.id}]
-      </Text>
 
       {selected && (
         <Text
@@ -202,56 +185,18 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
 };
 
 // === Definition Panel ===
-const DefinitionPanel = ({ page, position, onNextClick }) => {
-  let content = "";
-
-  if (page === 0) {
-    content = [
-      "📘 Introduction to Graphs:",
-      "",
-      "A Graph is a non-linear data structure made of:",
-      "• Vertices (nodes) → represent entities.",
-      "• Edges → represent relationships between entities.",
-    ].join("\n");
-  } else if (page === 1) {
-    content = [
-      "📗 Types of Graphs:",
-      "",
-      "• Undirected graph: edges have no direction.",
-      "• Directed graph (digraph): edges have direction.",
-      "• Weighted graph: edges carry weights (e.g., distance, cost).",
-    ].join("\n");
-  } else if (page === 2) {
-    content = [
-      "📊 Real-life Examples:",
-      "",
-      "• Social networks (people = nodes, friendships = edges).",
-      "• Maps (cities = nodes, roads = weighted edges).",
-      "• Computer networks.",
-    ].join("\n");
-  }
-
-  const nextLabel = page < 2 ? "Next ▶" : "Close ✖";
+const DefinitionPanel = ({ node, definition, position, onClose }) => {
+  if (!node) return null;
 
   return (
     <group>
       <FadeInText
         show={true}
-        text={content}
+        text={`📘 Node ${node.label}\n\n${definition}`}
         position={position}
-        fontSize={0.32}
+        fontSize={0.35}
         color="#fde68a"
       />
-      <Text
-        position={[position[0], position[1] - 2.8, position[2]]}
-        fontSize={0.45}
-        color="#38bdf8"
-        anchorX="center"
-        anchorY="middle"
-        onClick={onNextClick}
-      >
-        {nextLabel}
-      </Text>
     </group>
   );
 };
