@@ -4,18 +4,44 @@ import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 
 const VisualPage2 = () => {
-  const [showPanel, setShowPanel] = useState(false);
-  const [page, setPage] = useState(0);
   const [selected, setSelected] = useState(null);
 
-  const handleIndexClick = () => {
-    setShowPanel((prev) => !prev);
-    setPage(0);
-  };
+  // Definitions for both visualizations
+  // Definitions for both visualizations (with pseudocode)
+  const definitions = {
+    matrix: [
+      "📘 Adjacency Matrix:",
+      "",
+      "• 2D array where matrix[i][j] = 1 if an edge exists, else 0.",
+      "• Pros: Simple, fast edge lookup.",
+      "• Cons: Uses O(V²) space.",
+      "",
+      "📘 Pseudo Code Example:",
+      "",
+      "// Create adjacency matrix",
+      "matrix[V][V] = 0",
+      "for each edge (u, v):",
+      "    matrix[u][v] = 1",
+      "    matrix[v][u] = 1   // if undirected",
+      "",
+      "// Create adjacency list",
+      "for each vertex i:",
+      "    adj[i] = list of connected vertices",
+    ].join("\n"),
 
-  const handleNextClick = () => {
-    if (page < 2) setPage(page + 1);
-    else setShowPanel(false);
+    list: [
+      "📗 Adjacency List:",
+      "",
+      "• Each vertex stores a list of connected vertices.",
+      "• Pros: Efficient for sparse graphs.",
+      "• Cons: Slower for direct edge lookup.",
+      "",
+      "📘 Pseudo Code Example:",
+      "adj[V] = {}",
+      "for each edge (u, v):",
+      "    adj[u].append(v)",
+      "    adj[v].append(u)  // if undirected",
+    ].join("\n"),
   };
 
   const handleSelect = (type) => {
@@ -39,26 +65,25 @@ const VisualPage2 = () => {
 
         {/* Left: Adjacency Matrix */}
         <AdjacencyMatrix
-          position={[-5, 0, 0]}
+          position={[-6.5, -1, 0]}
           selected={selected === "matrix"}
           onClick={() => handleSelect("matrix")}
-          onIndexClick={handleIndexClick}
         />
 
         {/* Right: Adjacency List */}
         <AdjacencyList
-          position={[5, 0, 0]}
+          position={[6, -1, 0]}
           selected={selected === "list"}
           onClick={() => handleSelect("list")}
-          onIndexClick={handleIndexClick}
         />
 
-        {/* Info Panel */}
-        {showPanel && (
+        {/* Definition Panel */}
+        {selected && (
           <DefinitionPanel
-            page={page}
+            type={selected}
+            definition={definitions[selected]}
             position={[0, -1, 0]}
-            onNextClick={handleNextClick}
+            onClose={() => setSelected(null)}
           />
         )}
 
@@ -69,13 +94,12 @@ const VisualPage2 = () => {
 };
 
 // === Adjacency Matrix Visualization ===
-const AdjacencyMatrix = ({ position, selected, onClick, onIndexClick }) => {
-  const size = 4;
+const AdjacencyMatrix = ({ position, selected, onClick }) => {
   const boxes = useMemo(() => {
     const items = [];
     for (let i = 0; i < 4; i++) {
       for (let j = 0; j < 4; j++) {
-        const hasEdge = Math.random() > 0.5; // random edges
+        const hasEdge = Math.random() > 0.5;
         items.push({
           key: `${i}-${j}`,
           pos: [j - 1.5, 1.5 - i, 0],
@@ -96,27 +120,21 @@ const AdjacencyMatrix = ({ position, selected, onClick, onIndexClick }) => {
         color="#93c5fd"
       />
       {boxes.map((b) => (
-        <mesh
-          key={b.key}
-          position={[b.pos[0], b.pos[1], b.pos[2]]}
-          onClick={onClick}
-        >
+        <mesh key={b.key} position={b.pos} onClick={onClick}>
           <boxGeometry args={[0.8, 0.8, 0.8]} />
           <meshStandardMaterial
-            color={b.active ? "#60a5fa" : "#1e3a8a"}
+            color={b.active ? "#fa5741" : "#28438f"}
             emissive={selected && b.active ? "#facc15" : "#000"}
             emissiveIntensity={selected && b.active ? 0.5 : 0}
           />
         </mesh>
       ))}
-
       <Text
         position={[0, -2.8, 0]}
         fontSize={0.3}
         color="yellow"
         anchorX="center"
         anchorY="middle"
-        onClick={onIndexClick}
       >
         [Matrix]
       </Text>
@@ -125,7 +143,7 @@ const AdjacencyMatrix = ({ position, selected, onClick, onIndexClick }) => {
 };
 
 // === Adjacency List Visualization ===
-const AdjacencyList = ({ position, selected, onClick, onIndexClick }) => {
+const AdjacencyList = ({ position, selected, onClick }) => {
   const nodes = useMemo(
     () => [
       { id: 0, connections: [1, 2] },
@@ -145,7 +163,6 @@ const AdjacencyList = ({ position, selected, onClick, onIndexClick }) => {
         fontSize={0.4}
         color="#93c5fd"
       />
-
       {nodes.map((node, i) => (
         <group key={i} position={[0, 2 - i * 1.2, 0]}>
           <mesh onClick={onClick}>
@@ -175,14 +192,12 @@ const AdjacencyList = ({ position, selected, onClick, onIndexClick }) => {
           </Text>
         </group>
       ))}
-
       <Text
         position={[0, -2.8, 0]}
         fontSize={0.3}
         color="yellow"
         anchorX="center"
         anchorY="middle"
-        onClick={onIndexClick}
       >
         [List]
       </Text>
@@ -228,55 +243,16 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
 };
 
 // === Definition Panel ===
-const DefinitionPanel = ({ page, position, onNextClick }) => {
-  let content = "";
-
-  if (page === 0) {
-    content = [
-      "📘 Adjacency Matrix:",
-      "",
-      "• 2D array, matrix[i][j] = 1 if edge exists, else 0.",
-      "• Pros: simple, fast edge lookup.",
-      "• Cons: uses O(V²) space.",
-    ].join("\n");
-  } else if (page === 1) {
-    content = [
-      "📗 Adjacency List:",
-      "",
-      "• Each vertex stores list of connected vertices.",
-      "• Pros: efficient for sparse graphs.",
-      "• Cons: slower for direct edge lookup.",
-    ].join("\n");
-  } else if (page === 2) {
-    content = [
-      "🎨 3D Visual Summary:",
-      "",
-      "• Left → Matrix grid representation.",
-      "• Right → Linked list style representation.",
-    ].join("\n");
-  }
-
-  const nextLabel = page < 2 ? "Next ▶" : "Close ✖";
-
+const DefinitionPanel = ({ type, definition, position, onClose }) => {
   return (
     <group>
       <FadeInText
         show={true}
-        text={content}
+        text={definition}
         position={position}
-        fontSize={0.32}
+        fontSize={0.33}
         color="#fde68a"
       />
-      <Text
-        position={[position[0], position[1] - 2.8, position[2]]}
-        fontSize={0.45}
-        color="#38bdf8"
-        anchorX="center"
-        anchorY="middle"
-        onClick={onNextClick}
-      >
-        {nextLabel}
-      </Text>
     </group>
   );
 };

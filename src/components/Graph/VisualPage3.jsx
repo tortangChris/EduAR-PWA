@@ -1,13 +1,14 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text, Line } from "@react-three/drei";
-import * as THREE from "three";
 
 const VisualPage3 = () => {
   const [showPanel, setShowPanel] = useState(false);
   const [page, setPage] = useState(0);
-  const [highlighted, setHighlighted] = useState(null);
-  const [mode, setMode] = useState(null); // "DFS" or "BFS"
+  const [highlightedNode, setHighlightedNode] = useState(null);
+  const [visitedNodes, setVisitedNodes] = useState([]);
+  const [visitedEdges, setVisitedEdges] = useState([]);
+  const [mode, setMode] = useState(null); // DFS or BFS
 
   const handleIndexClick = () => {
     setShowPanel((prev) => !prev);
@@ -19,7 +20,7 @@ const VisualPage3 = () => {
     else setShowPanel(false);
   };
 
-  // Graph nodes (A, B, C, D)
+  // Graph nodes
   const nodes = useMemo(
     () => [
       { id: "A", position: [0, 3, 0] },
@@ -44,11 +45,7 @@ const VisualPage3 = () => {
 
   const getNodePosition = (id) => nodes.find((n) => n.id === id).position;
 
-  const handleNodeClick = (id) => {
-    setHighlighted((prev) => (prev === id ? null : id));
-  };
-
-  // === Traversal animation ===
+  // === Traversal Animation ===
   useEffect(() => {
     if (!mode) return;
 
@@ -56,18 +53,42 @@ const VisualPage3 = () => {
     const bfsOrder = ["A", "B", "C", "D"];
     const order = mode === "DFS" ? dfsOrder : bfsOrder;
 
+    // Reset
+    setVisitedNodes([]);
+    setVisitedEdges([]);
+    setHighlightedNode(null);
+
     let i = 0;
+    let step = 0;
+
     const interval = setInterval(() => {
-      setHighlighted(order[i]);
-      i++;
-      if (i >= order.length) {
-        clearInterval(interval);
-        setTimeout(() => setHighlighted(null), 1000);
+      if (step === 0) {
+        // Highlight vertex
+        setHighlightedNode(order[i]);
+        setVisitedNodes((prev) => [...prev, order[i]]);
+        step = 1;
+      } else if (step === 1) {
+        // Highlight edge to next node (if exists)
+        if (i < order.length - 1) {
+          const edge = [order[i], order[i + 1]];
+          setVisitedEdges((prev) => [...prev, edge]);
+        }
+        step = 0;
+        i++;
+        if (i >= order.length) {
+          clearInterval(interval);
+          setTimeout(() => setHighlightedNode(null), 1000);
+        }
       }
     }, 800);
 
     return () => clearInterval(interval);
   }, [mode]);
+
+  const isEdgeVisited = (a, b) =>
+    visitedEdges.some(
+      (e) => (e[0] === a && e[1] === b) || (e[1] === a && e[0] === b)
+    );
 
   return (
     <div className="w-full h-[300px]">
@@ -94,15 +115,18 @@ const VisualPage3 = () => {
         />
 
         {/* Edges */}
-        {edges.map(([a, b], i) => (
-          <Line
-            key={i}
-            points={[getNodePosition(a), getNodePosition(b)]}
-            color="#94a3b8"
-            lineWidth={1.5}
-            dashed={false}
-          />
-        ))}
+        {edges.map(([a, b], i) => {
+          const visited = isEdgeVisited(a, b);
+          return (
+            <Line
+              key={i}
+              points={[getNodePosition(a), getNodePosition(b)]}
+              color={visited ? "#facc15" : "#94a3b8"}
+              lineWidth={visited ? 3 : 1.5}
+              dashed={false}
+            />
+          );
+        })}
 
         {/* Nodes */}
         {nodes.map((node, i) => (
@@ -110,8 +134,8 @@ const VisualPage3 = () => {
             key={i}
             id={node.id}
             position={node.position}
-            highlighted={highlighted === node.id}
-            onClick={() => handleNodeClick(node.id)}
+            highlighted={highlightedNode === node.id}
+            visited={visitedNodes.includes(node.id)}
           />
         ))}
 
@@ -124,7 +148,7 @@ const VisualPage3 = () => {
           />
         )}
 
-        {/* 3D Buttons for DFS/BFS */}
+        {/* Buttons */}
         <Button3D
           label="Run DFS"
           position={[-2.5, -5, 0]}
@@ -138,7 +162,7 @@ const VisualPage3 = () => {
           onClick={() => setMode("BFS")}
         />
 
-        {/* Info Toggle */}
+        {/* Info */}
         <Text
           position={[0, -6, 0]}
           fontSize={0.4}
@@ -157,16 +181,16 @@ const VisualPage3 = () => {
 };
 
 // === NodeSphere ===
-const NodeSphere = ({ id, position, highlighted, onClick }) => {
-  const color = highlighted ? "#facc15" : "#60a5fa";
+const NodeSphere = ({ id, position, highlighted, visited }) => {
+  const color = highlighted ? "#facc15" : visited ? "#fde68a" : "#60a5fa";
   return (
     <group position={position}>
-      <mesh onClick={onClick}>
+      <mesh>
         <sphereGeometry args={[0.4, 32, 32]} />
         <meshStandardMaterial
           color={color}
-          emissive={highlighted ? "#fbbf24" : "#000000"}
-          emissiveIntensity={highlighted ? 0.5 : 0}
+          emissive={highlighted ? "#fbbf24" : visited ? "#fcd34d" : "#000000"}
+          emissiveIntensity={highlighted ? 0.8 : visited ? 0.3 : 0}
         />
       </mesh>
       <Text
