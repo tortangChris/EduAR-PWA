@@ -43,17 +43,6 @@ const GraphPage01 = () => {
           </ul>
         </li>
       </ul>
-
-      <h3 className="text-lg font-semibold">🎨 3D Visual</h3>
-      <ul className="list-disc pl-6 space-y-1">
-        <li>Nodes as circles, edges as lines connecting them.</li>
-      </ul>
-
-      <h3 className="text-lg font-semibold">🌐 AR Visual</h3>
-      <ul className="list-disc pl-6 space-y-1">
-        <li>Floating graph in space.</li>
-        <li>User taps node → connected edges highlight.</li>
-      </ul>
     </div>
   );
 };

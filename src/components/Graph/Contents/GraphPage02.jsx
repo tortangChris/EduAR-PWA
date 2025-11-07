@@ -33,16 +33,6 @@ const GraphPage02 = () => {
           </ul>
         </li>
       </ol>
-
-      <h3 className="text-lg font-semibold">🎨 3D Visual</h3>
-      <ul className="list-disc pl-6 space-y-1">
-        <li>Matrix grid vs linked list representation side by side.</li>
-      </ul>
-
-      <h3 className="text-lg font-semibold">🌐 AR Visual</h3>
-      <ul className="list-disc pl-6 space-y-1">
-        <li>User switches between adjacency matrix and list view.</li>
-      </ul>
     </div>
   );
 };

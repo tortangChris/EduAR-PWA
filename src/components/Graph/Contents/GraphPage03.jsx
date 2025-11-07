@@ -34,19 +34,6 @@ const GraphPage03 = () => {
         <li>DFS → topological sorting, solving puzzles.</li>
         <li>BFS → shortest path in unweighted graphs.</li>
       </ul>
-
-      <h3 className="text-lg font-semibold">🎨 3D Visual</h3>
-      <ul className="list-disc pl-6 space-y-1">
-        <li>DFS: path diving deep then backtracking.</li>
-        <li>BFS: level-by-level expansion.</li>
-      </ul>
-
-      <h3 className="text-lg font-semibold">🌐 AR Visual</h3>
-      <ul className="list-disc pl-6 space-y-1">
-        <li>
-          User chooses DFS/BFS → traversal animation shows highlighted path.
-        </li>
-      </ul>
     </div>
   );
 };

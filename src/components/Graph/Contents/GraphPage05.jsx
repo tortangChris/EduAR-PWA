@@ -36,17 +36,6 @@ const GraphPage05 = () => {
         <li>Project scheduling</li>
         <li>Clustering in data analysis</li>
       </ul>
-
-      <h3 className="text-lg font-semibold">🎨 3D Visual</h3>
-      <ul className="list-disc pl-6 space-y-1">
-        <li>MST edges highlighted.</li>
-        <li>DAG showing topological sort order.</li>
-      </ul>
-
-      <h3 className="text-lg font-semibold">🌐 AR Visual</h3>
-      <ul className="list-disc pl-6 space-y-1">
-        <li>User taps MST button → AR highlights chosen edges.</li>
-      </ul>
     </div>
   );
 };

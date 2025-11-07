@@ -36,16 +36,6 @@ const GraphPage04 = () => {
         <li>Routing in networks</li>
         <li>Game AI movement</li>
       </ul>
-
-      <h3 className="text-lg font-semibold">🎨 3D Visual</h3>
-      <ul className="list-disc pl-6 space-y-1">
-        <li>Graph with weights. Path highlights shortest route.</li>
-      </ul>
-
-      <h3 className="text-lg font-semibold">🌐 AR Visual</h3>
-      <ul className="list-disc pl-6 space-y-1">
-        <li>User selects two nodes → AR animates shortest path.</li>
-      </ul>
     </div>
   );
 };
