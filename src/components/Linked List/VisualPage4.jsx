@@ -3,12 +3,12 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 
-const VisualPage4 = ({ nodes = ["A", "B", "C", "D"] }) => {
+const VisualPage4 = ({ nodes = ["A", "B", "C", "D", "E", "F"] }) => {
   const radius = 8;
   const [selectedNode, setSelectedNode] = useState(null);
   const [traversalProgress, setTraversalProgress] = useState(-1);
 
-  // Compute circular positions
+  // Compute circular positions (horizontal spread)
   const positions = useMemo(() => {
     const n = nodes.length;
     return nodes.map((_, i) => {
@@ -16,6 +16,7 @@ const VisualPage4 = ({ nodes = ["A", "B", "C", "D"] }) => {
       return [radius * Math.cos(angle), 0, radius * Math.sin(angle)];
     });
   }, [nodes, radius]);
+
 
   const handleNodeClick = (i) => {
     setSelectedNode(i);
@@ -114,14 +115,17 @@ const Scene = ({
 
     {/* Curved arrows and moving sphere for traversal */}
     {nodes.map((_, idx) => (
-      <CurvedArrow
-        key={idx}
-        start={positions[idx]}
-        end={positions[(idx + 1) % nodes.length]}
-        highlight={traversalProgress >= idx}
-        animate={traversalProgress >= idx}
-      />
-    ))}
+  <CurvedArrow
+    key={idx}
+    start={positions[idx]}
+    end={positions[(idx + 1) % nodes.length]}
+    highlight={traversalProgress >= idx}
+    animate={traversalProgress >= idx}
+    idx={idx}
+    total={nodes.length} // 6 nodes now
+  />
+))}
+
   </>
 );
 
@@ -146,29 +150,37 @@ const CNode = ({ value, position, selected, onClick }) => {
   );
 };
 
-const CurvedArrow = ({ start, end, highlight, animate }) => {
-  const ref = useRef();
+const CurvedArrow = ({ start, end, highlight, animate, idx, total }) => {
   const sphereRef = useRef();
   const [t, setT] = useState(0);
 
-  // Compute control point for a curved arrow (Bezier)
-  const mid = [(start[0] + end[0]) / 2, 0, (start[2] + end[2]) / 2];
-  const control = [mid[0], 0, mid[2] + 2]; // lift in z to curve
+  // All arrows stay on top (no downward lift)
+  const lift = 2; // same lift for all arrows
+
+  const mid = [
+    (start[0] + end[0]) / 2,
+    lift, // always above
+    (start[2] + end[2]) / 2,
+  ];
 
   const curve = useMemo(() => {
     return new THREE.QuadraticBezierCurve3(
       new THREE.Vector3(...start),
-      new THREE.Vector3(...control),
+      new THREE.Vector3(...mid),
       new THREE.Vector3(...end)
     );
-  }, [start, control, end]);
+  }, [start, mid, end]);
+
+  const easeInOut = (x) => x * x * (3 - 2 * x);
 
   useFrame((state, delta) => {
     if (animate) {
-      setT((prev) => Math.min(prev + delta * 0.5, 1));
+      const speed = 1;
+      setT((prev) => Math.min(prev + delta * speed, 1));
       if (sphereRef.current) {
-        const pos = curve.getPoint(t);
-        sphereRef.current.position.set(pos.x, pos.y + 0.5, pos.z);
+        const easedT = easeInOut(t);
+        const pos = curve.getPoint(easedT);
+        sphereRef.current.position.set(pos.x, pos.y, pos.z);
       }
     } else {
       setT(0);
@@ -176,7 +188,6 @@ const CurvedArrow = ({ start, end, highlight, animate }) => {
     }
   });
 
-  // Line along curve
   const points = curve.getPoints(50);
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
 
@@ -190,8 +201,6 @@ const CurvedArrow = ({ start, end, highlight, animate }) => {
           linewidth={2}
         />
       </line>
-
-      {/* Moving sphere for traversal */}
       <mesh ref={sphereRef}>
         <sphereGeometry args={[0.3, 16, 16]} />
         <meshStandardMaterial color="orange" />
