@@ -24,7 +24,7 @@ const modulesConfig = [
     route: "/modules/stack-and-queue",
     image: "/images/Stack&Queue.png",
   },
-  // {
+  {
     title: "Tree Data Structure Recursion",
     route: "/modules/tree-data-structure-recursion",
     image: "/images/TreeRecursion.png",
