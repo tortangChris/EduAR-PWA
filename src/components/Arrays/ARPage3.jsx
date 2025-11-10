@@ -122,21 +122,21 @@ const ARPage3 = ({ data = [5, 10, 15, 20, 25], spacing = 2.0 }) => {
         <directionalLight position={[5, 8, 5]} intensity={0.8} />
 
         {/* Title */}
-        <FadeText text="Search Operation (Linear Search)" position={[0, 3, -2]} fontSize={0.55} color="white" />
+        <FadeText text="Search Operation (Linear Search)" position={[0, 3, -8]} fontSize={0.55} color="white" />
 
         {/* Instruction */}
         <FadeText
           text={!searching && !foundIndex && !infoText ? "Tap any box to start searching..." : ""}
-          position={[0, 2.4, -2]}
+          position={[0, 2.4, -8]}
           fontSize={0.3}
           color="#ffd166"
         />
 
         {/* Transition label */}
-        <FadeText showText={!!statusText} text={statusText} position={[0, 2, -2]} fontSize={0.32} color="#ffd166" />
+        <FadeText showText={!!statusText} text={statusText} position={[0, 2, -8]} fontSize={0.32} color="#ffd166" />
 
         {/* Boxes */}
-        <group position={[0, 0, -6]}>
+        <group position={[0, 0, -10]}>
           {data.map((value, i) => (
             <Box
               key={i}
