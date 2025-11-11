@@ -1,179 +1,306 @@
-// ARPage1.jsx
-import React, { useMemo, useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
+import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 
-const ARPage1 = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
-  const positions = useMemo(() => {
-    const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [data, spacing]);
+const ARPage1 = () => {
+  const [selectedNode, setSelectedNode] = useState(null);
+  const nodeRefs = useRef([]);
 
-  const [placed, setPlaced] = useState(false);
+  // Add node reference helper
+  const addNodeRef = (r) => {
+    if (r && !nodeRefs.current.includes(r)) nodeRefs.current.push(r);
+  };
+
+  const nodes = [
+    { id: "A", pos: [0, 3, 0], type: "Root" },
+    { id: "B", pos: [-2, 1.5, 0], type: "Child" },
+    { id: "C", pos: [2, 1.5, 0], type: "Child" },
+    { id: "D", pos: [-3, 0, 0], type: "Leaf" },
+    { id: "E", pos: [-1, 0, 0], type: "Leaf" },
+    { id: "F", pos: [1, 0, 0], type: "Leaf" },
+    { id: "G", pos: [3, 0, 0], type: "Leaf" },
+  ];
+
+  const edges = [
+    ["A", "B"],
+    ["A", "C"],
+    ["B", "D"],
+    ["B", "E"],
+    ["C", "F"],
+    ["C", "G"],
+  ];
+
+  // --- Auto-start AR session (same logic as your VisualPageAR)
+  const startAR = (gl) => {
+    if (navigator.xr) {
+      navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
+        if (supported) {
+          navigator.xr
+            .requestSession("immersive-ar", {
+              requiredFeatures: ["hit-test", "local-floor"],
+            })
+            .then((session) => {
+              gl.xr.setSession(session);
+            })
+            .catch((err) => console.error("AR session failed:", err));
+        } else {
+          console.warn("AR not supported on this device.");
+        }
+      });
+    }
+  };
 
   return (
-    <div className="w-full h-screen">
+    <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 2, 6], fov: 50 }}
-        gl={{ alpha: true }}
-        shadows
+        camera={{ position: [0, 4, 10], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
-
-          // 🔹 Auto request immersive-ar session
-          if (navigator.xr) {
-            navigator.xr
-              .requestSession("immersive-ar", {
-                requiredFeatures: ["hit-test", "local-floor"],
-              })
-              .then((session) => {
-                gl.xr.setSession(session);
-              })
-              .catch((err) => {
-                console.error("❌ Failed to start AR session:", err);
-              });
-          }
+          startAR(gl);
         }}
       >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        <Reticle placed={placed} setPlaced={setPlaced}>
-          {/* Boxes row */}
-          {data.map((value, i) => (
-            <Box key={i} index={i} value={value} position={positions[i]} />
-          ))}
+        {/* Header */}
+        <FadeInText
+          show={true}
+          text={"Introduction to Trees"}
+          position={[0, 5, 0]}
+          fontSize={0.7}
+          color="white"
+        />
 
-          {/* Shadow plane */}
-          <mesh rotation-x={-Math.PI / 2} receiveShadow>
-            <planeGeometry args={[10, 10]} />
-            <shadowMaterial opacity={0.3} />
-          </mesh>
-        </Reticle>
+        <FadeInText
+          show={true}
+          text={"A hierarchical, non-linear data structure of connected nodes"}
+          position={[0, 4.3, 0]}
+          fontSize={0.35}
+          color="#fde68a"
+        />
+
+        {/* Tree Visualization */}
+        <TreeVisualization
+          nodes={nodes}
+          edges={edges}
+          onNodeClick={setSelectedNode}
+          selectedNode={selectedNode}
+          addNodeRef={addNodeRef}
+        />
+
+        {/* Info Panel */}
+        {selectedNode && (
+          <NodeInfoPanel node={selectedNode} position={[7, 2, 0]} />
+        )}
+
+        {/* AR Interaction Manager */}
+        <ARInteractionManager
+          nodeRefs={nodeRefs}
+          setSelectedNode={setSelectedNode}
+        />
+
+        <OrbitControls makeDefault />
       </Canvas>
     </div>
   );
 };
 
-function Reticle({ children, placed, setPlaced }) {
+// === AR Interaction Manager ===
+const ARInteractionManager = ({ nodeRefs, setSelectedNode }) => {
   const { gl } = useThree();
-  const reticleRef = useRef();
-  const [hitTestSource, setHitTestSource] = useState(null);
-  const [hitTestSourceRequested, setHitTestSourceRequested] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [targetPos, setTargetPos] = useState(null);
 
-  useFrame((_, delta) => {
-    const session = gl.xr.getSession();
-    if (!session) return;
-    const frame = gl.xr.getFrame();
-    if (!frame) return;
+  useEffect(() => {
+    const onSessionStart = () => {
+      const session = gl.xr.getSession();
+      if (!session) return;
 
-    if (!hitTestSourceRequested) {
-      session.requestReferenceSpace("viewer").then((refSpace) => {
-        session.requestHitTestSource({ space: refSpace }).then((source) => {
-          setHitTestSource(source);
-        });
-      });
-      setHitTestSourceRequested(true);
-    }
+      const onSelect = () => {
+        const xrCamera = gl.xr.getCamera();
+        const raycaster = new THREE.Raycaster();
+        const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
+        const dir = new THREE.Vector3(0, 0, -1)
+          .applyQuaternion(cam.quaternion)
+          .normalize();
+        const origin = cam.getWorldPosition(new THREE.Vector3());
+        raycaster.set(origin, dir);
 
-    if (hitTestSource && !placed) {
-      const referenceSpace = gl.xr.getReferenceSpace();
-      const hits = frame.getHitTestResults(hitTestSource);
+        const candidates = (nodeRefs.current || [])
+          .map((group) => (group ? group.children : []))
+          .flat();
 
-      if (hits.length > 0) {
-        const hit = hits[0];
-        const pose = hit.getPose(referenceSpace);
-
-        reticleRef.current.visible = true;
-        reticleRef.current.position.set(
-          pose.transform.position.x,
-          pose.transform.position.y,
-          pose.transform.position.z
-        );
-        reticleRef.current.updateMatrixWorld(true);
-
-        setProgress((prev) => {
-          const next = Math.min(prev + delta / 2, 1); // 2 sec hold
-          if (next >= 1 && !placed) {
-            setPlaced(true);
-            setTargetPos(pose.transform.position);
+        const intersects = raycaster.intersectObjects(candidates, true);
+        if (intersects.length > 0) {
+          let hit = intersects[0].object;
+          while (hit && hit.userData?.nodeData === undefined && hit.parent) {
+            hit = hit.parent;
           }
-          return next;
-        });
-      } else {
-        reticleRef.current.visible = false;
-        setProgress(0);
-      }
+          const nodeData = hit?.userData?.nodeData;
+          if (nodeData) setSelectedNode(nodeData);
+        }
+      };
+
+      session.addEventListener("select", onSelect);
+      const onEnd = () => session.removeEventListener("select", onSelect);
+      session.addEventListener("end", onEnd);
+    };
+
+    gl.xr.addEventListener("sessionstart", onSessionStart);
+    return () => gl.xr.removeEventListener("sessionstart", onSessionStart);
+  }, [gl, nodeRefs, setSelectedNode]);
+
+  return null;
+};
+
+// === Tree Visualization ===
+const TreeVisualization = ({
+  nodes,
+  edges,
+  onNodeClick,
+  selectedNode,
+  addNodeRef,
+}) => {
+  return (
+    <group>
+      {edges.map(([a, b], i) => {
+        const start = nodes.find((n) => n.id === a).pos;
+        const end = nodes.find((n) => n.id === b).pos;
+        return <Connection key={i} start={start} end={end} />;
+      })}
+
+      {nodes.map((node) => (
+        <TreeNode
+          key={node.id}
+          node={node}
+          onClick={() => onNodeClick(node)}
+          isSelected={selectedNode?.id === node.id}
+          ref={(r) => addNodeRef(r)}
+        />
+      ))}
+    </group>
+  );
+};
+
+// === Node (Sphere + Label) ===
+const TreeNode = React.forwardRef(({ node, onClick, isSelected }, ref) => {
+  const { id, pos, type } = node;
+  const baseColor =
+    type === "Root" ? "#60a5fa" : type === "Child" ? "#34d399" : "#fbbf24";
+  const color = isSelected ? "#f87171" : baseColor;
+
+  const groupRef = useRef();
+
+  useEffect(() => {
+    if (groupRef.current) groupRef.current.userData = { nodeData: node };
+  }, [node]);
+
+  return (
+    <group
+      position={pos}
+      ref={(g) => {
+        groupRef.current = g;
+        if (typeof ref === "function") ref(g);
+        else if (ref) ref.current = g;
+      }}
+      onClick={onClick}
+    >
+      <mesh>
+        <sphereGeometry args={[0.35, 32, 32]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <Text
+        position={[0, 0.8, 0]}
+        fontSize={0.35}
+        color="#ffffff"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {id}
+      </Text>
+    </group>
+  );
+});
+
+// === Edge (Line between nodes) ===
+const Connection = ({ start, end }) => {
+  const points = useMemo(
+    () => [new THREE.Vector3(...start), new THREE.Vector3(...end)],
+    [start, end]
+  );
+  const geometry = useMemo(
+    () => new THREE.BufferGeometry().setFromPoints(points),
+    [points]
+  );
+
+  return (
+    <line>
+      <primitive object={geometry} />
+      <lineBasicMaterial color="#94a3b8" linewidth={2} />
+    </line>
+  );
+};
+
+// === Node Info Panel ===
+const NodeInfoPanel = ({ node, position }) => {
+  let description = "";
+  if (node.type === "Root")
+    description = "Topmost node in the tree. Has no parent.";
+  else if (node.type === "Child")
+    description = "A node that has a parent and may have children.";
+  else description = "A leaf node — has no children.";
+
+  const content = [
+    `🔹 Node: ${node.id}`,
+    `Type: ${node.type}`,
+    "",
+    description,
+  ].join("\n");
+
+  return (
+    <FadeInText
+      show={true}
+      text={content}
+      position={position}
+      fontSize={0.35}
+      color="#a5f3fc"
+    />
+  );
+};
+
+// === Fade-in Text ===
+const FadeInText = ({ show, text, position, fontSize, color }) => {
+  const ref = useRef();
+  const opacity = useRef(0);
+  const scale = useRef(0.6);
+
+  useFrame(() => {
+    if (show) {
+      opacity.current = Math.min(opacity.current + 0.05, 1);
+      scale.current = Math.min(scale.current + 0.05, 1);
+    } else {
+      opacity.current = Math.max(opacity.current - 0.05, 0);
+      scale.current = 0.6;
+    }
+    if (ref.current && ref.current.material) {
+      ref.current.material.opacity = opacity.current;
+      ref.current.scale.set(scale.current, scale.current, scale.current);
     }
   });
 
   return (
-    <group>
-      {/* Reticle ring */}
-      <mesh ref={reticleRef} rotation-x={-Math.PI / 2} visible={false}>
-        <ringGeometry args={[0.07, 0.1, 32]} />
-        <meshBasicMaterial color="yellow" />
-      </mesh>
-
-      {/* Progress indicator */}
-      {reticleRef.current && !placed && (
-        <mesh position={reticleRef.current.position} rotation-x={-Math.PI / 2}>
-          <ringGeometry args={[0.05, 0.09, 32, 1, 0, Math.PI * 2 * progress]} />
-          <meshBasicMaterial color="lime" transparent opacity={0.8} />
-        </mesh>
-      )}
-
-      {/* Children placed at reticle */}
-      {placed && targetPos && (
-        <group
-          position={[targetPos.x, targetPos.y, targetPos.z]}
-          scale={[0.1, 0.1, 0.1]}
-        >
-          {children}
-        </group>
-      )}
-    </group>
-  );
-}
-
-const Box = ({ index, value, position = [0, 0, 0] }) => {
-  const size = [1.6, 1.2, 1];
-  return (
-    <group position={position}>
-      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
-        <boxGeometry args={size} />
-        <meshStandardMaterial color={index % 2 === 0 ? "#60a5fa" : "#34d399"} />
-      </mesh>
-
-      <Text
-        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        fontSize={0.35}
-        anchorX="center"
-        anchorY="middle"
-        color="white"
-        outlineWidth={0.02}
-        outlineColor="black"
-        fontWeight="bold"
-      >
-        {String(value)}
-      </Text>
-
-      <Text
-        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        fontSize={0.2}
-        anchorX="center"
-        anchorY="middle"
-        color="yellow"
-        outlineWidth={0.015}
-        outlineColor="black"
-        fontWeight="bold"
-      >
-        {`[${index}]`}
-      </Text>
-    </group>
+    <Text
+      ref={ref}
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      material-transparent
+      maxWidth={10}
+      textAlign="center"
+    >
+      {text}
+    </Text>
   );
 };
 
