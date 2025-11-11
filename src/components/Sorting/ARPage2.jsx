@@ -5,17 +5,13 @@ import * as THREE from "three";
 
 const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
   const [array, setArray] = useState(data);
+  const [currentStep, setCurrentStep] = useState(0);
   const [isSorting, setIsSorting] = useState(false);
   const [swapPair, setSwapPair] = useState([]);
   const [finished, setFinished] = useState(false);
+
   const boxRefs = useRef([]);
 
-  // Collect refs
-  const addBoxRef = (r) => {
-    if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
-  };
-
-  // Heights & Positions
   const heights = useMemo(() => {
     const maxVal = Math.max(...array);
     return array.map((v) => (v / maxVal) * 2 + 0.5);
@@ -26,26 +22,32 @@ const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
     return array.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [array, spacing]);
 
-  const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+  const addBoxRef = (r) => {
+    if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
+  };
 
   const handleReset = () => {
     setArray([...data]);
-    setSwapPair([]);
-    setIsSorting(false);
     setFinished(false);
+    setIsSorting(false);
+    setSwapPair([]);
+    setCurrentStep(0);
   };
 
-  // Improved Bubble Sort with highlighted swaps
+  const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
   const handleStartSort = async () => {
     if (isSorting) return;
-    if (finished) return handleReset();
+    if (finished) {
+      handleReset();
+      return;
+    }
 
     setIsSorting(true);
     let tempArray = [...array];
     const n = tempArray.length;
 
     for (let i = 0; i < n - 1; i++) {
-      let swapped = false;
       for (let j = 0; j < n - i - 1; j++) {
         setSwapPair([j, j + 1]);
         await sleep(700);
@@ -53,11 +55,9 @@ const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
         if (tempArray[j] > tempArray[j + 1]) {
           [tempArray[j], tempArray[j + 1]] = [tempArray[j + 1], tempArray[j]];
           setArray([...tempArray]);
-          swapped = true;
           await sleep(700);
         }
       }
-      if (!swapped) break; // Early exit if no swaps
     }
 
     setSwapPair([]);
@@ -73,22 +73,19 @@ const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
       "n = length(array)",
       "",
       "for i = 0 to n-1:",
-      "    swapped = false",
       "    for j = 0 to n-i-1:",
       "        if array[j] > array[j+1]:",
       "            swap(array[j], array[j+1])",
-      "            swapped = true",
-      "    if not swapped:",
-      "        break",
       "",
       `print('Sorted Array:', [${[...array]
         .sort((a, b) => a - b)
         .join(", ")}])`,
+      "",
       "// Result: [5, 10, 15, 25, 35]",
     ].join("\n");
   };
 
-  // --- AR setup ---
+  // AR start
   const startAR = (gl) => {
     if (navigator.xr) {
       navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
@@ -97,9 +94,13 @@ const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
             .requestSession("immersive-ar", {
               requiredFeatures: ["hit-test", "local-floor"],
             })
-            .then((session) => gl.xr.setSession(session))
+            .then((session) => {
+              gl.xr.setSession(session);
+            })
             .catch((err) => console.error("AR session failed:", err));
-        } else console.warn("AR not supported on this device.");
+        } else {
+          console.warn("AR not supported on this device.");
+        }
       });
     }
   };
@@ -107,7 +108,7 @@ const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
   return (
     <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 4, 25], fov: 50 }}
+        camera={{ position: [0, 5, 13], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
           startAR(gl);
@@ -149,14 +150,15 @@ const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
             highlighted={swapPair.includes(i)}
             sorted={finished}
             onClick={handleStartSort}
-            ref={(r) => addBoxRef(r)}
+            ref={addBoxRef}
           />
         ))}
 
         {/* Code Panel */}
         {finished && <CodePanel code={generateCode()} position={[7.8, 1, 0]} />}
 
-        <ARInteractionManager boxRefs={boxRefs} onBoxClick={handleStartSort} />
+        {/* AR Interaction */}
+        <ARInteractionManager boxRefs={boxRefs} onClick={handleStartSort} />
 
         <OrbitControls makeDefault />
       </Canvas>
@@ -164,55 +166,10 @@ const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
   );
 };
 
-// --- AR Interaction Manager ---
-const ARInteractionManager = ({ boxRefs, onBoxClick }) => {
-  const { gl } = useThree();
-
-  useEffect(() => {
-    const onSessionStart = () => {
-      const session = gl.xr.getSession();
-      if (!session) return;
-
-      const onSelect = () => {
-        const xrCamera = gl.xr.getCamera();
-        const raycaster = new THREE.Raycaster();
-        const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
-        const dir = new THREE.Vector3(0, 0, -1)
-          .applyQuaternion(cam.quaternion)
-          .normalize();
-        const origin = cam.getWorldPosition(new THREE.Vector3());
-        raycaster.set(origin, dir);
-
-        const candidates = (boxRefs.current || [])
-          .map((g) => (g ? g.children : []))
-          .flat();
-        const intersects = raycaster.intersectObjects(candidates, true);
-
-        if (intersects.length > 0) {
-          let hit = intersects[0].object;
-          while (hit && hit.userData?.boxIndex === undefined && hit.parent)
-            hit = hit.parent;
-          if (hit?.userData?.boxIndex !== undefined) onBoxClick();
-        }
-      };
-
-      session.addEventListener("select", onSelect);
-      const onEnd = () => session.removeEventListener("select", onSelect);
-      session.addEventListener("end", onEnd);
-    };
-
-    gl.xr.addEventListener("sessionstart", onSessionStart);
-    return () => gl.xr.removeEventListener("sessionstart", onSessionStart);
-  }, [gl, boxRefs, onBoxClick]);
-
-  return null;
-};
-
-// --- Animated Box ---
+// AnimatedBox with forwardRef for AR raycasting
 const AnimatedBox = React.forwardRef(
   ({ index, value, height, position, highlighted, sorted, onClick }, ref) => {
     const meshRef = useRef();
-    const groupRef = useRef();
     const targetY = height / 2;
     const normalColor = sorted ? "#34d399" : "#60a5fa";
     const highlightColor = "#f87171";
@@ -229,18 +186,14 @@ const AnimatedBox = React.forwardRef(
       meshRef.current.material.color.lerp(targetColor, 0.2);
     });
 
-    useEffect(() => {
-      if (groupRef.current) groupRef.current.userData = { boxIndex: index };
-    }, [index]);
-
     return (
       <group
         ref={(g) => {
-          groupRef.current = g;
+          if (g) g.userData = { index };
           if (typeof ref === "function") ref(g);
           else if (ref) ref.current = g;
         }}
-        position={position}
+        position={[position[0], 0, 0]}
       >
         <mesh ref={meshRef} onClick={onClick}>
           <boxGeometry args={[1.6, height, 1]} />
@@ -250,6 +203,7 @@ const AnimatedBox = React.forwardRef(
             emissiveIntensity={highlighted ? 0.5 : 0}
           />
         </mesh>
+
         <Text
           position={[0, height + 0.3, 0]}
           fontSize={0.35}
@@ -264,11 +218,56 @@ const AnimatedBox = React.forwardRef(
   }
 );
 
-// --- Code Panel & FadeText ---
+// AR Interaction Manager
+const ARInteractionManager = ({ boxRefs, onClick }) => {
+  const { gl } = useThree();
+
+  useEffect(() => {
+    const onSessionStart = () => {
+      const session = gl.xr.getSession();
+      if (!session) return;
+
+      const handleSelect = () => {
+        const xrCamera = gl.xr.getCamera();
+        const raycaster = new THREE.Raycaster();
+        const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
+        const dir = new THREE.Vector3(0, 0, -1)
+          .applyQuaternion(cam.quaternion)
+          .normalize();
+        const origin = cam.getWorldPosition(new THREE.Vector3());
+        raycaster.set(origin, dir);
+
+        const candidates = (boxRefs.current || [])
+          .map((g) => (g ? g.children : []))
+          .flat();
+        const intersects = raycaster.intersectObjects(candidates, true);
+
+        if (intersects.length > 0) {
+          let hit = intersects[0].object;
+          while (hit && hit.userData?.index === undefined && hit.parent)
+            hit = hit.parent;
+          if (hit?.userData?.index !== undefined) onClick();
+        }
+      };
+
+      session.addEventListener("select", handleSelect);
+      const onEnd = () => session.removeEventListener("select", handleSelect);
+      session.addEventListener("end", onEnd);
+    };
+
+    gl.xr.addEventListener("sessionstart", onSessionStart);
+    return () => gl.xr.removeEventListener("sessionstart", onSessionStart);
+  }, [gl, boxRefs, onClick]);
+
+  return null;
+};
+
+// Code Panel
 const CodePanel = ({ code, position }) => (
   <FadeText text={code} position={position} fontSize={0.3} color="#c7d2fe" />
 );
 
+// Fade Text
 const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
   const [opacity, setOpacity] = useState(0);
   useEffect(() => {
@@ -284,6 +283,7 @@ const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
   }, []);
+
   return (
     <Text
       position={position}
