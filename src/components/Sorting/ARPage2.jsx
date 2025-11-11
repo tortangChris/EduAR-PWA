@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 
-const VisualPage2AR = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
+const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
   const [array, setArray] = useState(data);
   const [currentStep, setCurrentStep] = useState(0);
   const [isSorting, setIsSorting] = useState(false);
@@ -296,4 +296,4 @@ const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
   );
 };
 
-export default VisualPage2AR;
+export default ARPage2;
