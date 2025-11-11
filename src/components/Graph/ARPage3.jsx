@@ -114,7 +114,7 @@ const ARPage3 = () => {
   return (
     <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 4, 12], fov: 50 }}
+        camera={{ position: [0, 4, 25], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
           startAR(gl);
