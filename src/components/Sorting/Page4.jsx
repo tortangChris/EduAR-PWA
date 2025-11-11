@@ -1,12 +1,12 @@
 import React from "react";
-import VisualPage4 from "./VisualPage1";
-import ARButton from "./ARButton";
+import VisualPage4 from "./VisualPage4";
+import ARButton4 from "./ARButton4";
 import SortingPage04 from "./Contents/SortingPage04";
 
 const Page4 = () => {
   return (
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(82vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">
-      <ARButton />
+      <ARButton4 />
 
       <SortingPage04 />
 
