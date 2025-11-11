@@ -5,13 +5,12 @@ import * as THREE from "three";
 
 const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
   const [array, setArray] = useState(data);
-  const [currentStep, setCurrentStep] = useState(0);
   const [isSorting, setIsSorting] = useState(false);
   const [swapPair, setSwapPair] = useState([]);
   const [finished, setFinished] = useState(false);
   const boxRefs = useRef([]);
 
-  // --- Add box refs ---
+  // Collect refs
   const addBoxRef = (r) => {
     if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
   };
@@ -27,16 +26,16 @@ const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
     return array.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [array, spacing]);
 
-  const handleReset = () => {
-    setArray([...data]);
-    setFinished(false);
-    setIsSorting(false);
-    setSwapPair([]);
-    setCurrentStep(0);
-  };
-
   const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
+  const handleReset = () => {
+    setArray([...data]);
+    setSwapPair([]);
+    setIsSorting(false);
+    setFinished(false);
+  };
+
+  // Improved Bubble Sort with highlighted swaps
   const handleStartSort = async () => {
     if (isSorting) return;
     if (finished) return handleReset();
@@ -46,6 +45,7 @@ const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
     const n = tempArray.length;
 
     for (let i = 0; i < n - 1; i++) {
+      let swapped = false;
       for (let j = 0; j < n - i - 1; j++) {
         setSwapPair([j, j + 1]);
         await sleep(700);
@@ -53,9 +53,11 @@ const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
         if (tempArray[j] > tempArray[j + 1]) {
           [tempArray[j], tempArray[j + 1]] = [tempArray[j + 1], tempArray[j]];
           setArray([...tempArray]);
+          swapped = true;
           await sleep(700);
         }
       }
+      if (!swapped) break; // Early exit if no swaps
     }
 
     setSwapPair([]);
@@ -71,19 +73,22 @@ const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
       "n = length(array)",
       "",
       "for i = 0 to n-1:",
+      "    swapped = false",
       "    for j = 0 to n-i-1:",
       "        if array[j] > array[j+1]:",
       "            swap(array[j], array[j+1])",
+      "            swapped = true",
+      "    if not swapped:",
+      "        break",
       "",
       `print('Sorted Array:', [${[...array]
         .sort((a, b) => a - b)
         .join(", ")}])`,
-      "",
       "// Result: [5, 10, 15, 25, 35]",
     ].join("\n");
   };
 
-  // === AR setup ===
+  // --- AR setup ---
   const startAR = (gl) => {
     if (navigator.xr) {
       navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
@@ -151,7 +156,6 @@ const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
         {/* Code Panel */}
         {finished && <CodePanel code={generateCode()} position={[7.8, 1, 0]} />}
 
-        {/* AR interaction manager */}
         <ARInteractionManager boxRefs={boxRefs} onBoxClick={handleStartSort} />
 
         <OrbitControls makeDefault />
@@ -260,7 +264,7 @@ const AnimatedBox = React.forwardRef(
   }
 );
 
-// --- Code Panel & FadeText (same as before) ---
+// --- Code Panel & FadeText ---
 const CodePanel = ({ code, position }) => (
   <FadeText text={code} position={position} fontSize={0.3} color="#c7d2fe" />
 );
