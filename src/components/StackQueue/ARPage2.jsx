@@ -196,7 +196,7 @@ const StackBackground = ({ height }) => {
   return (
     <group position={[0, height / 2 - 1, -0.5]}>
       <mesh geometry={geometry}>
-        <meshBasicMaterial color="#1e293b" opacity={0.3} transparent />
+        1q <meshBasicMaterial color="#1e293b" opacity={0.3} transparent />
       </mesh>
       <lineSegments geometry={edges}>
         <lineBasicMaterial color="#64748b" linewidth={2} />

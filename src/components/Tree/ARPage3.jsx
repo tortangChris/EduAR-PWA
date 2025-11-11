@@ -1,149 +1,227 @@
-import React, { useMemo, useState, useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
+import React, { useRef, useState } from "react";
+import { ARCanvas, Interactive, DefaultXRControllers } from "@react-three/xr";
+import { Text, useFrame } from "@react-three/drei";
+import * as THREE from "three";
 
-const ARPage3 = ({
-  data = [10, 20, 30, 40, 50],
-  spacing = 2.0,
-  target = 40,
-}) => {
-  const [activeIndex, setActiveIndex] = useState(null);
-  const [operationText, setOperationText] = useState("Starting AR...");
-  const [placed, setPlaced] = useState(true); // ✅ always placed now
+const ARPage3 = () => {
+  const [selectedNode, setSelectedNode] = useState(null);
 
-  // positions for boxes
-  const positions = useMemo(() => {
-    const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [data, spacing]);
+  // Tree types and nodes
+  const nodes = [
+    { id: "A", pos: [0, 1.8, -3], type: "Binary Search Tree" },
+    { id: "B", pos: [-1.2, 1.3, -3], type: "Binary Search Tree" },
+    { id: "C", pos: [1.2, 1.3, -3], type: "Binary Search Tree" },
+    { id: "D", pos: [-1.8, 0.7, -3], type: "Binary Tree" },
+    { id: "E", pos: [-0.6, 0.7, -3], type: "Full Binary Tree" },
+    { id: "F", pos: [0.6, 0.7, -3], type: "Complete Binary Tree" },
+    { id: "G", pos: [1.8, 0.7, -3], type: "General Tree" },
+  ];
 
-  useEffect(() => {
-    if (!placed) return;
+  const edges = [
+    ["A", "B"],
+    ["A", "C"],
+    ["B", "D"],
+    ["B", "E"],
+    ["C", "F"],
+    ["C", "G"],
+  ];
 
-    let steps = [
-      { text: "🔍 Searching for v=40...", index: null, delay: 2000 },
-      { text: "Checking index 0...", index: 0, delay: 2000 },
-      { text: "Checking index 1...", index: 1, delay: 2000 },
-      { text: "Checking index 2...", index: 2, delay: 2000 },
-      { text: "✅ Found 40 at index 3", index: 3, delay: 2000 },
-      { text: "Restarting search...", index: null, delay: 3000 },
-    ];
-
-    let currentStep = 0;
-    let loop;
-
-    const runStep = () => {
-      const step = steps[currentStep];
-      setOperationText(step.text);
-      setActiveIndex(step.index);
-
-      loop = setTimeout(() => {
-        currentStep++;
-        if (currentStep >= steps.length) {
-          currentStep = 0; // restart
-        }
-        runStep();
-      }, step.delay);
-    };
-
-    runStep();
-
-    return () => clearTimeout(loop);
-  }, [placed]);
+  const handleNodeClick = (node) => setSelectedNode(node);
 
   return (
-    <div className="w-full h-screen">
-      <Canvas
-        camera={{ position: [0, 2, 6], fov: 50 }}
-        gl={{ alpha: true }}
-        shadows
-        onCreated={({ gl }) => {
-          gl.xr.enabled = true;
-          if (navigator.xr) {
-            navigator.xr
-              .requestSession("immersive-ar", {
-                requiredFeatures: ["local-floor"], // ✅ no hit-test
-              })
-              .then((session) => {
-                gl.xr.setSession(session);
-              })
-              .catch((err) => console.error("❌ AR session failed:", err));
+    <div className="w-full h-[300px]">
+      <ARCanvas camera={{ position: [0, 1.6, 0], fov: 60 }}>
+        <ambientLight intensity={0.8} />
+        <directionalLight position={[3, 5, 2]} intensity={0.8} />
+
+        {/* Title */}
+        <FadeInText
+          show={true}
+          text={"🌿 Types of Trees"}
+          position={[0, 2.6, -3]}
+          fontSize={0.25}
+          color="white"
+        />
+
+        <FadeInText
+          show={true}
+          text={
+            "General Tree • Binary Tree • Full Binary Tree • Complete Binary Tree • BST"
           }
-        }}
-      >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
+          position={[0, 2.3, -3]}
+          fontSize={0.18}
+          color="#fde68a"
+        />
 
-        {/* ✅ Fixed-position group directly in front of the user */}
-        <group position={[0, 1, -2]} scale={[0.1, 0.1, 0.1]}>
-          {/* Operation text above */}
-          {operationText && (
-            <Text
-              position={[0, 3, 0]}
-              fontSize={0.5}
-              anchorX="center"
-              anchorY="middle"
-              color="white"
-            >
-              {operationText}
-            </Text>
-          )}
+        {/* Tree Visualization */}
+        <TreeVisualizationAR
+          nodes={nodes}
+          edges={edges}
+          onNodeClick={handleNodeClick}
+          selectedNode={selectedNode}
+        />
 
-          {/* Boxes */}
-          {data.map((value, i) => (
-            <Box
-              key={i}
-              index={i}
-              value={value}
-              position={positions[i]}
-              highlight={activeIndex === i}
-            />
-          ))}
+        {/* Info Panel */}
+        {selectedNode && (
+          <NodeInfoPanel node={selectedNode} position={[0, 0.2, -2]} />
+        )}
 
-          {/* Ground plane */}
-          <mesh rotation-x={-Math.PI / 2} receiveShadow>
-            <planeGeometry args={[10, 10]} />
-            <shadowMaterial opacity={0.3} />
-          </mesh>
-        </group>
-      </Canvas>
+        <DefaultXRControllers />
+      </ARCanvas>
     </div>
   );
 };
 
-const Box = ({ index, value, position = [0, 0, 0], highlight }) => {
-  const size = [1.6, 1.2, 1];
+// === Tree Visualization (AR Interactive Nodes) ===
+const TreeVisualizationAR = ({ nodes, edges, onNodeClick, selectedNode }) => {
+  return (
+    <group>
+      {edges.map(([a, b], i) => {
+        const start = nodes.find((n) => n.id === a).pos;
+        const end = nodes.find((n) => n.id === b).pos;
+        return <Connection key={i} start={start} end={end} />;
+      })}
+
+      {nodes.map((node) => (
+        <Interactive key={node.id} onSelect={() => onNodeClick(node)}>
+          <TreeNode
+            position={node.pos}
+            label={node.id}
+            type={node.type}
+            isSelected={selectedNode?.id === node.id}
+          />
+        </Interactive>
+      ))}
+    </group>
+  );
+};
+
+// === Node (Sphere + Label) ===
+const TreeNode = ({ position, label, type, isSelected }) => {
+  const baseColor =
+    type === "Binary Search Tree"
+      ? "#60a5fa"
+      : type === "Binary Tree"
+      ? "#34d399"
+      : type === "Full Binary Tree"
+      ? "#fbbf24"
+      : type === "Complete Binary Tree"
+      ? "#a78bfa"
+      : "#f87171";
+
+  const color = isSelected ? "#f472b6" : baseColor;
+
   return (
     <group position={position}>
-      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
-        <boxGeometry args={size} />
-        <meshStandardMaterial
-          color={
-            highlight ? "#facc15" : index % 2 === 0 ? "#60a5fa" : "#34d399"
-          }
-          emissive={highlight ? "#facc15" : "#000"}
-          emissiveIntensity={highlight ? 1 : 0}
-        />
+      <mesh>
+        <sphereGeometry args={[0.1, 32, 32]} />
+        <meshStandardMaterial color={color} />
       </mesh>
-
       <Text
-        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
-        fontSize={0.35}
+        position={[0, 0.25, 0]}
+        fontSize={0.15}
+        color="#ffffff"
         anchorX="center"
         anchorY="middle"
       >
-        {String(value)}
-      </Text>
-
-      <Text
-        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.01]}
-        fontSize={0.2}
-        anchorX="center"
-        anchorY="middle"
-      >
-        {`[${index}]`}
+        {label}
       </Text>
     </group>
+  );
+};
+
+// === Edge (Line between nodes) ===
+const Connection = ({ start, end }) => {
+  const points = [new THREE.Vector3(...start), new THREE.Vector3(...end)];
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  return (
+    <line>
+      <primitive object={geometry} />
+      <lineBasicMaterial color="#94a3b8" linewidth={2} />
+    </line>
+  );
+};
+
+// === Node Info Panel ===
+const NodeInfoPanel = ({ node, position }) => {
+  let description = "";
+
+  switch (node.type) {
+    case "General Tree":
+      description =
+        "A tree with no restriction on the number of children each node can have.";
+      break;
+    case "Binary Tree":
+      description = "Each node can have at most two children: left and right.";
+      break;
+    case "Full Binary Tree":
+      description =
+        "Every node has either 0 or 2 children. No node has only one child.";
+      break;
+    case "Complete Binary Tree":
+      description =
+        "All levels are completely filled except possibly the last, which is filled from left to right.";
+      break;
+    case "Binary Search Tree":
+      description =
+        "A binary tree where left child < root < right child. Used for fast searching and sorting.";
+      break;
+    default:
+      description = "Tree type information not available.";
+  }
+
+  const content = [
+    `🔹 Node: ${node.id}`,
+    `Tree Type: ${node.type}`,
+    "",
+    description,
+  ].join("\n");
+
+  return (
+    <FadeInText
+      show={true}
+      text={content}
+      position={position}
+      fontSize={0.18}
+      color="#a5f3fc"
+    />
+  );
+};
+
+// === Fade-in Text ===
+const FadeInText = ({ show, text, position, fontSize, color }) => {
+  const ref = useRef();
+  const opacity = useRef(0);
+  const scale = useRef(0.6);
+
+  useFrame(() => {
+    if (show) {
+      opacity.current = Math.min(opacity.current + 0.05, 1);
+      scale.current = Math.min(scale.current + 0.05, 1);
+    } else {
+      opacity.current = Math.max(opacity.current - 0.05, 0);
+      scale.current = 0.6;
+    }
+    if (ref.current && ref.current.material) {
+      ref.current.material.opacity = opacity.current;
+      ref.current.scale.set(scale.current, scale.current, scale.current);
+    }
+  });
+
+  return (
+    <Text
+      ref={ref}
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      material-transparent
+      maxWidth={4}
+      textAlign="center"
+    >
+      {text}
+    </Text>
   );
 };
 
