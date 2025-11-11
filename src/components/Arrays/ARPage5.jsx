@@ -47,7 +47,7 @@ const ARPage5 = ({ spacing = 2.2 }) => {
       .join(", ");
 
     setPseudoCode([
-      "📘 Pseudo Code Example (dynamic):",
+      "📘 Pseudo Code Example:",
       "",
       `// Original array: [${array.join(", ")}]`,
       `// Deleted (original index:value): ${deletedItems || "none"}`,

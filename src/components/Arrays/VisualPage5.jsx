@@ -48,7 +48,7 @@ const VirtualPage5 = ({ spacing = 2.2 }) => {
       .join(", ");
 
     setPseudoCode([
-      "📘 Pseudo Code: Dynamic Deletion",
+      "📘 Pseudo Code: Deletion",
       "",
       `// Original array: [${array.join(", ")}]`,
       `// Deleted original indexes: ${deletedItems || "none"}`,
