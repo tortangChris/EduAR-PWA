@@ -1,77 +1,83 @@
-import React, { useState, useMemo, useRef } from "react";
+// ✅ VirtualPage5.jsx — PERMANENT DELETE + dynamic pseudocode (same logic as ARPage5)
+
+import React, { useMemo, useState, useRef, useEffect, forwardRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Text, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import useSound from "use-sound";
-import dingSfx from "/sounds/ding.mp3"; // ensure file exists in /public/sounds/
+import dingSfx from "/sounds/ding.mp3";
 
-const VisualPage5 = ({ spacing = 2.2 }) => {
-  const [array, setArray] = useState([5, 10, 15, 20, "Delete"]);
-  const [deleting, setDeleting] = useState(false);
-  const [highlightIndex, setHighlightIndex] = useState(null);
-  const [infoText, setInfoText] = useState(
-    "Click 'Delete' to start deletion mode"
-  );
+const VirtualPage5 = ({ spacing = 2.2 }) => {
+  const [array] = useState([5, 10, 15, 20, 25]); // ✅ fixed original array
+  const [removedIndexes, setRemovedIndexes] = useState(new Set()); // ✅ permanent index removal
+  const [infoText, setInfoText] = useState("Click a box to delete it");
   const [pseudoCode, setPseudoCode] = useState([]);
   const [play] = useSound(dingSfx, { volume: 0.5 });
-  const [deleteMode, setDeleteMode] = useState(false);
-  const [fadeOutIndex, setFadeOutIndex] = useState(null);
 
+  const removedRef = useRef(removedIndexes);
+
+  useEffect(() => {
+    removedRef.current = removedIndexes;
+  }, [removedIndexes]);
+
+  // ✅ handle delete
+  const handleDelete = (index) => {
+    if (removedRef.current.has(index)) return;
+
+    const newRemoved = new Set(removedRef.current);
+    newRemoved.add(index);
+    setRemovedIndexes(newRemoved);
+    removedRef.current = newRemoved;
+
+    play();
+    setInfoText(`✅ Deleted ${array[index]}`);
+
+    // compute remaining
+    const remaining = array
+      .map((v, i) => ({ value: v, originalIndex: i }))
+      .filter((item) => !newRemoved.has(item.originalIndex));
+
+    const remainingValues = remaining.map((i) => i.value);
+    const remainingMap = remaining
+      .map((r, newIdx) => `[${newIdx}] = ${r.value}`)
+      .join(", ");
+
+    const deletedItems = Array.from(newRemoved)
+      .sort((a, b) => a - b)
+      .map((i) => `[${i}] = ${array[i]}`)
+      .join(", ");
+
+    setPseudoCode([
+      "📘 Pseudo Code: Dynamic Deletion",
+      "",
+      `// Original array: [${array.join(", ")}]`,
+      `// Deleted original indexes: ${deletedItems || "none"}`,
+      "",
+      `array = [${remainingValues.join(", ")}]`,
+      `// New index mapping: ${remainingMap || "none"}`,
+      "",
+      `index = ${index}  // user removed`,
+      "delete array[index]",
+      "",
+      `// Updated length = ${remainingValues.length}`,
+    ]);
+  };
+
+  // ✅ Recompute positions dynamically based on remaining count
   const positions = useMemo(() => {
-    const mid = (array.length - 1) / 2;
-    return array.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [array, spacing]);
+    const visibleCount = array.filter((_, i) => !removedRef.current.has(i)).length;
+    const mid = (visibleCount - 1) / 2;
+    let cur = 0;
 
-  const handleDeleteClick = () => {
-    if (deleteMode) {
-      setDeleteMode(false);
-      setInfoText("Exited deletion mode.");
-    } else {
-      setDeleteMode(true);
-      setInfoText("🧩 Select a box to delete");
-    }
-  };
-
-  const handleSelectBox = (index) => {
-    if (!deleteMode || deleting) return;
-    if (array[index] === "Delete") return;
-
-    setDeleting(true);
-    setFadeOutIndex(index);
-    setHighlightIndex(index);
-    setInfoText(`Deleting value at index ${index}...`);
-
-    setTimeout(() => {
-      const newArray = [...array];
-      const deletedValue = newArray[index];
-      newArray.splice(index, 1);
-      setArray(newArray);
-      setHighlightIndex(null);
-      setFadeOutIndex(null);
-      setDeleting(false);
-      setDeleteMode(false);
-      play();
-
-      setInfoText(`✅ Deleted value ${deletedValue} successfully`);
-
-      // ✅ Short but detailed pseudo code
-      const cleanArray = newArray.filter((v) => v !== "Delete");
-      const pseudo = [
-        "📘 Pseudo Code Example:",
-        "",
-        `array = [${cleanArray.join(", ")}]`,
-        `index = ${index}`,
-        "",
-        "value = array[index]",
-        "delete array[index]",
-        "print('Deleted:', value)",
-        "",
-        `// Deleted value: ${deletedValue}`,
-        `// Updated array: [${cleanArray.join(", ")}]`,
-      ];
-      setPseudoCode(pseudo);
-    }, 1000);
-  };
+    return array.map((_, i) => {
+      if (!removedRef.current.has(i)) {
+        const pos = [(cur - mid) * spacing, 0, 0];
+        cur++;
+        return pos;
+      }
+      return [0, -9999, 0]; // removed → offscreen
+    });
+  }, [array, spacing, removedIndexes]);
 
   return (
     <div className="w-full h-[300px]">
@@ -80,66 +86,53 @@ const VisualPage5 = ({ spacing = 2.2 }) => {
         <directionalLight position={[5, 8, 5]} intensity={0.8} />
 
         {/* Title */}
-        <FadeInText
-          show={true}
+        <FadeText
           text="Deletion Operation"
           position={[0, 2.8, 0]}
           fontSize={0.55}
           color="white"
         />
 
-        {/* Info Text */}
-        <FadeInText
-          show={true}
+        {/* Dynamic Info */}
+        <FadeText
           text={infoText}
           position={[0, 2, 0]}
-          fontSize={0.3}
+          fontSize={0.33}
           color="#ffd166"
         />
 
-        {/* Boxes */}
-        {array.map((value, i) => (
-          <Box
-            key={i}
-            index={i}
-            value={value}
-            position={positions[i]}
-            highlight={highlightIndex === i}
-            isDelete={value === "Delete"}
-            deleteMode={deleteMode}
-            fadeOut={fadeOutIndex === i}
-            disabled={deleting}
-            onClick={
-              value === "Delete" ? handleDeleteClick : () => handleSelectBox(i)
-            }
-          />
-        ))}
-
-        {/* Pseudo Code (below boxes) */}
-        {pseudoCode.length > 0 && (
-          <>
-            {pseudoCode.map((line, i) => (
-              <FadeInText
-                key={i}
-                show={true}
-                text={line}
-                position={[0, -0.8 - i * 0.35, 0]}
-                fontSize={0.28}
-                color={
-                  line.startsWith("//")
-                    ? "#8ef5b8"
-                    : line.startsWith("array") ||
-                      line.startsWith("index") ||
-                      line.startsWith("delete") ||
-                      line.startsWith("print")
-                    ? "#ffeb99"
-                    : "#9be7a2"
-                }
-                anchorX="center"
-              />
-            ))}
-          </>
+        {/* BOXES */}
+        {array.map((value, i) =>
+          !removedIndexes.has(i) ? (
+            <AnimatedBox
+              key={i}
+              index={i}
+              value={value}
+              targetPosition={positions[i]}
+              onClick={() => handleDelete(i)}
+            />
+          ) : null
         )}
+
+        {/* Pseudo Code */}
+        {pseudoCode.length > 0 &&
+          pseudoCode.map((line, idx) => (
+            <FadeText
+              key={idx}
+              text={line}
+              position={[0, -0.7 - idx * 0.33, 0]}
+              fontSize={0.28}
+              color={
+                line.startsWith("//")
+                  ? "#8ef5b8"
+                  : line.startsWith("array") ||
+                    line.startsWith("index") ||
+                    line.startsWith("delete")
+                  ? "#ffeb99"
+                  : "#9be7a2"
+              }
+            />
+          ))}
 
         <OrbitControls makeDefault />
       </Canvas>
@@ -147,128 +140,48 @@ const VisualPage5 = ({ spacing = 2.2 }) => {
   );
 };
 
-/* ---------- Box Component ---------- */
-const Box = ({
-  index,
-  value,
-  position,
-  highlight,
-  isDelete,
-  deleteMode,
-  fadeOut,
-  disabled,
-  onClick,
-}) => {
-  const meshRef = useRef();
+/* ---------------- COMPONENTS ---------------- */
+
+const AnimatedBox = forwardRef(({ index, value, targetPosition, onClick }, ref) => {
+  const group = useRef();
   const size = [1.6, 1.2, 1];
-  const opacity = useRef(1);
-  const scale = useRef(1);
 
   useFrame(() => {
-    if (!meshRef.current) return;
-    const mat = meshRef.current.material;
-    const baseColor = isDelete
-      ? "#f87171"
-      : index % 2 === 0
-      ? "#60a5fa"
-      : "#34d399";
-    const targetColor =
-      highlight && !isDelete
-        ? new THREE.Color("#fbbf24")
-        : new THREE.Color(baseColor);
-    const targetEmissive = highlight || isDelete ? 0.7 : 0;
-
-    // Fade-out animation
-    if (fadeOut) {
-      opacity.current = Math.max(opacity.current - 0.1, 0);
-      scale.current = Math.max(scale.current - 0.1, 0);
-    } else {
-      opacity.current = Math.min(opacity.current + 0.1, 1);
-      scale.current = Math.min(scale.current + 0.1, 1);
-    }
-
-    mat.transparent = true;
-    mat.opacity = opacity.current;
-    meshRef.current.scale.set(scale.current, scale.current, scale.current);
-
-    mat.color.lerp(targetColor, 0.12);
-    mat.emissive = mat.emissive || new THREE.Color(0x000000);
-    mat.emissive.lerp(targetColor, 0.1);
-    mat.emissiveIntensity = THREE.MathUtils.lerp(
-      mat.emissiveIntensity || 0,
-      targetEmissive,
-      0.12
-    );
+    if (!group.current) return;
+    group.current.position.lerp(new THREE.Vector3(...targetPosition), 0.12);
   });
 
   return (
     <group
-      position={position}
-      onClick={!disabled ? onClick : undefined}
-      style={{
-        cursor:
-          isDelete || (deleteMode && !isDelete && !disabled)
-            ? "pointer"
-            : "default",
-      }}
+      ref={group}
+      onClick={onClick}
+      position={targetPosition}
+      style={{ cursor: "pointer" }}
     >
-      <mesh ref={meshRef} castShadow receiveShadow position={[0, 0.6, 0]}>
+      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
         <boxGeometry args={size} />
-        <meshStandardMaterial color={"#60a5fa"} emissive={"#000"} />
+        <meshStandardMaterial color="#60a5fa" emissive="#000" />
       </mesh>
 
-      {/* Value Text */}
-      <Text
-        position={[0, 0.75, size[2] / 2 + 0.01]}
-        fontSize={0.35}
-        anchorX="center"
-        anchorY="middle"
-      >
-        {String(value)}
+      <Text position={[0, 0.8, size[2] / 2 + 0.01]} fontSize={0.35} anchorX="center">
+        {value}
       </Text>
 
-      {/* Index Text */}
-      {value !== "Delete" && (
-        <Text
-          position={[0, 0.25, size[2] / 2 + 0.01]}
-          fontSize={0.22}
-          anchorX="center"
-          anchorY="middle"
-          color="#e0e0e0"
-        >
-          [{index}]
-        </Text>
-      )}
+      <Text position={[0, 0.3, size[2] / 2 + 0.01]} fontSize={0.22} anchorX="center">
+        [{index}]
+      </Text>
     </group>
   );
-};
+});
 
-/* ---------- Fade-in Text ---------- */
-const FadeInText = ({
-  show = false,
-  text = "",
-  position = [0, 0, 0],
-  fontSize = 0.5,
-  color = "white",
-  anchorX = "center",
-}) => {
+const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
   const ref = useRef();
   const opacity = useRef(0);
-  const scale = useRef(0.85);
 
   useFrame(() => {
-    if (show) {
-      opacity.current = Math.min(opacity.current + 0.05, 1);
-      scale.current = Math.min(scale.current + 0.03, 1);
-    } else {
-      opacity.current = Math.max(opacity.current - 0.06, 0);
-      scale.current = Math.max(scale.current - 0.04, 0.85);
-    }
-    if (ref.current && ref.current.material) {
-      ref.current.material.transparent = true;
-      ref.current.material.opacity = opacity.current;
-      ref.current.scale.set(scale.current, scale.current, scale.current);
-    }
+    if (!ref.current) return;
+    opacity.current = Math.min(opacity.current + 0.05, 1);
+    ref.current.material.opacity = opacity.current;
   });
 
   return (
@@ -277,12 +190,13 @@ const FadeInText = ({
       position={position}
       fontSize={fontSize}
       color={color}
-      anchorX={anchorX}
+      anchorX="center"
       anchorY="middle"
+      transparent
     >
       {text}
     </Text>
   );
 };
 
-export default VisualPage5;
+export default VirtualPage5;
