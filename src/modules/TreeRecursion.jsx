@@ -9,7 +9,7 @@ import Page2 from "../components/Tree/Page2";
 import Page3 from "../components/Tree/Page3";
 import Page4 from "../components/Tree/Page4";
 import Page5 from "../components/Tree/Page5";
-import ProgressBar from "../components/common/ProgressBar";
+// import ProgressBar from "../components/common/ProgressBar";
 
 import { useModuleProgress } from "../services/useModuleProgress";
 
@@ -71,7 +71,7 @@ const TreeRecursion = () => {
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
       <ModuleHeader />
 
-      <ProgressBar progress={progress} />
+      {/* <ProgressBar progress={progress} /> */}
 
       {pages[currentPage]}
 
