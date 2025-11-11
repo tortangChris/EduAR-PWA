@@ -1,7 +1,7 @@
 import React from "react";
 import VisualPage2 from "./VisualPage2";
 import GraphPage02 from "./Contents/GraphPage02";
-import ARButton2 from "../Arrays/ARButton2";
+import ARButton2 from ".ARButton2";
 
 const Page2 = () => {
   return (
