@@ -1,275 +1,292 @@
-import React, { useMemo, useState, useRef, useEffect, forwardRef } from "react";
+// ✅ ARPage2.jsx — Bubble Sort (Based on VisualPage2 + AR structure of ARPage1)
+
+import React, { useState, useMemo, useEffect, useRef, forwardRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
+import { Text, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
-const ARPage2 = ({ data = [10, 20, 30, 40, 50], spacing = 2.0 }) => {
-  const [selectedBox, setSelectedBox] = useState(null);
+const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
+  const [array, setArray] = useState(data);
+  const [swapPair, setSwapPair] = useState([]);
+  const [isSorting, setIsSorting] = useState(false);
+  const [finished, setFinished] = useState(false);
 
-  // Compute box positions
-  const positions = useMemo(() => {
-    const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [data, spacing]);
+  const boxGroupRefs = useRef([]);
 
-  // Box refs for AR raycasting
-  const boxRefs = useRef([]);
-  const addBoxRef = (r) => {
-    if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
+  const addBoxGroupRef = (r) => {
+    if (r && !boxGroupRefs.current.includes(r)) boxGroupRefs.current.push(r);
   };
 
-  // Pseudo code generator
-  const generateCode = (index, value) => {
+  const heights = useMemo(() => {
+    const maxVal = Math.max(...array);
+    return array.map((v) => (v / maxVal) * 2 + 0.5);
+  }, [array]);
+
+  const positions = useMemo(() => {
+    const mid = (array.length - 1) / 2;
+    return array.map((_, i) => [(i - mid) * spacing, 0, 0]);
+  }, [array, spacing]);
+
+  const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
+  const handleReset = () => {
+    setArray([...data]);
+    setSwapPair([]);
+    setIsSorting(false);
+    setFinished(false);
+  };
+
+  const handleSortStart = async () => {
+    if (isSorting) return;
+    if (finished) {
+      handleReset();
+      return;
+    }
+
+    setIsSorting(true);
+
+    let tempArray = [...array];
+    const n = tempArray.length;
+
+    for (let i = 0; i < n - 1; i++) {
+      for (let j = 0; j < n - i - 1; j++) {
+        setSwapPair([j, j + 1]);
+        await sleep(700);
+
+        if (tempArray[j] > tempArray[j + 1]) {
+          [tempArray[j], tempArray[j + 1]] = [tempArray[j + 1], tempArray[j]];
+          setArray([...tempArray]);
+          await sleep(700);
+        }
+      }
+    }
+
+    setSwapPair([]);
+    setFinished(true);
+    setIsSorting(false);
+  };
+
+  const generateCode = () => {
     return [
-      "📘 Pseudo Code Example:",
+      "📘 Bubble Sort Pseudo Code:",
       "",
-      "array = [10, 20, 30, 40, 50]",
-      `index = ${index}`,
+      "array = [35, 10, 25, 5, 15]",
+      "n = length(array)",
       "",
-      "value = array[index]",
-      "print('Accessed Value:', value)",
+      "for i = 0 to n-1:",
+      "    for j = 0 to n-i-1:",
+      "        if array[j] > array[j+1]:",
+      "            swap(array[j], array[j+1])",
       "",
-      `// Result: ${value}`,
+      "// Result: [5, 10, 15, 25, 35]"
     ].join("\n");
+  };
+
+  // === Auto AR Start ===
+  const startAR = (gl) => {
+    if (navigator.xr) {
+      navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
+        if (supported) {
+          navigator.xr
+            .requestSession("immersive-ar", {
+              requiredFeatures: ["hit-test", "local-floor"],
+            })
+            .then((session) => {
+              gl.xr.setSession(session);
+            })
+            .catch((err) => console.error("AR session failed:", err));
+        }
+      });
+    }
   };
 
   return (
     <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 4, 12], fov: 50 }}
+        camera={{ position: [0, 5, 13], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
-          if (navigator.xr) {
-            try {
-              const arButton = ARButton.createButton(gl, {
-                requiredFeatures: ["hit-test", "anchors"],
-              });
-              arButton.style.position = "absolute";
-              arButton.style.top = "8px";
-              arButton.style.left = "8px";
-              arButton.style.zIndex = 999;
-              document.body.appendChild(arButton);
-            } catch (e) {
-              console.warn("ARButton create failed", e);
-            }
-          }
+          startAR(gl);
         }}
       >
-        {/* Lights */}
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 10, 5]} intensity={0.8} />
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[8, 12, 6]} intensity={1} />
 
-        {/* Boxes */}
         <group position={[0, 0, -8]}>
-          {/* Header and instruction */}
           <FadeText
-            text="Array Access Operation (O(1))"
-            position={[0, 4, -2]}
+            text="Bubble Sort Algorithm (O(n²))"
+            position={[0, 4.8, 0]}
             fontSize={0.6}
             color="#facc15"
           />
+
           <FadeText
-            text="Tap a box to view its value and pseudo code"
-            position={[0, 3.2, -2]}
+            text={
+              finished
+                ? "Sorting completed! Tap any bar to reset."
+                : isSorting
+                ? "Sorting in progress..."
+                : "Tap a bar to start Bubble Sort"
+            }
+            position={[0, 3.7, 0]}
             fontSize={0.35}
             color="white"
           />
 
-          {data.map((value, i) => (
-            <Box
+          {/* Bars */}
+          {array.map((value, i) => (
+            <AnimatedBoxAR
               key={i}
               index={i}
               value={value}
+              highlighted={swapPair.includes(i)}
+              sorted={finished}
+              height={heights[i]}
               position={positions[i]}
-              selected={selectedBox === i}
-              onClick={() => setSelectedBox((prev) => (prev === i ? null : i))}
-              ref={(r) => addBoxRef(r)}
+              onClick={handleSortStart}
+              ref={(r) => addBoxGroupRef(r)}
             />
           ))}
 
-          {/* Pseudo code panel */}
-          {selectedBox !== null && (
-            <CodePanel
-              code={generateCode(selectedBox, data[selectedBox])}
-              position={[8, 1, 0]}
-            />
-          )}
+          {finished && <CodePanel code={generateCode()} position={[8.8, 1, 0]} />}
         </group>
 
-        {/* AR interaction */}
         <ARInteractionManager
-          boxRefs={boxRefs}
-          setSelectedBox={setSelectedBox}
+          boxGroupRefs={boxGroupRefs}
+          onToggleSort={handleSortStart}
         />
+
+        <OrbitControls makeDefault />
       </Canvas>
     </div>
   );
 };
 
+// === Animated Box (with AR linking for interaction) ===
+const AnimatedBoxAR = forwardRef(
+  ({ index, value, height, position, highlighted, sorted, onClick }, ref) => {
+    const groupRef = useRef();
+    const meshRef = useRef();
+    const labelRef = useRef();
+
+    const targetY = height / 2;
+    const normalColor = sorted ? "#34d399" : "#60a5fa";
+    const highlightColor = "#f87171";
+    const targetColor = highlighted
+      ? new THREE.Color(highlightColor)
+      : new THREE.Color(normalColor);
+
+    useEffect(() => {
+      if (groupRef.current)
+        groupRef.current.userData = { boxIndex: index };
+    }, [index]);
+
+    useFrame(() => {
+      if (!meshRef.current) return;
+
+      meshRef.current.position.x +=
+        (position[0] - meshRef.current.position.x) * 0.15;
+      meshRef.current.position.y +=
+        (targetY - meshRef.current.position.y) * 0.15;
+
+      meshRef.current.material.color.lerp(targetColor, 0.15);
+
+      labelRef.current.position.set(
+        meshRef.current.position.x,
+        meshRef.current.position.y + height / 2 + 0.35,
+        meshRef.current.position.z
+      );
+    });
+
+    return (
+      <group
+        ref={(g) => {
+          groupRef.current = g;
+          if (typeof ref === "function") ref(g);
+          else if (ref) ref.current = g;
+        }}
+      >
+        <mesh ref={meshRef} onClick={onClick}>
+          <boxGeometry args={[1.6, height, 1]} />
+          <meshStandardMaterial color={highlighted ? highlightColor : normalColor} />
+        </mesh>
+
+        <Text ref={labelRef} fontSize={0.35} color="white">
+          {String(value)}
+        </Text>
+
+        <mesh onClick={onClick}>
+          <planeGeometry args={[1.6, height + 1]} />
+          <meshBasicMaterial transparent opacity={0} />
+        </mesh>
+      </group>
+    );
+  }
+);
+
 // === AR Interaction Manager ===
-const ARInteractionManager = ({ boxRefs, setSelectedBox }) => {
+const ARInteractionManager = ({ boxGroupRefs, onToggleSort }) => {
   const { gl } = useThree();
-  const xrRef = gl.xr;
 
   useEffect(() => {
-    if (!navigator.xr) return;
-
     const onSessionStart = () => {
-      const session = xrRef.getSession();
+      const session = gl.xr.getSession();
       if (!session) return;
 
       const onSelect = () => {
         const xrCamera = gl.xr.getCamera();
         const raycaster = new THREE.Raycaster();
         const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
+
         const dir = new THREE.Vector3(0, 0, -1)
           .applyQuaternion(cam.quaternion)
           .normalize();
+
         const origin = cam.getWorldPosition(new THREE.Vector3());
         raycaster.set(origin, dir);
 
-        const candidates = (boxRefs.current || [])
+        const candidates = (boxGroupRefs.current || [])
           .map((group) => (group ? group.children : []))
           .flat();
 
-        const intersects = raycaster.intersectObjects(candidates, true);
-
-        if (intersects && intersects.length > 0) {
-          let hit = intersects[0].object;
-          while (hit && !hit.userData?.boxIndex && hit.parent) {
-            hit = hit.parent;
-          }
-          const idx = hit?.userData?.boxIndex;
-          if (idx !== undefined && idx !== null) {
-            setSelectedBox((prev) => (prev === idx ? null : idx));
-          }
-        }
+        const hit = raycaster.intersectObjects(candidates, true)[0];
+        if (hit) onToggleSort();
       };
 
       session.addEventListener("select", onSelect);
-      const onEnd = () => session.removeEventListener("select", onSelect);
-      session.addEventListener("end", onEnd);
     };
 
     gl.xr.addEventListener("sessionstart", onSessionStart);
     return () => gl.xr.removeEventListener("sessionstart", onSessionStart);
-  }, [gl, xrRef, boxRefs, setSelectedBox]);
+  }, [gl, boxGroupRefs, onToggleSort]);
 
   return null;
 };
 
-// === Box Component ===
-const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
-  const size = [1.6, 1.2, 1];
-  const color = selected ? "#f87171" : index % 2 === 0 ? "#60a5fa" : "#34d399";
-  const groupRef = useRef();
-
-  useEffect(() => {
-    if (groupRef.current) {
-      groupRef.current.userData = { boxIndex: index };
-    }
-  }, [index]);
-
-  return (
-    <group
-      position={position}
-      ref={(g) => {
-        groupRef.current = g;
-        if (typeof ref === "function") ref(g);
-        else if (ref) ref.current = g;
-      }}
-    >
-      <mesh
-        castShadow
-        receiveShadow
-        position={[0, size[1] / 2, 0]}
-        onClick={onClick}
-      >
-        <boxGeometry args={size} />
-        <meshStandardMaterial
-          color={color}
-          emissive={selected ? "#fbbf24" : "#000000"}
-          emissiveIntensity={selected ? 0.6 : 0}
-        />
-      </mesh>
-
-      <Text
-        position={[0, size[1] / 2 + 0.1, size[2] / 2 + 0.01]}
-        fontSize={0.4}
-        color="white"
-        anchorX="center"
-        anchorY="middle"
-      >
-        {String(value)}
-      </Text>
-
-      <Text
-        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.02]}
-        fontSize={0.25}
-        color="#fde68a"
-        anchorX="center"
-        anchorY="middle"
-      >
-        [{index}]
-      </Text>
-
-      {selected && (
-        <Text
-          position={[0, size[1] + 0.8, 0]}
-          fontSize={0.32}
-          color="#fde68a"
-          anchorX="center"
-          anchorY="middle"
-        >
-          Value {value} at index {index}
-        </Text>
-      )}
-    </group>
-  );
-});
-
-// === Code Panel ===
-const CodePanel = ({ code, position }) => (
-  <group>
-    <FadeText text={code} position={position} fontSize={0.3} color="#c7d2fe" />
-  </group>
-);
-
-// === Fade-in Text ===
-const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
+// === Shared fade text ===
+const FadeText = ({ text, position, fontSize, color }) => {
   const [opacity, setOpacity] = useState(0);
 
   useEffect(() => {
-    let frame;
     let start;
-    const duration = 1000;
-
-    const animate = (ts) => {
+    const fade = (ts) => {
       if (!start) start = ts;
-      const progress = Math.min((ts - start) / duration, 1);
-      setOpacity(progress);
-      if (progress < 1) frame = requestAnimationFrame(animate);
+      const p = Math.min((ts - start) / 900, 1);
+      setOpacity(p);
+      if (p < 1) requestAnimationFrame(fade);
     };
-
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
+    requestAnimationFrame(fade);
   }, []);
 
   return (
-    <Text
-      position={position}
-      fontSize={fontSize}
-      color={color}
-      anchorX="center"
-      anchorY="middle"
-      fillOpacity={opacity}
-      maxWidth={10}
-      textAlign="left"
-    >
+    <Text position={position} fontSize={fontSize} color={color} fillOpacity={opacity}>
       {text}
     </Text>
   );
 };
+
+const CodePanel = ({ code, position }) => (
+  <FadeText text={code} position={position} fontSize={0.3} color="#c7d2fe" />
+);
 
 export default ARPage2;
