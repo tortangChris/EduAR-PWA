@@ -170,7 +170,7 @@ const ARPage2 = ({ data = [35, 10, 25, 5, 15], spacing = 2 }) => {
 const AnimatedBox = React.forwardRef(
   ({ index, value, height, position, highlighted, sorted, onClick }, ref) => {
     const meshRef = useRef();
-    const targetY = height / 2;
+    const targetY = height / 2; // Cube rests on "floor"
     const normalColor = sorted ? "#34d399" : "#60a5fa";
     const highlightColor = "#f87171";
     const targetColor = highlighted
@@ -179,6 +179,7 @@ const AnimatedBox = React.forwardRef(
 
     useFrame(() => {
       if (!meshRef.current) return;
+      // Smooth X/Y animation
       meshRef.current.position.x +=
         (position[0] - meshRef.current.position.x) * 0.15;
       meshRef.current.position.y +=
@@ -193,8 +194,9 @@ const AnimatedBox = React.forwardRef(
           if (typeof ref === "function") ref(g);
           else if (ref) ref.current = g;
         }}
-        position={[position[0], 0, 0]}
+        position={[position[0], 0, 0]} // Base group at y=0
       >
+        {/* Cube */}
         <mesh ref={meshRef} onClick={onClick}>
           <boxGeometry args={[1.6, height, 1]} />
           <meshStandardMaterial
@@ -204,8 +206,9 @@ const AnimatedBox = React.forwardRef(
           />
         </mesh>
 
+        {/* Value label above cube */}
         <Text
-          position={[0, height + 0.3, 0]}
+          position={[0, height + 0.15, 0]} // Slightly above cube top
           fontSize={0.35}
           color="white"
           anchorX="center"
@@ -213,6 +216,12 @@ const AnimatedBox = React.forwardRef(
         >
           {String(value)}
         </Text>
+
+        {/* Tap target (invisible plane in front of cube) */}
+        <mesh onClick={onClick} position={[0, targetY, 0.55]}>
+          <planeGeometry args={[1.8, height + 0.5]} />
+          <meshBasicMaterial transparent opacity={0} />
+        </mesh>
       </group>
     );
   }
