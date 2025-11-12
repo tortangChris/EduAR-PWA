@@ -25,13 +25,14 @@ const ARPage1 = ({ spacing = 4.0 }) => {
     if (r && !nodeRefs.current.includes(r)) nodeRefs.current.push(r);
   };
 
+  // ⬇ slightly increased distance (radius 4 → 5)
   const positions = useMemo(() => {
     const angleStep = (2 * Math.PI) / data.length;
-    const radius = 4;
+    const radius = 5; // farther away but same x/y pattern
     return data.map((_, i) => [
       Math.cos(i * angleStep) * radius,
       Math.sin(i * angleStep) * radius,
-      0,
+      -6, // ⬅ pushes the entire graph a little farther in AR
     ]);
   }, [data.length]);
 
@@ -75,8 +76,8 @@ const ARPage1 = ({ spacing = 4.0 }) => {
         <FadeInText
           show={true}
           text={"Introduction to Graphs"}
-          position={[0, 6, 0]}
-          fontSize={0.7}
+          position={[0, 6, -2]}
+          fontSize={0.6} // ⬅ slightly smaller
           color="white"
         />
 
@@ -111,7 +112,7 @@ const ARPage1 = ({ spacing = 4.0 }) => {
           <DefinitionPanel
             node={data[selectedNode]}
             definition={nodeDefinitions[data[selectedNode].label]}
-            position={[8, 2, 0]}
+            position={[7, 2, -2]} // ⬅ keep panel a bit farther too
             onClose={() => setSelectedNode(null)}
           />
         )}
@@ -172,7 +173,7 @@ const ARInteractionManager = ({ nodeRefs, setSelectedNode }) => {
   return null;
 };
 
-// === Node (AR Clickable) ===
+// === Node (smaller sphere) ===
 const GraphNode = forwardRef(
   ({ index, node, position, selected, onClick }, ref) => {
     const color = selected ? "#facc15" : "#60a5fa";
@@ -193,7 +194,7 @@ const GraphNode = forwardRef(
         }}
       >
         <mesh onClick={onClick}>
-          <sphereGeometry args={[0.5, 32, 32]} />
+          <sphereGeometry args={[0.35, 32, 32]} /> {/* ⬅ smaller sphere */}
           <meshStandardMaterial
             color={color}
             emissive={emissive}
@@ -204,15 +205,15 @@ const GraphNode = forwardRef(
         <FadeInText
           show={true}
           text={node.label}
-          position={[0, 0.9, 0]}
-          fontSize={0.4}
+          position={[0, 0.7, 0]} // adjusted for smaller node
+          fontSize={0.3}
           color="white"
         />
 
         {selected && (
           <Text
-            position={[0, 1.5, 0]}
-            fontSize={0.3}
+            position={[0, 1.2, 0]}
+            fontSize={0.25}
             color="#fde68a"
             anchorX="center"
             anchorY="middle"
@@ -227,7 +228,6 @@ const GraphNode = forwardRef(
 
 // === Edge ===
 const Edge = ({ start, end }) => {
-  const ref = useRef();
   const points = useMemo(
     () => [new THREE.Vector3(...start), new THREE.Vector3(...end)],
     [start, end]
@@ -236,10 +236,9 @@ const Edge = ({ start, end }) => {
     () => new THREE.BufferGeometry().setFromPoints(points),
     [points]
   );
-
   return (
-    <line ref={ref} geometry={geometry}>
-      <lineBasicMaterial color="#94a3b8" linewidth={2} />
+    <line geometry={geometry}>
+      <lineBasicMaterial color="#94a3b8" linewidth={1} />
     </line>
   );
 };
@@ -290,7 +289,7 @@ const DefinitionPanel = ({ node, definition, position }) => {
         show={true}
         text={`📘 Node ${node.label}\n\n${definition}`}
         position={position}
-        fontSize={0.35}
+        fontSize={0.3}
         color="#fde68a"
       />
     </group>
