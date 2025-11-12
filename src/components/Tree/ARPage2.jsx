@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 
-const ARPage2 = () => {
+const ARVisualPage2 = () => {
   const [selectedNode, setSelectedNode] = useState(null);
   const nodeRefs = useRef([]);
 
@@ -11,14 +11,14 @@ const ARPage2 = () => {
     if (r && !nodeRefs.current.includes(r)) nodeRefs.current.push(r);
   };
 
-  // === Node structure (Lesson 2: Properties of Trees) ===
+  // Node structure with AR-friendly positions
   const nodes = [
     { id: "A", pos: [0, 2.5, -3], type: "Root" },
-    { id: "B", pos: [-2, 1.2, -3], type: "Internal" },
-    { id: "C", pos: [2, 1.2, -3], type: "Internal" },
+    { id: "B", pos: [-1.8, 1.2, -3], type: "Parent" },
+    { id: "C", pos: [1.8, 1.2, -3], type: "Parent" },
     { id: "D", pos: [-3, 0, -3], type: "Leaf" },
-    { id: "E", pos: [-1, 0, -3], type: "Leaf" },
-    { id: "F", pos: [1, 0, -3], type: "Leaf" },
+    { id: "E", pos: [-0.6, 0, -3], type: "Leaf" },
+    { id: "F", pos: [0.6, 0, -3], type: "Leaf" },
     { id: "G", pos: [3, 0, -3], type: "Leaf" },
   ];
 
@@ -31,11 +31,9 @@ const ARPage2 = () => {
     ["C", "G"],
   ];
 
-  const handleNodeClick = (node) => {
-    setSelectedNode(node);
-  };
+  const handleNodeClick = (node) => setSelectedNode(node);
 
-  // === Auto-start AR session ===
+  // --- Start AR session ---
   const startAR = (gl) => {
     if (navigator.xr) {
       navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
@@ -46,7 +44,7 @@ const ARPage2 = () => {
             })
             .then((session) => gl.xr.setSession(session))
             .catch((err) => console.error("AR session failed:", err));
-        } else console.warn("AR not supported on this device.");
+        } else console.warn("AR not supported.");
       });
     }
   };
@@ -54,7 +52,7 @@ const ARPage2 = () => {
   return (
     <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 4, 25], fov: 50 }}
+        camera={{ position: [0, 4, 10], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
           startAR(gl);
@@ -63,10 +61,10 @@ const ARPage2 = () => {
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* === Lesson Title === */}
+        {/* Title */}
         <FadeInText
           show={true}
-          text={"Lesson 2: Properties of Trees"}
+          text={"Basic Terminology of Trees"}
           position={[0, 4.7, -3]}
           fontSize={0.7}
           color="white"
@@ -74,14 +72,14 @@ const ARPage2 = () => {
         <FadeInText
           show={true}
           text={
-            "Understanding Degree, Height, Depth, and Levels in Tree Structures"
+            "Understanding Root, Parent, Child, Sibling, Leaf, Height, and Depth"
           }
           position={[0, 4, -3]}
           fontSize={0.33}
           color="#fde68a"
         />
 
-        {/* === Visualization === */}
+        {/* Tree */}
         <TreeVisualization
           nodes={nodes}
           edges={edges}
@@ -98,13 +96,14 @@ const ARPage2 = () => {
           nodeRefs={nodeRefs}
           setSelectedNode={setSelectedNode}
         />
+
         <OrbitControls makeDefault />
       </Canvas>
     </div>
   );
 };
 
-// === AR Interaction ===
+// === AR Interaction Manager ===
 const ARInteractionManager = ({ nodeRefs, setSelectedNode }) => {
   const { gl } = useThree();
 
@@ -180,7 +179,7 @@ const TreeVisualization = ({
   </group>
 );
 
-// === Node ===
+// === Tree Node ===
 const TreeNode = ({
   position,
   label,
@@ -197,7 +196,7 @@ const TreeNode = ({
   }, [nodeData, refCallback]);
 
   const baseColor =
-    type === "Root" ? "#60a5fa" : type === "Internal" ? "#34d399" : "#fbbf24";
+    type === "Root" ? "#60a5fa" : type === "Parent" ? "#34d399" : "#fbbf24";
   const color = isSelected ? "#f87171" : baseColor;
 
   return (
@@ -218,7 +217,7 @@ const TreeNode = ({
   );
 };
 
-// === Edge (line) ===
+// === Edge ===
 const Connection = ({ start, end }) => {
   const points = [new THREE.Vector3(...start), new THREE.Vector3(...end)];
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
@@ -230,22 +229,33 @@ const Connection = ({ start, end }) => {
   );
 };
 
-// === Info Panel ===
+// === Node Info Panel ===
 const NodeInfoPanel = ({ node, position }) => {
   let description = "";
   switch (node.type) {
     case "Root":
-      description = "Root: The topmost node; depth = 0.";
+      description = "The first or topmost node of the tree. It has no parent.";
       break;
-    case "Internal":
-      description = "Internal Node: Has one or more child nodes.";
+    case "Parent":
+      description = "A node that has child nodes connected below it.";
       break;
     case "Leaf":
-      description = "Leaf: Node with degree 0 (no children).";
+      description =
+        "A node with no children. It represents the end of a branch.";
       break;
     default:
       description = "Tree node.";
   }
+
+  const extraInfo = `
+🧾 Terminology:
+• Root – top node
+• Parent & Child – relationship between connected nodes
+• Siblings – children with the same parent
+• Leaf – node with no children
+• Height – longest path from root to a leaf
+• Depth – distance from root to the node
+`;
 
   const content = [
     `🔹 Node: ${node.id}`,
@@ -253,10 +263,7 @@ const NodeInfoPanel = ({ node, position }) => {
     "",
     description,
     "",
-    "🌳 Properties:",
-    "• Degree – number of children of a node",
-    "• Height – longest path from root to any leaf",
-    "• Depth – distance from root to the node",
+    extraInfo,
   ].join("\n");
 
   return (
@@ -264,7 +271,7 @@ const NodeInfoPanel = ({ node, position }) => {
       show={true}
       text={content}
       position={position}
-      fontSize={0.32}
+      fontSize={0.33}
       color="#a5f3fc"
     />
   );
@@ -307,4 +314,4 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
   );
 };
 
-export default ARPage2;
+export default ARVisualPage2;
