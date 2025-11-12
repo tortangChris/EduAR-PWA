@@ -218,7 +218,7 @@ const TreeNode = ({
         <meshStandardMaterial color={color} />
       </mesh>
       <Text
-        position={[0, 0.8, -6]}
+        position={[0, 0.6, 0]}
         fontSize={0.35}
         color="#ffffff"
         anchorX="center"
