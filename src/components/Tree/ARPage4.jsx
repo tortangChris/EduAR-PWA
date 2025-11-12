@@ -14,13 +14,13 @@ const ARPage4 = () => {
   };
 
   const nodes = [
-    { id: 50, pos: [0, 3, 0] },
-    { id: 30, pos: [-2, 1.5, 0] },
-    { id: 70, pos: [2, 1.5, 0] },
-    { id: 20, pos: [-3, 0, 0] },
-    { id: 40, pos: [-1, 0, 0] },
-    { id: 60, pos: [1, 0, 0] },
-    { id: 80, pos: [3, 0, 0] },
+    { id: 50, pos: [0, 3, -6] },
+    { id: 30, pos: [-2, 1.5, -6] },
+    { id: 70, pos: [2, 1.5, -6] },
+    { id: 20, pos: [-3, 0, -6] },
+    { id: 40, pos: [-1, 0, -6] },
+    { id: 60, pos: [1, 0, -6] },
+    { id: 80, pos: [3, 0, -6] },
   ];
 
   const edges = [
@@ -85,7 +85,7 @@ const ARPage4 = () => {
         <FadeInText
           show={true}
           text={"Binary Search Tree (BST)"}
-          position={[0, 5, 0]}
+          position={[0, 5, -6]}
           fontSize={0.7}
           color="white"
         />
@@ -94,7 +94,7 @@ const ARPage4 = () => {
           text={
             "Left subtree < Root < Right subtree — used for fast searching and sorting"
           }
-          position={[0, -1.5, 0]}
+          position={[0, -1.5, -6]}
           fontSize={0.35}
           color="#fde68a"
         />
@@ -108,7 +108,7 @@ const ARPage4 = () => {
 
         {/* 3D Buttons Panel */}
         <OperationsPanel
-          position={[-6, 1, 0]}
+          position={[-6, 1, -6]}
           onOperation={handleOperation}
           addButtonRef={addButtonRef}
         />
@@ -213,7 +213,7 @@ const OperationsPanel = ({ position, onOperation, addButtonRef }) => {
       <FadeInText
         show={true}
         text={"BST Operations:"}
-        position={[0, 2, 0]}
+        position={[0, 2, -6]}
         fontSize={0.35}
         color="#fde68a"
       />
