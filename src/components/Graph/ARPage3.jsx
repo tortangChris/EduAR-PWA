@@ -10,7 +10,6 @@ const ARPage3 = () => {
   const [visitedNodes, setVisitedNodes] = useState([]);
   const [visitedEdges, setVisitedEdges] = useState([]);
   const [mode, setMode] = useState(null);
-
   const nodeRefs = useRef([]);
 
   const addNodeRef = (r) => {
@@ -29,10 +28,10 @@ const ARPage3 = () => {
 
   const nodes = useMemo(
     () => [
-      { id: "A", position: [0, 3, 0] },
-      { id: "B", position: [-2, 0, 0] },
-      { id: "C", position: [2, 0, 0] },
-      { id: "D", position: [0, -3, 0] },
+      { id: "A", position: [0, 2.3, 0] },
+      { id: "B", position: [-1.8, 0, 0] },
+      { id: "C", position: [1.8, 0, 0] },
+      { id: "D", position: [0, -2.3, 0] },
     ],
     []
   );
@@ -50,7 +49,7 @@ const ARPage3 = () => {
 
   const getNodePosition = (id) => nodes.find((n) => n.id === id).position;
 
-  // --- DFS/BFS traversal animation ---
+  // === Traversal animation ===
   useEffect(() => {
     if (!mode) return;
     const dfsOrder = ["A", "B", "D", "C"];
@@ -63,7 +62,6 @@ const ARPage3 = () => {
 
     let i = 0;
     let step = 0;
-
     const interval = setInterval(() => {
       if (step === 0) {
         setHighlightedNode(order[i]);
@@ -100,12 +98,8 @@ const ARPage3 = () => {
             .requestSession("immersive-ar", {
               requiredFeatures: ["hit-test", "local-floor"],
             })
-            .then((session) => {
-              gl.xr.setSession(session);
-            })
+            .then((session) => gl.xr.setSession(session))
             .catch((err) => console.error("AR session failed:", err));
-        } else {
-          console.warn("AR not supported on this device.");
         }
       });
     }
@@ -114,7 +108,7 @@ const ARPage3 = () => {
   return (
     <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 4, 25], fov: 50 }}
+        camera={{ position: [0, 2.5, 25], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
           startAR(gl);
@@ -123,19 +117,20 @@ const ARPage3 = () => {
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 10, 5]} intensity={1} />
 
-        <group position={[0, 0, -8]}>
+        {/* Adjusted group position (farther and smaller) */}
+        <group position={[0, 0, -9]} scale={[0.75, 0.75, 0.75]}>
           <FadeInText
             show={true}
             text={"Graph Traversals"}
-            position={[0, 5, 0]}
-            fontSize={0.8}
+            position={[0, 4.5, 0]}
+            fontSize={0.65}
             color="white"
           />
           <FadeInText
             show={true}
             text={"DFS and BFS Visualization"}
-            position={[0, 4.3, 0]}
-            fontSize={0.45}
+            position={[0, 3.8, 0]}
+            fontSize={0.38}
             color="#93c5fd"
           />
 
@@ -148,7 +143,6 @@ const ARPage3 = () => {
                 points={[getNodePosition(a), getNodePosition(b)]}
                 color={visited ? "#facc15" : "#94a3b8"}
                 lineWidth={visited ? 3 : 1.5}
-                dashed={false}
               />
             );
           })}
@@ -169,7 +163,7 @@ const ARPage3 = () => {
           {showPanel && (
             <DefinitionPanel
               page={page}
-              position={[8, 1, 0]}
+              position={[6.5, 1.5, 0]}
               onNextClick={handleNextClick}
             />
           )}
@@ -177,20 +171,20 @@ const ARPage3 = () => {
           {/* Buttons */}
           <Button3D
             label="Run DFS"
-            position={[-2.5, -5, 0]}
+            position={[-2.2, -4.2, 0]}
             color={mode === "DFS" ? "#facc15" : "#60a5fa"}
             onClick={() => setMode("DFS")}
           />
           <Button3D
             label="Run BFS"
-            position={[2.5, -5, 0]}
+            position={[2.2, -4.2, 0]}
             color={mode === "BFS" ? "#facc15" : "#60a5fa"}
             onClick={() => setMode("BFS")}
           />
 
           <Text
-            position={[0, -6, 0]}
-            fontSize={0.4}
+            position={[0, -5.3, 0]}
+            fontSize={0.35}
             color="#38bdf8"
             anchorX="center"
             anchorY="middle"
@@ -199,7 +193,6 @@ const ARPage3 = () => {
             📘 Learn DFS/BFS ▶
           </Text>
 
-          {/* XR Tap Interactions */}
           <ARInteractionManager nodeRefs={nodeRefs} setMode={setMode} />
         </group>
 
@@ -271,7 +264,7 @@ const NodeSphere = forwardRef(({ id, position, highlighted, visited }, ref) => {
       }}
     >
       <mesh>
-        <sphereGeometry args={[0.4, 32, 32]} />
+        <sphereGeometry args={[0.35, 32, 32]} />
         <meshStandardMaterial
           color={color}
           emissive={highlighted ? "#fbbf24" : visited ? "#fcd34d" : "#000000"}
@@ -279,8 +272,8 @@ const NodeSphere = forwardRef(({ id, position, highlighted, visited }, ref) => {
         />
       </mesh>
       <Text
-        position={[0, 0.9, 0]}
-        fontSize={0.4}
+        position={[0, 0.8, 0]}
+        fontSize={0.32}
         color="white"
         anchorX="center"
         anchorY="middle"
@@ -307,7 +300,7 @@ const Button3D = ({ label, position, color, onClick }) => {
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
       >
-        <boxGeometry args={[2.4, 0.8, 0.2]} />
+        <boxGeometry args={[2, 0.7, 0.2]} />
         <meshStandardMaterial
           color={hovered ? "#38bdf8" : color}
           emissive={hovered ? "#0284c7" : "#000000"}
@@ -316,7 +309,7 @@ const Button3D = ({ label, position, color, onClick }) => {
       </mesh>
       <Text
         position={[0, 0, 0.15]}
-        fontSize={0.35}
+        fontSize={0.3}
         color="white"
         anchorX="center"
         anchorY="middle"
@@ -327,7 +320,7 @@ const Button3D = ({ label, position, color, onClick }) => {
   );
 };
 
-// === Fade-in Text ===
+// === FadeInText ===
 const FadeInText = ({ show, text, position, fontSize, color }) => {
   const ref = useRef();
   const opacity = useRef(0);
@@ -364,7 +357,7 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
   );
 };
 
-// === Definition Panel ===
+// === DefinitionPanel ===
 const DefinitionPanel = ({ page, position, onNextClick }) => {
   let content = "";
 
@@ -405,12 +398,12 @@ const DefinitionPanel = ({ page, position, onNextClick }) => {
         show={true}
         text={content}
         position={position}
-        fontSize={0.32}
+        fontSize={0.28}
         color="#fde68a"
       />
       <Text
-        position={[position[0], position[1] - 2.8, position[2]]}
-        fontSize={0.45}
+        position={[position[0], position[1] - 2.4, position[2]]}
+        fontSize={0.4}
         color="#38bdf8"
         anchorX="center"
         anchorY="middle"
