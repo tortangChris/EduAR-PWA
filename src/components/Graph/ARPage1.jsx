@@ -25,15 +25,14 @@ const ARPage1 = ({ spacing = 4.0 }) => {
     if (r && !nodeRefs.current.includes(r)) nodeRefs.current.push(r);
   };
 
-  // keep same x/y layout but push farther in z
+  // === Circular layout ===
   const positions = useMemo(() => {
     const angleStep = (2 * Math.PI) / data.length;
-    const radius = 3.5; // slightly tighter circle
-    const zOffset = -9; // push away from camera
+    const radius = 1.8; // smaller radius for tighter view
     return data.map((_, i) => [
       Math.cos(i * angleStep) * radius,
       Math.sin(i * angleStep) * radius,
-      zOffset,
+      -9, // pushed farther away from the user
     ]);
   }, [data.length]);
 
@@ -41,6 +40,7 @@ const ARPage1 = ({ spacing = 4.0 }) => {
     setSelectedNode((prev) => (prev === i ? null : i));
   };
 
+  // === Start AR automatically ===
   const startAR = (gl) => {
     if (navigator.xr) {
       navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
@@ -49,9 +49,7 @@ const ARPage1 = ({ spacing = 4.0 }) => {
             .requestSession("immersive-ar", {
               requiredFeatures: ["hit-test", "local-floor"],
             })
-            .then((session) => {
-              gl.xr.setSession(session);
-            })
+            .then((session) => gl.xr.setSession(session))
             .catch((err) => console.error("AR session failed:", err));
         } else {
           console.warn("AR not supported on this device.");
@@ -63,33 +61,35 @@ const ARPage1 = ({ spacing = 4.0 }) => {
   return (
     <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 2, 0], fov: 60 }} // slightly lower + wider FOV
+        camera={{ position: [0, 2, 0], fov: 60 }} // camera a bit above and closer
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
           startAR(gl);
         }}
       >
         <ambientLight intensity={0.6} />
-        <directionalLight position={[5, 10, 5]} intensity={0.9} />
+        <directionalLight position={[3, 5, 3]} intensity={0.8} />
 
+        {/* Title */}
         <FadeInText
           show={true}
           text={"Introduction to Graphs"}
-          position={[0, 3, -9]}
-          fontSize={0.45}
+          position={[0, 3.5, -9]}
+          fontSize={0.35}
           color="white"
         />
 
         {/* Edges */}
         {data.map((node, i) =>
-          node.connections.map((conn) =>
-            conn > i ? (
-              <Edge
-                key={`${i}-${conn}`}
-                start={positions[i]}
-                end={positions[conn]}
-              />
-            ) : null
+          node.connections.map(
+            (conn) =>
+              conn > i && (
+                <Edge
+                  key={`${i}-${conn}`}
+                  start={positions[i]}
+                  end={positions[conn]}
+                />
+              )
           )
         )}
 
@@ -111,7 +111,7 @@ const ARPage1 = ({ spacing = 4.0 }) => {
           <DefinitionPanel
             node={data[selectedNode]}
             definition={nodeDefinitions[data[selectedNode].label]}
-            position={[6, 1.5, -9]}
+            position={[3.5, 1.5, -9]}
             onClose={() => setSelectedNode(null)}
           />
         )}
@@ -126,6 +126,7 @@ const ARPage1 = ({ spacing = 4.0 }) => {
   );
 };
 
+// === AR Interaction Manager ===
 const ARInteractionManager = ({ nodeRefs, setSelectedNode }) => {
   const { gl } = useThree();
 
@@ -171,6 +172,7 @@ const ARInteractionManager = ({ nodeRefs, setSelectedNode }) => {
   return null;
 };
 
+// === Node (AR Clickable) ===
 const GraphNode = forwardRef(
   ({ index, node, position, selected, onClick }, ref) => {
     const color = selected ? "#facc15" : "#60a5fa";
@@ -190,10 +192,8 @@ const GraphNode = forwardRef(
           else if (ref) ref.current = g;
         }}
       >
-        <mesh onClick={onClick} scale={0.35}>
-          {" "}
-          {/* smaller node */}
-          <sphereGeometry args={[0.5, 32, 32]} />
+        <mesh onClick={onClick}>
+          <sphereGeometry args={[0.25, 32, 32]} /> {/* smaller size */}
           <meshStandardMaterial
             color={color}
             emissive={emissive}
@@ -204,15 +204,15 @@ const GraphNode = forwardRef(
         <FadeInText
           show={true}
           text={node.label}
-          position={[0, 0.7, 0]}
-          fontSize={0.25}
+          position={[0, 0.5, 0]}
+          fontSize={0.2}
           color="white"
         />
 
         {selected && (
           <Text
-            position={[0, 1.2, 0]}
-            fontSize={0.22}
+            position={[0, 1, 0]}
+            fontSize={0.18}
             color="#fde68a"
             anchorX="center"
             anchorY="middle"
@@ -225,6 +225,7 @@ const GraphNode = forwardRef(
   }
 );
 
+// === Edge ===
 const Edge = ({ start, end }) => {
   const points = useMemo(
     () => [new THREE.Vector3(...start), new THREE.Vector3(...end)],
@@ -242,6 +243,7 @@ const Edge = ({ start, end }) => {
   );
 };
 
+// === Fade-in Text ===
 const FadeInText = ({ show, text, position, fontSize, color }) => {
   const ref = useRef();
   const opacity = useRef(0);
@@ -270,7 +272,7 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
       anchorX="center"
       anchorY="middle"
       material-transparent
-      maxWidth={8}
+      maxWidth={4}
       textAlign="center"
     >
       {text}
@@ -278,6 +280,7 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
   );
 };
 
+// === Definition Panel ===
 const DefinitionPanel = ({ node, definition, position }) => {
   if (!node) return null;
   return (
@@ -286,7 +289,7 @@ const DefinitionPanel = ({ node, definition, position }) => {
         show={true}
         text={`📘 Node ${node.label}\n\n${definition}`}
         position={position}
-        fontSize={0.3}
+        fontSize={0.22}
         color="#fde68a"
       />
     </group>
