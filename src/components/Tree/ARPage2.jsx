@@ -97,7 +97,7 @@ const ARPage2 = () => {
 
         {/* Info Panel */}
         {selectedNode && (
-          <NodeInfoPanel node={selectedNode} position={[7, 2, -6]} />
+          <NodeInfoPanel node={selectedNode} position={[8.5, 2, -6]} />
         )}
 
         {/* Handles AR click detection */}
@@ -285,7 +285,7 @@ const NodeInfoPanel = ({ node, position }) => {
       show={true}
       text={content}
       position={position}
-      fontSize={0.33}
+      fontSize={0.25}
       color="#a5f3fc"
     />
   );
