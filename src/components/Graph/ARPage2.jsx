@@ -231,7 +231,7 @@ const AdjacencyMatrix = React.forwardRef(
 );
 
 // === Adjacency List Visualization ===
-// === Adjacency List Visualization (FIXED CLICKABLE VERSION) ===
+// === Adjacency List Visualization (Updated) ===
 const AdjacencyList = React.forwardRef(
   ({ position, selected, onClick }, ref) => {
     const nodes = useMemo(
@@ -261,33 +261,30 @@ const AdjacencyList = React.forwardRef(
           color="#93c5fd"
         />
 
-        {/* Each node row */}
         {nodes.map((node, i) => (
           <group key={i} position={[0, 2 - i * 1.2, 0]}>
-            {/* Main node (V#) */}
-            <mesh onClick={onClick} userData={{ type: "list" }}>
-              <sphereGeometry args={[0.35, 32, 32]} />
+            {/* Main Node Box (Clickable) */}
+            <mesh onClick={onClick}>
+              <boxGeometry args={[0.7, 0.7, 0.7]} />
               <meshStandardMaterial
                 color={selected ? "#34d399" : "#4ade80"}
                 emissive={selected ? "#facc15" : "#000"}
-                emissiveIntensity={selected ? 0.4 : 0}
+                emissiveIntensity={selected ? 0.5 : 0}
               />
             </mesh>
 
-            {/* Connections (clickable too) */}
+            {/* Connected Nodes (Smaller Boxes) */}
             {node.connections.map((c, j) => (
               <mesh
                 key={j}
-                position={[1.2 + j * 0.8, 0, 0]}
-                onClick={onClick}
-                userData={{ type: "list" }}
+                position={[1.2 + j * 0.9, 0, 0]}
+                onClick={onClick} // make connected boxes clickable too
               >
-                <sphereGeometry args={[0.2, 16, 16]} />
+                <boxGeometry args={[0.45, 0.45, 0.45]} />
                 <meshStandardMaterial color="#a5f3fc" />
               </mesh>
             ))}
 
-            {/* Label */}
             <Text
               position={[-0.9, 0, 0]}
               fontSize={0.3}
