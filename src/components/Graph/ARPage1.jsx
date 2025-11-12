@@ -32,7 +32,7 @@ const ARPage1 = ({ spacing = 4.0 }) => {
     return data.map((_, i) => [
       Math.cos(i * angleStep) * radius,
       Math.sin(i * angleStep) * radius,
-      -2, // ⬅ pushes the entire graph a little farther in AR
+      -6, // ⬅ pushes the entire graph a little farther in AR
     ]);
   }, [data.length]);
 
