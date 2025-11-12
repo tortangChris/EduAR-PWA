@@ -71,7 +71,7 @@ const ARPage2 = () => {
         <FadeInText
           show={true}
           text={"Basic Terminology of Trees"}
-          position={[0, 5, 0]}
+          position={[0, 5, -9]}
           fontSize={0.7}
           color="white"
         />
@@ -81,7 +81,7 @@ const ARPage2 = () => {
           text={
             "Understanding Root, Parent, Child, Sibling, Leaf, Height, and Depth"
           }
-          position={[0, 4.3, 0]}
+          position={[0, 4.3, -9]}
           fontSize={0.35}
           color="#fde68a"
         />
@@ -218,7 +218,7 @@ const TreeNode = ({
         <meshStandardMaterial color={color} />
       </mesh>
       <Text
-        position={[0, 0.8, 0]}
+        position={[0, 0.8, -9]}
         fontSize={0.35}
         color="#ffffff"
         anchorX="center"
