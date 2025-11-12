@@ -13,13 +13,13 @@ const ARPage2 = () => {
 
   // Node structure with relationships
   const nodes = [
-    { id: "A", pos: [0, 3, 0], type: "Root" },
-    { id: "B", pos: [-2, 1.5, 0], type: "Parent" },
-    { id: "C", pos: [2, 1.5, 0], type: "Parent" },
-    { id: "D", pos: [-3, 0, 0], type: "Leaf" },
-    { id: "E", pos: [-1, 0, 0], type: "Leaf" },
-    { id: "F", pos: [1, 0, 0], type: "Leaf" },
-    { id: "G", pos: [3, 0, 0], type: "Leaf" },
+    { id: "A", pos: [0, 3, -6], type: "Root" },
+    { id: "B", pos: [-2, 1.5, -6], type: "Parent" },
+    { id: "C", pos: [2, 1.5, -6], type: "Parent" },
+    { id: "D", pos: [-3, 0, -6], type: "Leaf" },
+    { id: "E", pos: [-1, 0, -6], type: "Leaf" },
+    { id: "F", pos: [1, 0, -6], type: "Leaf" },
+    { id: "G", pos: [3, 0, -6], type: "Leaf" },
   ];
 
   const edges = [
@@ -71,7 +71,7 @@ const ARPage2 = () => {
         <FadeInText
           show={true}
           text={"Basic Terminology of Trees"}
-          position={[0, 5, 0]}
+          position={[0, 5, -6]}
           fontSize={0.7}
           color="white"
         />
@@ -81,7 +81,7 @@ const ARPage2 = () => {
           text={
             "Understanding Root, Parent, Child, Sibling, Leaf, Height, and Depth"
           }
-          position={[0, 4.3, 0]}
+          position={[0, 4.3, -6]}
           fontSize={0.35}
           color="#fde68a"
         />
@@ -166,49 +166,14 @@ const TreeVisualization = ({
   selectedNode,
   addNodeRef,
 }) => {
-  const zOffset = -6; // Move entire structure slightly away from user
-
   return (
-    <group position={[0, 0, zOffset]}>
-      {/* Definition Labels */}
-      <Text
-        position={[-4.5, 3.8, 0]}
-        fontSize={0.28}
-        color="#ffffff"
-        anchorX="left"
-        anchorY="middle"
-      >
-        📘 Vertex: represents a node
-      </Text>
-
-      <Text
-        position={[-4.5, 3.4, 0]}
-        fontSize={0.28}
-        color="#ffffff"
-        anchorX="left"
-        anchorY="middle"
-      >
-        📗 Edge: connection between two vertices
-      </Text>
-
-      <Text
-        position={[-4.5, 3.0, 0]}
-        fontSize={0.28}
-        color="#ffffff"
-        anchorX="left"
-        anchorY="middle"
-      >
-        🏷️ Label: identifies a vertex
-      </Text>
-
-      {/* Edges */}
+    <group>
       {edges.map(([a, b], i) => {
         const start = nodes.find((n) => n.id === a).pos;
         const end = nodes.find((n) => n.id === b).pos;
         return <Connection key={i} start={start} end={end} />;
       })}
 
-      {/* Vertices */}
       {nodes.map((node) => (
         <TreeNode
           key={node.id}
@@ -219,7 +184,6 @@ const TreeVisualization = ({
           isSelected={selectedNode?.id === node.id}
           refCallback={addNodeRef}
           nodeData={node}
-          small
         />
       ))}
     </group>
@@ -235,7 +199,6 @@ const TreeNode = ({
   isSelected,
   refCallback,
   nodeData,
-  small,
 }) => {
   const groupRef = useRef();
 
@@ -248,19 +211,15 @@ const TreeNode = ({
     type === "Root" ? "#60a5fa" : type === "Parent" ? "#34d399" : "#fbbf24";
   const color = isSelected ? "#f87171" : baseColor;
 
-  const sphereSize = small ? 0.18 : 0.35;
-  const textSize = small ? 0.22 : 0.35;
-  const labelOffset = small ? 0.45 : 0.8;
-
   return (
     <group ref={groupRef} position={position} onClick={onClick}>
       <mesh>
-        <sphereGeometry args={[sphereSize, 32, 32]} />
+        <sphereGeometry args={[0.35, 32, 32]} />
         <meshStandardMaterial color={color} />
       </mesh>
       <Text
-        position={[0, labelOffset, 0]}
-        fontSize={textSize}
+        position={[0, 0.8, -6]}
+        fontSize={0.35}
         color="#ffffff"
         anchorX="center"
         anchorY="middle"
