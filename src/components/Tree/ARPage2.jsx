@@ -11,14 +11,15 @@ const ARPage2 = () => {
     if (r && !nodeRefs.current.includes(r)) nodeRefs.current.push(r);
   };
 
+  // Node structure with relationships
   const nodes = [
-    { id: "A", pos: [0, 3, -6], type: "Root" },
-    { id: "B", pos: [-2, 1.5, -6], type: "Parent" },
-    { id: "C", pos: [2, 1.5, -6], type: "Parent" },
-    { id: "D", pos: [-3, 0, -6], type: "Leaf" },
-    { id: "E", pos: [-1, 0, -6], type: "Leaf" },
-    { id: "F", pos: [1, 0, -6], type: "Leaf" },
-    { id: "G", pos: [3, 0, -6], type: "Leaf" },
+    { id: "A", pos: [0, 3, 0], type: "Root" },
+    { id: "B", pos: [-2, 1.5, 0], type: "Parent" },
+    { id: "C", pos: [2, 1.5, 0], type: "Parent" },
+    { id: "D", pos: [-3, 0, 0], type: "Leaf" },
+    { id: "E", pos: [-1, 0, 0], type: "Leaf" },
+    { id: "F", pos: [1, 0, 0], type: "Leaf" },
+    { id: "G", pos: [3, 0, 0], type: "Leaf" },
   ];
 
   const edges = [
@@ -30,9 +31,11 @@ const ARPage2 = () => {
     ["C", "G"],
   ];
 
-  const handleNodeClick = (node) => setSelectedNode(node);
+  const handleNodeClick = (node) => {
+    setSelectedNode(node);
+  };
 
-  // --- Start AR automatically ---
+  // --- Automatically start AR session ---
   const startAR = (gl) => {
     if (navigator.xr) {
       navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
@@ -41,7 +44,9 @@ const ARPage2 = () => {
             .requestSession("immersive-ar", {
               requiredFeatures: ["hit-test", "local-floor"],
             })
-            .then((session) => gl.xr.setSession(session))
+            .then((session) => {
+              gl.xr.setSession(session);
+            })
             .catch((err) => console.error("AR session failed:", err));
         } else {
           console.warn("AR not supported on this device.");
@@ -53,7 +58,7 @@ const ARPage2 = () => {
   return (
     <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 2, 0], fov: 50 }}
+        camera={{ position: [0, 4, 25], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
           startAR(gl);
@@ -62,19 +67,22 @@ const ARPage2 = () => {
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* Lesson Title */}
+        {/* Title */}
         <FadeInText
           show={true}
-          text={"Lesson 2: Properties of Trees"}
-          position={[0, 4.5, -6]}
-          fontSize={0.6}
+          text={"Basic Terminology of Trees"}
+          position={[0, 5, 0]}
+          fontSize={0.7}
           color="white"
         />
+
         <FadeInText
           show={true}
-          text={"Explore Root, Parent, Leaf, Sibling, Height, and Depth"}
-          position={[0, 3.8, -6]}
-          fontSize={0.3}
+          text={
+            "Understanding Root, Parent, Child, Sibling, Leaf, Height, and Depth"
+          }
+          position={[0, 4.3, 0]}
+          fontSize={0.35}
           color="#fde68a"
         />
 
@@ -89,10 +97,10 @@ const ARPage2 = () => {
 
         {/* Info Panel */}
         {selectedNode && (
-          <NodeInfoPanel node={selectedNode} position={[3.5, 2, -6]} />
+          <NodeInfoPanel node={selectedNode} position={[7, 2, -6]} />
         )}
 
-        {/* AR click detection */}
+        {/* Handles AR click detection */}
         <ARInteractionManager
           nodeRefs={nodeRefs}
           setSelectedNode={setSelectedNode}
@@ -157,30 +165,68 @@ const TreeVisualization = ({
   onNodeClick,
   selectedNode,
   addNodeRef,
-}) => (
-  <group>
-    {edges.map(([a, b], i) => {
-      const start = nodes.find((n) => n.id === a).pos;
-      const end = nodes.find((n) => n.id === b).pos;
-      return <Connection key={i} start={start} end={end} />;
-    })}
+}) => {
+  const zOffset = -6; // Move entire structure slightly away from user
 
-    {nodes.map((node) => (
-      <TreeNode
-        key={node.id}
-        position={node.pos}
-        label={node.id}
-        type={node.type}
-        onClick={() => onNodeClick(node)}
-        isSelected={selectedNode?.id === node.id}
-        refCallback={addNodeRef}
-        nodeData={node}
-      />
-    ))}
-  </group>
-);
+  return (
+    <group position={[0, 0, zOffset]}>
+      {/* Definition Labels */}
+      <Text
+        position={[-4.5, 3.8, 0]}
+        fontSize={0.28}
+        color="#ffffff"
+        anchorX="left"
+        anchorY="middle"
+      >
+        📘 Vertex: represents a node
+      </Text>
 
-// === Node ===
+      <Text
+        position={[-4.5, 3.4, 0]}
+        fontSize={0.28}
+        color="#ffffff"
+        anchorX="left"
+        anchorY="middle"
+      >
+        📗 Edge: connection between two vertices
+      </Text>
+
+      <Text
+        position={[-4.5, 3.0, 0]}
+        fontSize={0.28}
+        color="#ffffff"
+        anchorX="left"
+        anchorY="middle"
+      >
+        🏷️ Label: identifies a vertex
+      </Text>
+
+      {/* Edges */}
+      {edges.map(([a, b], i) => {
+        const start = nodes.find((n) => n.id === a).pos;
+        const end = nodes.find((n) => n.id === b).pos;
+        return <Connection key={i} start={start} end={end} />;
+      })}
+
+      {/* Vertices */}
+      {nodes.map((node) => (
+        <TreeNode
+          key={node.id}
+          position={node.pos}
+          label={node.id}
+          type={node.type}
+          onClick={() => onNodeClick(node)}
+          isSelected={selectedNode?.id === node.id}
+          refCallback={addNodeRef}
+          nodeData={node}
+          small
+        />
+      ))}
+    </group>
+  );
+};
+
+// === Node (Sphere + Label) ===
 const TreeNode = ({
   position,
   label,
@@ -189,6 +235,7 @@ const TreeNode = ({
   isSelected,
   refCallback,
   nodeData,
+  small,
 }) => {
   const groupRef = useRef();
 
@@ -201,15 +248,19 @@ const TreeNode = ({
     type === "Root" ? "#60a5fa" : type === "Parent" ? "#34d399" : "#fbbf24";
   const color = isSelected ? "#f87171" : baseColor;
 
+  const sphereSize = small ? 0.18 : 0.35;
+  const textSize = small ? 0.22 : 0.35;
+  const labelOffset = small ? 0.45 : 0.8;
+
   return (
     <group ref={groupRef} position={position} onClick={onClick}>
       <mesh>
-        <sphereGeometry args={[0.3, 32, 32]} />
+        <sphereGeometry args={[sphereSize, 32, 32]} />
         <meshStandardMaterial color={color} />
       </mesh>
       <Text
-        position={[0, 0.6, 0]}
-        fontSize={0.3}
+        position={[0, labelOffset, 0]}
+        fontSize={textSize}
         color="#ffffff"
         anchorX="center"
         anchorY="middle"
@@ -220,7 +271,7 @@ const TreeNode = ({
   );
 };
 
-// === Edge ===
+// === Edge (Line between nodes) ===
 const Connection = ({ start, end }) => {
   const points = [new THREE.Vector3(...start), new THREE.Vector3(...end)];
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
@@ -235,15 +286,17 @@ const Connection = ({ start, end }) => {
 // === Node Info Panel ===
 const NodeInfoPanel = ({ node, position }) => {
   let description = "";
+
   switch (node.type) {
     case "Root":
-      description = "Topmost node of the tree. Has no parent.";
+      description = "The first or topmost node of the tree. It has no parent.";
       break;
     case "Parent":
       description = "A node that has child nodes connected below it.";
       break;
     case "Leaf":
-      description = "A node with no children. Represents the end of a branch.";
+      description =
+        "A node with no children. It represents the end of a branch.";
       break;
     default:
       description = "Tree node.";
