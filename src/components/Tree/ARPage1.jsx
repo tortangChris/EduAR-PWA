@@ -7,19 +7,22 @@ const ARPage1 = () => {
   const [selectedNode, setSelectedNode] = useState(null);
   const nodeRefs = useRef([]);
 
-  // Add node reference helper
   const addNodeRef = (r) => {
     if (r && !nodeRefs.current.includes(r)) nodeRefs.current.push(r);
   };
 
+  // ✅ Tree node positions kept same x,y, only scaled and moved backward in z
+  const scaleFactor = 0.8; // shrink slightly
+  const zOffset = -9; // move object farther in AR
+
   const nodes = [
-    { id: "A", pos: [0, 3, 0], type: "Root" },
-    { id: "B", pos: [-2, 1.5, 0], type: "Child" },
-    { id: "C", pos: [2, 1.5, 0], type: "Child" },
-    { id: "D", pos: [-3, 0, 0], type: "Leaf" },
-    { id: "E", pos: [-1, 0, 0], type: "Leaf" },
-    { id: "F", pos: [1, 0, 0], type: "Leaf" },
-    { id: "G", pos: [3, 0, 0], type: "Leaf" },
+    { id: "A", pos: [0, 3 * scaleFactor, zOffset] },
+    { id: "B", pos: [-2 * scaleFactor, 1.5 * scaleFactor, zOffset] },
+    { id: "C", pos: [2 * scaleFactor, 1.5 * scaleFactor, zOffset] },
+    { id: "D", pos: [-3 * scaleFactor, 0, zOffset] },
+    { id: "E", pos: [-1 * scaleFactor, 0, zOffset] },
+    { id: "F", pos: [1 * scaleFactor, 0, zOffset] },
+    { id: "G", pos: [3 * scaleFactor, 0, zOffset] },
   ];
 
   const edges = [
@@ -31,7 +34,6 @@ const ARPage1 = () => {
     ["C", "G"],
   ];
 
-  // --- Auto-start AR session (same logic as your VisualPageAR)
   const startAR = (gl) => {
     if (navigator.xr) {
       navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
@@ -54,33 +56,34 @@ const ARPage1 = () => {
   return (
     <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 4, 25], fov: 50 }}
+        // ✅ Adjusted camera for better distance perception in AR
+        camera={{ position: [0, 3, 15], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
           startAR(gl);
         }}
       >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[5, 10, 5]} intensity={0.8} />
+        <ambientLight intensity={0.7} />
+        <directionalLight position={[5, 10, 5]} intensity={1} />
 
         {/* Header */}
         <FadeInText
           show={true}
           text={"Introduction to Trees"}
-          position={[0, 5, 0]}
-          fontSize={0.7}
+          position={[0, 5 * scaleFactor, zOffset]}
+          fontSize={0.6 * scaleFactor}
           color="white"
         />
 
         <FadeInText
           show={true}
           text={"A hierarchical, non-linear data structure of connected nodes"}
-          position={[0, 4.3, 0]}
-          fontSize={0.35}
+          position={[0, 4.2 * scaleFactor, zOffset]}
+          fontSize={0.32 * scaleFactor}
           color="#fde68a"
         />
 
-        {/* Tree Visualization */}
+        {/* Tree */}
         <TreeVisualization
           nodes={nodes}
           edges={edges}
@@ -91,10 +94,9 @@ const ARPage1 = () => {
 
         {/* Info Panel */}
         {selectedNode && (
-          <NodeInfoPanel node={selectedNode} position={[7, 2, 0]} />
+          <NodeInfoPanel node={selectedNode} position={[6, 2, zOffset]} />
         )}
 
-        {/* AR Interaction Manager */}
         <ARInteractionManager
           nodeRefs={nodeRefs}
           setSelectedNode={setSelectedNode}
@@ -106,7 +108,7 @@ const ARPage1 = () => {
   );
 };
 
-// === AR Interaction Manager ===
+// === AR Interaction ===
 const ARInteractionManager = ({ nodeRefs, setSelectedNode }) => {
   const { gl } = useThree();
 
@@ -132,9 +134,8 @@ const ARInteractionManager = ({ nodeRefs, setSelectedNode }) => {
         const intersects = raycaster.intersectObjects(candidates, true);
         if (intersects.length > 0) {
           let hit = intersects[0].object;
-          while (hit && hit.userData?.nodeData === undefined && hit.parent) {
+          while (hit && hit.userData?.nodeData === undefined && hit.parent)
             hit = hit.parent;
-          }
           const nodeData = hit?.userData?.nodeData;
           if (nodeData) setSelectedNode(nodeData);
         }
@@ -181,13 +182,12 @@ const TreeVisualization = ({
   );
 };
 
-// === Node (Sphere + Label) ===
+// === Node ===
 const TreeNode = React.forwardRef(({ node, onClick, isSelected }, ref) => {
   const { id, pos, type } = node;
   const baseColor =
     type === "Root" ? "#60a5fa" : type === "Child" ? "#34d399" : "#fbbf24";
   const color = isSelected ? "#f87171" : baseColor;
-
   const groupRef = useRef();
 
   useEffect(() => {
@@ -204,13 +204,14 @@ const TreeNode = React.forwardRef(({ node, onClick, isSelected }, ref) => {
       }}
       onClick={onClick}
     >
+      {/* ✅ Smaller sphere size */}
       <mesh>
-        <sphereGeometry args={[0.35, 32, 32]} />
+        <sphereGeometry args={[0.25, 32, 32]} />
         <meshStandardMaterial color={color} />
       </mesh>
       <Text
-        position={[0, 0.8, 0]}
-        fontSize={0.35}
+        position={[0, 0.6, 0]}
+        fontSize={0.28}
         color="#ffffff"
         anchorX="center"
         anchorY="middle"
@@ -221,7 +222,7 @@ const TreeNode = React.forwardRef(({ node, onClick, isSelected }, ref) => {
   );
 });
 
-// === Edge (Line between nodes) ===
+// === Edge ===
 const Connection = ({ start, end }) => {
   const points = useMemo(
     () => [new THREE.Vector3(...start), new THREE.Vector3(...end)],
@@ -240,7 +241,7 @@ const Connection = ({ start, end }) => {
   );
 };
 
-// === Node Info Panel ===
+// === Node Info ===
 const NodeInfoPanel = ({ node, position }) => {
   let description = "";
   if (node.type === "Root")
@@ -261,7 +262,7 @@ const NodeInfoPanel = ({ node, position }) => {
       show={true}
       text={content}
       position={position}
-      fontSize={0.35}
+      fontSize={0.32}
       color="#a5f3fc"
     />
   );
