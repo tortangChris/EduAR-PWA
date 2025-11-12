@@ -25,14 +25,15 @@ const ARPage1 = ({ spacing = 4.0 }) => {
     if (r && !nodeRefs.current.includes(r)) nodeRefs.current.push(r);
   };
 
-  // ⬇ slightly increased distance (radius 4 → 5)
+  // keep same x/y layout but push farther in z
   const positions = useMemo(() => {
     const angleStep = (2 * Math.PI) / data.length;
-    const radius = 5; // farther away but same x/y pattern
+    const radius = 3.5; // slightly tighter circle
+    const zOffset = -9; // push away from camera
     return data.map((_, i) => [
       Math.cos(i * angleStep) * radius,
       Math.sin(i * angleStep) * radius,
-      -6, // ⬅ pushes the entire graph a little farther in AR
+      zOffset,
     ]);
   }, [data.length]);
 
@@ -40,7 +41,6 @@ const ARPage1 = ({ spacing = 4.0 }) => {
     setSelectedNode((prev) => (prev === i ? null : i));
   };
 
-  // === Automatically start AR session ===
   const startAR = (gl) => {
     if (navigator.xr) {
       navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
@@ -63,21 +63,20 @@ const ARPage1 = ({ spacing = 4.0 }) => {
   return (
     <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 4, 25], fov: 50 }}
+        camera={{ position: [0, 2, 0], fov: 60 }} // slightly lower + wider FOV
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
           startAR(gl);
         }}
       >
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[5, 10, 5]} intensity={0.8} />
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[5, 10, 5]} intensity={0.9} />
 
-        {/* Title */}
         <FadeInText
           show={true}
           text={"Introduction to Graphs"}
-          position={[0, 6, -2]}
-          fontSize={0.6} // ⬅ slightly smaller
+          position={[0, 3, -9]}
+          fontSize={0.45}
           color="white"
         />
 
@@ -112,7 +111,7 @@ const ARPage1 = ({ spacing = 4.0 }) => {
           <DefinitionPanel
             node={data[selectedNode]}
             definition={nodeDefinitions[data[selectedNode].label]}
-            position={[7, 2, -2]} // ⬅ keep panel a bit farther too
+            position={[6, 1.5, -9]}
             onClose={() => setSelectedNode(null)}
           />
         )}
@@ -127,7 +126,6 @@ const ARPage1 = ({ spacing = 4.0 }) => {
   );
 };
 
-// === AR Interaction Manager ===
 const ARInteractionManager = ({ nodeRefs, setSelectedNode }) => {
   const { gl } = useThree();
 
@@ -173,7 +171,6 @@ const ARInteractionManager = ({ nodeRefs, setSelectedNode }) => {
   return null;
 };
 
-// === Node (smaller sphere) ===
 const GraphNode = forwardRef(
   ({ index, node, position, selected, onClick }, ref) => {
     const color = selected ? "#facc15" : "#60a5fa";
@@ -193,8 +190,10 @@ const GraphNode = forwardRef(
           else if (ref) ref.current = g;
         }}
       >
-        <mesh onClick={onClick}>
-          <sphereGeometry args={[0.35, 32, 32]} /> {/* ⬅ smaller sphere */}
+        <mesh onClick={onClick} scale={0.35}>
+          {" "}
+          {/* smaller node */}
+          <sphereGeometry args={[0.5, 32, 32]} />
           <meshStandardMaterial
             color={color}
             emissive={emissive}
@@ -205,15 +204,15 @@ const GraphNode = forwardRef(
         <FadeInText
           show={true}
           text={node.label}
-          position={[0, 0.7, 0]} // adjusted for smaller node
-          fontSize={0.3}
+          position={[0, 0.7, 0]}
+          fontSize={0.25}
           color="white"
         />
 
         {selected && (
           <Text
             position={[0, 1.2, 0]}
-            fontSize={0.25}
+            fontSize={0.22}
             color="#fde68a"
             anchorX="center"
             anchorY="middle"
@@ -226,7 +225,6 @@ const GraphNode = forwardRef(
   }
 );
 
-// === Edge ===
 const Edge = ({ start, end }) => {
   const points = useMemo(
     () => [new THREE.Vector3(...start), new THREE.Vector3(...end)],
@@ -236,14 +234,14 @@ const Edge = ({ start, end }) => {
     () => new THREE.BufferGeometry().setFromPoints(points),
     [points]
   );
+
   return (
     <line geometry={geometry}>
-      <lineBasicMaterial color="#94a3b8" linewidth={1} />
+      <lineBasicMaterial color="#94a3b8" linewidth={2} />
     </line>
   );
 };
 
-// === Fade-in Text ===
 const FadeInText = ({ show, text, position, fontSize, color }) => {
   const ref = useRef();
   const opacity = useRef(0);
@@ -280,7 +278,6 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
   );
 };
 
-// === Definition Panel ===
 const DefinitionPanel = ({ node, definition, position }) => {
   if (!node) return null;
   return (
