@@ -231,6 +231,7 @@ const AdjacencyMatrix = React.forwardRef(
 );
 
 // === Adjacency List Visualization ===
+// === Adjacency List Visualization (FIXED CLICKABLE VERSION) ===
 const AdjacencyList = React.forwardRef(
   ({ position, selected, onClick }, ref) => {
     const nodes = useMemo(
@@ -259,10 +260,13 @@ const AdjacencyList = React.forwardRef(
           fontSize={0.4}
           color="#93c5fd"
         />
+
+        {/* Each node row */}
         {nodes.map((node, i) => (
           <group key={i} position={[0, 2 - i * 1.2, 0]}>
-            <mesh onClick={onClick}>
-              <sphereGeometry args={[0.25, 32, 32]} />
+            {/* Main node (V#) */}
+            <mesh onClick={onClick} userData={{ type: "list" }}>
+              <sphereGeometry args={[0.35, 32, 32]} />
               <meshStandardMaterial
                 color={selected ? "#34d399" : "#4ade80"}
                 emissive={selected ? "#facc15" : "#000"}
@@ -270,16 +274,23 @@ const AdjacencyList = React.forwardRef(
               />
             </mesh>
 
+            {/* Connections (clickable too) */}
             {node.connections.map((c, j) => (
-              <mesh key={j} position={[1 + j * 0.6, 0, 0]}>
-                <sphereGeometry args={[0.18, 16, 16]} />
+              <mesh
+                key={j}
+                position={[1.2 + j * 0.8, 0, 0]}
+                onClick={onClick}
+                userData={{ type: "list" }}
+              >
+                <sphereGeometry args={[0.2, 16, 16]} />
                 <meshStandardMaterial color="#a5f3fc" />
               </mesh>
             ))}
 
+            {/* Label */}
             <Text
-              position={[-0.8, 0, 0]}
-              fontSize={0.28}
+              position={[-0.9, 0, 0]}
+              fontSize={0.3}
               color="white"
               anchorX="center"
               anchorY="middle"
@@ -288,6 +299,7 @@ const AdjacencyList = React.forwardRef(
             </Text>
           </group>
         ))}
+
         <Text
           position={[0, -2.8, 0]}
           fontSize={0.3}
