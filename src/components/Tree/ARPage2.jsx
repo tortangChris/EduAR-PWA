@@ -1,9 +1,9 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 
-const ARVisualPage2 = () => {
+const ARPage2 = () => {
   const [selectedNode, setSelectedNode] = useState(null);
   const nodeRefs = useRef([]);
 
@@ -11,15 +11,15 @@ const ARVisualPage2 = () => {
     if (r && !nodeRefs.current.includes(r)) nodeRefs.current.push(r);
   };
 
-  // Node structure with AR-friendly positions
+  // Node structure with relationships
   const nodes = [
-    { id: "A", pos: [0, 2.5, -3], type: "Root" },
-    { id: "B", pos: [-1.8, 1.2, -3], type: "Parent" },
-    { id: "C", pos: [1.8, 1.2, -3], type: "Parent" },
-    { id: "D", pos: [-3, 0, -3], type: "Leaf" },
-    { id: "E", pos: [-0.6, 0, -3], type: "Leaf" },
-    { id: "F", pos: [0.6, 0, -3], type: "Leaf" },
-    { id: "G", pos: [3, 0, -3], type: "Leaf" },
+    { id: "A", pos: [0, 3, -6], type: "Root" },
+    { id: "B", pos: [-2, 1.5, -6], type: "Parent" },
+    { id: "C", pos: [2, 1.5, -6], type: "Parent" },
+    { id: "D", pos: [-3, 0, -6], type: "Leaf" },
+    { id: "E", pos: [-1, 0, -6], type: "Leaf" },
+    { id: "F", pos: [1, 0, -6], type: "Leaf" },
+    { id: "G", pos: [3, 0, -6], type: "Leaf" },
   ];
 
   const edges = [
@@ -31,9 +31,11 @@ const ARVisualPage2 = () => {
     ["C", "G"],
   ];
 
-  const handleNodeClick = (node) => setSelectedNode(node);
+  const handleNodeClick = (node) => {
+    setSelectedNode(node);
+  };
 
-  // --- Start AR session ---
+  // --- Automatically start AR session ---
   const startAR = (gl) => {
     if (navigator.xr) {
       navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
@@ -42,9 +44,13 @@ const ARVisualPage2 = () => {
             .requestSession("immersive-ar", {
               requiredFeatures: ["hit-test", "local-floor"],
             })
-            .then((session) => gl.xr.setSession(session))
+            .then((session) => {
+              gl.xr.setSession(session);
+            })
             .catch((err) => console.error("AR session failed:", err));
-        } else console.warn("AR not supported.");
+        } else {
+          console.warn("AR not supported on this device.");
+        }
       });
     }
   };
@@ -52,7 +58,7 @@ const ARVisualPage2 = () => {
   return (
     <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 4, 10], fov: 50 }}
+        camera={{ position: [0, 4, 25], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
           startAR(gl);
@@ -65,21 +71,22 @@ const ARVisualPage2 = () => {
         <FadeInText
           show={true}
           text={"Basic Terminology of Trees"}
-          position={[0, 4.7, -3]}
+          position={[0, 5, 0]}
           fontSize={0.7}
           color="white"
         />
+
         <FadeInText
           show={true}
           text={
             "Understanding Root, Parent, Child, Sibling, Leaf, Height, and Depth"
           }
-          position={[0, 4, -3]}
-          fontSize={0.33}
+          position={[0, 4.3, 0]}
+          fontSize={0.35}
           color="#fde68a"
         />
 
-        {/* Tree */}
+        {/* Tree Visualization */}
         <TreeVisualization
           nodes={nodes}
           edges={edges}
@@ -88,10 +95,12 @@ const ARVisualPage2 = () => {
           addNodeRef={addNodeRef}
         />
 
+        {/* Info Panel */}
         {selectedNode && (
-          <NodeInfoPanel node={selectedNode} position={[7, 2, -3]} />
+          <NodeInfoPanel node={selectedNode} position={[7, 2, 0]} />
         )}
 
+        {/* Handles AR click detection */}
         <ARInteractionManager
           nodeRefs={nodeRefs}
           setSelectedNode={setSelectedNode}
@@ -122,9 +131,9 @@ const ARInteractionManager = ({ nodeRefs, setSelectedNode }) => {
         const origin = cam.getWorldPosition(new THREE.Vector3());
         raycaster.set(origin, dir);
 
-        const candidates = nodeRefs.current.flatMap((group) =>
-          group ? group.children : []
-        );
+        const candidates = (nodeRefs.current || [])
+          .map((group) => (group ? group.children : []))
+          .flat();
 
         const intersects = raycaster.intersectObjects(candidates, true);
         if (intersects.length > 0) {
@@ -138,9 +147,8 @@ const ARInteractionManager = ({ nodeRefs, setSelectedNode }) => {
       };
 
       session.addEventListener("select", onSelect);
-      session.addEventListener("end", () =>
-        session.removeEventListener("select", onSelect)
-      );
+      const onEnd = () => session.removeEventListener("select", onSelect);
+      session.addEventListener("end", onEnd);
     };
 
     gl.xr.addEventListener("sessionstart", onSessionStart);
@@ -157,29 +165,32 @@ const TreeVisualization = ({
   onNodeClick,
   selectedNode,
   addNodeRef,
-}) => (
-  <group>
-    {edges.map(([a, b], i) => {
-      const start = nodes.find((n) => n.id === a).pos;
-      const end = nodes.find((n) => n.id === b).pos;
-      return <Connection key={i} start={start} end={end} />;
-    })}
-    {nodes.map((node) => (
-      <TreeNode
-        key={node.id}
-        position={node.pos}
-        label={node.id}
-        type={node.type}
-        onClick={() => onNodeClick(node)}
-        isSelected={selectedNode?.id === node.id}
-        refCallback={addNodeRef}
-        nodeData={node}
-      />
-    ))}
-  </group>
-);
+}) => {
+  return (
+    <group>
+      {edges.map(([a, b], i) => {
+        const start = nodes.find((n) => n.id === a).pos;
+        const end = nodes.find((n) => n.id === b).pos;
+        return <Connection key={i} start={start} end={end} />;
+      })}
 
-// === Tree Node ===
+      {nodes.map((node) => (
+        <TreeNode
+          key={node.id}
+          position={node.pos}
+          label={node.id}
+          type={node.type}
+          onClick={() => onNodeClick(node)}
+          isSelected={selectedNode?.id === node.id}
+          refCallback={addNodeRef}
+          nodeData={node}
+        />
+      ))}
+    </group>
+  );
+};
+
+// === Node (Sphere + Label) ===
 const TreeNode = ({
   position,
   label,
@@ -190,6 +201,7 @@ const TreeNode = ({
   nodeData,
 }) => {
   const groupRef = useRef();
+
   useEffect(() => {
     if (groupRef.current) groupRef.current.userData = { nodeData };
     if (refCallback) refCallback(groupRef.current);
@@ -201,15 +213,16 @@ const TreeNode = ({
 
   return (
     <group ref={groupRef} position={position} onClick={onClick}>
-      <mesh scale={0.8}>
-        <sphereGeometry args={[0.3, 32, 32]} />
+      <mesh>
+        <sphereGeometry args={[0.35, 32, 32]} />
         <meshStandardMaterial color={color} />
       </mesh>
       <Text
-        position={[0, 0.7, 0]}
-        fontSize={0.32}
-        color="white"
+        position={[0, 0.8, 0]}
+        fontSize={0.35}
+        color="#ffffff"
         anchorX="center"
+        anchorY="middle"
       >
         {label}
       </Text>
@@ -217,7 +230,7 @@ const TreeNode = ({
   );
 };
 
-// === Edge ===
+// === Edge (Line between nodes) ===
 const Connection = ({ start, end }) => {
   const points = [new THREE.Vector3(...start), new THREE.Vector3(...end)];
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
@@ -232,6 +245,7 @@ const Connection = ({ start, end }) => {
 // === Node Info Panel ===
 const NodeInfoPanel = ({ node, position }) => {
   let description = "";
+
   switch (node.type) {
     case "Root":
       description = "The first or topmost node of the tree. It has no parent.";
@@ -314,4 +328,4 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
   );
 };
 
-export default ARVisualPage2;
+export default ARPage2;
