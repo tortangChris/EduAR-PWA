@@ -8,7 +8,7 @@ const ARPage1 = () => {
 
   // Scale and z-distance adjustment for AR visibility
   const scaleFactor = 0.8;
-  const zOffset = -9;
+  const zOffset = -6;
 
   // Tree nodes
   const nodes = [
