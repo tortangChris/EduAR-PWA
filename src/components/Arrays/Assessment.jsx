@@ -1,128 +1,260 @@
-import React, { useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+// ArrayAssessment.jsx
+import React, { useMemo, useState, useEffect } from "react";
+import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
-import useSound from "use-sound";
-import correctSfx from "/sounds/correct.mp3";
-import wrongSfx from "/sounds/wrong.mp3";
 
-const Assessment = () => {
-  const questions = [
-    {
-      question:
-        "Accessing an element in an array by index has what time complexity?",
-      choices: [
-        { label: "O(1)", type: "cube", isCorrect: true },
-        { label: "O(n)", type: "cube", isCorrect: false },
-        { label: "O(log n)", type: "cube", isCorrect: false },
-      ],
-    },
-    {
-      question:
-        "Inserting an element at the end of an array (without resizing) has what complexity?",
-      choices: [
-        { label: "O(1)", type: "sphere", isCorrect: true },
-        { label: "O(n)", type: "sphere", isCorrect: false },
-        { label: "O(log n)", type: "sphere", isCorrect: false },
-      ],
-    },
-    {
-      question:
-        "Deleting an element from the beginning of an array has what complexity?",
-      choices: [
-        { label: "O(1)", type: "cube", isCorrect: false },
-        { label: "O(n)", type: "cube", isCorrect: true },
-        { label: "O(log n)", type: "cube", isCorrect: false },
-      ],
-    },
-    {
-      question:
-        "Inserting an element in the middle of an array has what complexity?",
-      choices: [
-        { label: "O(1)", type: "sphere", isCorrect: false },
-        { label: "O(n)", type: "sphere", isCorrect: true },
-        { label: "O(log n)", type: "sphere", isCorrect: false },
-      ],
-    },
-    {
-      question:
-        "Searching for an element by value in an unsorted array has what complexity?",
-      choices: [
-        { label: "O(1)", type: "cube", isCorrect: false },
-        { label: "O(n)", type: "cube", isCorrect: true },
-        { label: "O(log n)", type: "cube", isCorrect: false },
-      ],
-    },
-    {
-      question: "Accessing the last element in an array has what complexity?",
-      choices: [
-        { label: "O(1)", type: "sphere", isCorrect: true },
-        { label: "O(n)", type: "sphere", isCorrect: false },
-        { label: "O(log n)", type: "sphere", isCorrect: false },
-      ],
-    },
-  ];
+const DEFAULT_DATA = [10, 20, 30, 40, 50];
 
-  const [currentQ, setCurrentQ] = useState(0);
+const ArrayAssessment = ({ initialData = DEFAULT_DATA, spacing = 2.0 }) => {
+  const modes = ["intro", "access", "search", "insert", "delete", "done"];
+  const [modeIndex, setModeIndex] = useState(0);
+  const mode = modes[modeIndex];
+
+  const [data, setData] = useState([...initialData]);
+  const [question, setQuestion] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(null);
-  const [playCorrect] = useSound(correctSfx, { volume: 0.5 });
-  const [playWrong] = useSound(wrongSfx, { volume: 0.5 });
+  const [feedback, setFeedback] = useState(null);
+  const [animState, setAnimState] = useState({});
 
-  const handleSelect = (choice, index) => {
-    setSelectedIndex(index);
-    if (choice.isCorrect) playCorrect();
-    else playWrong();
+  // --- New states for scoring & progress ---
+  const [score, setScore] = useState(0);
+  const totalAssessments = 4;
 
-    // Move to next question after 2s
-    setTimeout(() => {
-      setSelectedIndex(null);
-      setCurrentQ((prev) => (prev + 1) % questions.length);
-    }, 2000);
+  const positions = useMemo(() => {
+    const mid = (data.length - 1) / 2;
+    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
+  }, [data, spacing]);
+
+  useEffect(() => {
+    setSelectedIndex(null);
+    setFeedback(null);
+    setAnimState({});
+    if (mode === "access") prepareAccessQuestion();
+    if (mode === "search") prepareSearchQuestion();
+    if (mode === "insert") prepareInsertQuestion();
+    if (mode === "delete") prepareDeleteQuestion();
+    if (mode === "intro") setData([...initialData]);
+    if (mode === "done") setQuestion(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modeIndex]);
+
+  const nextMode = () => setModeIndex((m) => Math.min(m + 1, modes.length - 1));
+
+  // --- Question generators ---
+  const prepareAccessQuestion = () => {
+    const idx = Math.floor(Math.random() * data.length);
+    setQuestion({
+      prompt: `Which box is at index ${idx}? (Access — O(1))`,
+      answerIndex: idx,
+      type: "access",
+    });
   };
 
-  const spacing = 3;
-  const mid = (questions[currentQ].choices.length - 1) / 2;
+  const prepareSearchQuestion = () => {
+    const value = data[Math.floor(Math.random() * data.length)];
+    setQuestion({
+      prompt: `Click the box containing the value ${value}. (Search — O(n))`,
+      answerValue: value,
+      type: "search",
+    });
+  };
 
+  const prepareInsertQuestion = () => {
+    const insertValue = 99;
+    const k = Math.floor(Math.random() * data.length); // avoid inserting at end
+    const answerIndex = k < data.length ? k : data.length - 1;
+    setQuestion({
+      prompt: `If we insert ${insertValue} at index ${k}, which element (value) will shift right? (Insertion — O(n))`,
+      insertValue,
+      k,
+      answerIndex,
+      type: "insert",
+    });
+  };
+
+  const prepareDeleteQuestion = () => {
+    let k = Math.floor(Math.random() * data.length);
+    if (k === data.length - 1 && data.length > 1) k = data.length - 2;
+    const answerIndex = k + 1 < data.length ? k + 1 : null;
+    setQuestion({
+      prompt: `Delete the value at index ${k}. After deletion, which value will end up at index ${k}? (Deletion — O(n))`,
+      k,
+      answerIndex,
+      type: "delete",
+    });
+  };
+
+  // --- Click handler ---
+  const handleBoxClick = (i) => {
+    if (mode === "intro") {
+      setModeIndex(1);
+      return;
+    }
+    if (!question) return;
+
+    setSelectedIndex(i);
+    const markScore = (correct) => {
+      if (correct) setScore((s) => s + 1);
+    };
+
+    if (question.type === "access") {
+      const correct = i === question.answerIndex;
+      markScore(correct);
+      showFeedback(correct, `Value ${data[i]}`, nextMode);
+    } else if (question.type === "search") {
+      const correct = data[i] === question.answerValue;
+      markScore(correct);
+      showFeedback(correct, `Clicked ${data[i]}`, nextMode);
+    } else if (question.type === "insert") {
+      const correct = i === question.answerIndex;
+      markScore(correct);
+      showFeedback(correct, `Clicked ${data[i]}`, () => {
+        const newArr = [...data];
+        newArr.splice(
+          Math.min(question.k, newArr.length),
+          0,
+          question.insertValue
+        );
+        const shiftFlags = {};
+        for (let idx = question.k; idx < newArr.length; idx++)
+          shiftFlags[idx] = "shift";
+        setAnimState(shiftFlags);
+        setTimeout(() => {
+          setData(newArr);
+          setAnimState({});
+          nextMode();
+        }, 600);
+      });
+    } else if (question.type === "delete") {
+      const correct =
+        question.answerIndex !== null && i === question.answerIndex;
+      markScore(correct);
+      showFeedback(correct, `Clicked ${data[i]}`, () => {
+        const newArr = [...data];
+        const fadeFlags = { [question.k]: "fade" };
+        setAnimState(fadeFlags);
+        setTimeout(() => {
+          newArr.splice(question.k, 1);
+          setData(newArr);
+          setAnimState({});
+          nextMode();
+        }, 600);
+      });
+    }
+  };
+
+  const showFeedback = (correct, label, callback) => {
+    setFeedback({
+      text: correct ? `Correct — ${label}` : `Incorrect — ${label}`,
+      correct,
+    });
+    setTimeout(() => {
+      setFeedback(null);
+      callback && callback();
+    }, 800);
+  };
+
+  // --- Render ---
   return (
     <div className="w-full h-[300px]">
       <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
-        <ambientLight intensity={0.5} />
+        <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* Question Indicator */}
-        <Text
-          position={[0, 3.3, 0]}
-          fontSize={0.25}
-          color="yellow"
-          anchorX="center"
-          anchorY="middle"
-        >
-          {`Question ${currentQ + 1} of ${questions.length}`}
-        </Text>
+        {/* Header */}
+        <FadeText
+          text={
+            mode === "intro"
+              ? "Arrays — Assessment"
+              : mode === "done"
+              ? "Assessment Complete!"
+              : `Assessment ${modeIndex}: ${mode.toUpperCase()}`
+          }
+          position={[0, 3.2, 0]}
+          fontSize={0.6}
+          color="#facc15"
+        />
 
-        {/* Question */}
-        <Text
-          position={[0, 2.5, 0]}
-          fontSize={0.4}
+        {/* Instruction or question */}
+        <FadeText
+          text={
+            mode === "intro"
+              ? "Click the box below to start the assessment"
+              : mode === "done"
+              ? ""
+              : question
+              ? question.prompt
+              : ""
+          }
+          position={[0, 2.4, 0]}
+          fontSize={0.34}
           color="white"
-          anchorX="center"
-          anchorY="middle"
-        >
-          {questions[currentQ].question}
-        </Text>
+        />
 
-        {/* Choices */}
-        {questions[currentQ].choices.map((choice, i) => (
-          <Choice
-            key={i}
-            geometry={choice.type}
-            position={[(i - mid) * spacing, 0, 0]}
-            label={choice.label}
-            isCorrect={choice.isCorrect}
-            selected={selectedIndex === i}
-            onSelect={() => handleSelect(choice, i)}
+        {/* Progress indicator */}
+        {mode !== "intro" && mode !== "done" && (
+          <FadeText
+            text={`Progress: ${modeIndex} / ${totalAssessments}`}
+            position={[0, 1.7, 0]}
+            fontSize={0.28}
+            color="#fde68a"
           />
-        ))}
+        )}
+
+        {/* Boxes */}
+        {mode === "intro" ? (
+          <StartBox position={[0, 0, 0]} onClick={() => handleBoxClick(0)} />
+        ) : mode === "done" ? (
+          <>
+            {/* <FadeText
+              text={`Assessment Complete!`}
+              position={[0, 1.5, 0]}
+              fontSize={0.6}
+              color="#facc15"
+            /> */}
+            <FadeText
+              text={`Your Score: ${score} / ${totalAssessments}`}
+              position={[0, 1.8, 0]}
+              fontSize={0.5}
+              color="#60a5fa"
+            />
+            {/* <FadeText
+              text={`Final array: [${data.join(", ")}]`}
+              position={[0, -1.2, 0]}
+              fontSize={0.4}
+              color="#34d399"
+            /> */}
+          </>
+        ) : (
+          data.map((value, i) => {
+            let extraPosX = 0;
+            let extraOpacity = 1;
+            if (animState[i] === "shift") extraPosX = 0.2;
+            if (animState[i] === "fade") extraOpacity = 0.25;
+            const isSelected = selectedIndex === i;
+            return (
+              <group key={i} position={[positions[i][0] + extraPosX, 0, 0]}>
+                <Box
+                  index={i}
+                  value={value}
+                  position={[0, 0, 0]}
+                  selected={isSelected}
+                  onClick={() => handleBoxClick(i)}
+                  opacity={extraOpacity}
+                />
+              </group>
+            );
+          })
+        )}
+
+        {feedback && (
+          <FloatingFeedback
+            text={feedback.text}
+            correct={feedback.correct}
+            position={[0, 1.3, 0]}
+          />
+        )}
 
         <OrbitControls makeDefault />
       </Canvas>
@@ -130,52 +262,121 @@ const Assessment = () => {
   );
 };
 
-const Choice = ({
-  geometry,
-  position,
-  label,
-  isCorrect,
-  selected,
-  onSelect,
-}) => {
-  const meshRef = useRef();
-
-  useFrame(() => {
-    if (meshRef.current) {
-      // Glow effect
-      meshRef.current.material.emissive.set(
-        selected ? (isCorrect ? "green" : "red") : "black"
-      );
-      // Slight scaling animation when selected
-      const targetScale = selected ? 1.3 : 1;
-      meshRef.current.scale.lerp(
-        new THREE.Vector3(targetScale, targetScale, targetScale),
-        0.1
-      );
-    }
-  });
-
+// --- Start Box ---
+const StartBox = ({ position = [0, 0, 0], onClick }) => {
+  const size = [5.0, 2.2, 1.0];
   return (
     <group position={position}>
-      <mesh ref={meshRef} onClick={onSelect}>
-        {geometry === "cube" ? (
-          <boxGeometry args={[1, 1, 1]} />
-        ) : (
-          <sphereGeometry args={[0.7, 32, 32]} />
-        )}
-        <meshStandardMaterial color="#60a5fa" />
+      <mesh position={[0, 0.6, 0]} onClick={onClick}>
+        <boxGeometry args={size} />
+        <meshStandardMaterial color="#60a5fa" emissive="#000000" />
       </mesh>
       <Text
-        position={[0, 1, 0]}
-        fontSize={0.25}
+        position={[0, 0.6, size[2] / 2 + 0.02]}
+        fontSize={0.45}
         color="white"
         anchorX="center"
         anchorY="middle"
       >
-        {label}
+        Start Assessment
       </Text>
     </group>
   );
 };
 
-export default Assessment;
+// --- Individual Box ---
+const Box = ({
+  index,
+  value,
+  position = [0, 0, 0],
+  selected,
+  onClick,
+  opacity = 1,
+}) => {
+  const size = [1.6, 1.2, 1];
+  const color = selected ? "#f87171" : index % 2 === 0 ? "#60a5fa" : "#34d399";
+  return (
+    <group position={position}>
+      <mesh castShadow receiveShadow position={[0, 0.2, 0]} onClick={onClick}>
+        <boxGeometry args={size} />
+        <meshStandardMaterial
+          color={color}
+          emissive={selected ? "#fbbf24" : "#000000"}
+          emissiveIntensity={selected ? 0.6 : 0}
+          transparent={opacity < 1}
+          opacity={opacity}
+        />
+      </mesh>
+      <Text
+        position={[0, 0.2, size[2] / 2 + 0.01]}
+        fontSize={0.4}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {String(value)}
+      </Text>
+      {/* <Text
+        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.02]}
+        fontSize={0.25}
+        color="#fde68a"
+        anchorX="center"
+        anchorY="middle"
+      >
+        [{index}]
+      </Text> */}
+    </group>
+  );
+};
+
+// --- Floating Feedback ---
+const FloatingFeedback = ({ text, correct = true, position = [0, 0, 0] }) => {
+  return (
+    <group position={position}>
+      <Text
+        fontSize={0.36}
+        color={correct ? "#10b981" : "#ef4444"}
+        anchorX="center"
+        anchorY="middle"
+      >
+        {text}
+      </Text>
+    </group>
+  );
+};
+
+// --- Fade-in text ---
+const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
+  const [opacity, setOpacity] = useState(0);
+
+  useEffect(() => {
+    let frame;
+    let start;
+    const duration = 700;
+    const animate = (ts) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      setOpacity(progress);
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [text]);
+
+  return (
+    <Text
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      fillOpacity={opacity}
+      maxWidth={12}
+      textAlign="center"
+    >
+      {text}
+    </Text>
+  );
+};
+
+export default ArrayAssessment;
