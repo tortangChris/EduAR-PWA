@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Lock, Unlock } from "lucide-react";
-import ARPageAssessment from "./ARPageAssessment";
 
 const ARButtonAssessment = () => {
   const [isSupported, setIsSupported] = useState(null);
