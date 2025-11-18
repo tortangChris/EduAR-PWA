@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import VisualPage5 from "./VisualPage5";
 import Assessment from "./Assessment";
 import ARButtonAssessment from "./ARButtonAssessement";
 
