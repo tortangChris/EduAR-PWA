@@ -14,6 +14,8 @@ import { useModuleProgress } from "../services/useModuleProgress";
 import { logActivity } from "../services/activityService"; // 👈 import logger
 import Page0 from "../components/Linked List/Page0";
 import Page5 from "../components/Linked List/Page5";
+import PageInteractive from "../components/Linked List/PageInteractive";
+
 const LinkedList = () => {
   const navigate = useNavigate();
   const { page } = useParams();
@@ -24,7 +26,8 @@ const LinkedList = () => {
     <Page2 />,
     <Page3 />,
     <Page4 />,
-    <Page5 />,
+    <PageInteractive/>,
+    // <Page5 />,
   ];
   const totalPages = pages.length;
 

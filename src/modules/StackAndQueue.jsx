@@ -14,6 +14,7 @@ import { useModuleProgress } from "../services/useModuleProgress";
 
 import { logActivity } from "../services/activityService";
 import Page6 from "../components/StackQueue/Page6";
+import PageInteractive from "../components/StackQueue/PageInteractive";
 
 const StackAndQueue = () => {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ const StackAndQueue = () => {
     <Page0 />,
     <Page1 />,
     <Page2 />,
+    <PageInteractive/>,
     // <Page3 />,
     // <Page4 />,
     // <Page5 />,

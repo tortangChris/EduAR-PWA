@@ -15,6 +15,7 @@ import { useModuleProgress } from "../services/useModuleProgress";
 
 import { logActivity } from "../services/activityService";
 import Page6 from "../components/Tree/Page6";
+import PageInteractive from "../components/Tree/PageInteractive";
 
 const TreeRecursion = () => {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ const TreeRecursion = () => {
     <Page0 />,
     <Page1 />,
     <Page2 />,
+    <PageInteractive/>,
     // <Page3 />,
     // <Page4 />,
     // <Page5 />,
