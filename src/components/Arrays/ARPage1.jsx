@@ -1,12 +1,13 @@
 import React, { useMemo, useState, useRef, useEffect, forwardRef } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Text } from "@react-three/drei";
+import { Canvas, useFrame, useThree, extend } from "@react-three/fiber";
+import { OrbitControls, Text, useCursor } from "@react-three/drei";
 import * as THREE from "three";
 
 const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   const [showPanel, setShowPanel] = useState(false);
   const [page, setPage] = useState(0);
   const [selectedBox, setSelectedBox] = useState(null);
+  const [orbitEnabled, setOrbitEnabled] = useState(true);
   const boxRefs = useRef([]);
 
   // --- Helper to collect box refs ---
@@ -51,12 +52,13 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
   };
 
   return (
-    <div className="w-full h-[300px]">
+    <div className="w-full h-[300px]" style={{ touchAction: 'none' }}>
       <Canvas
         camera={{ position: [0, 4, 25], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
-          startAR(gl); // <-- Start AR automatically here
+          // Optionally start AR
+          // startAR(gl);
         }}
       >
         <ambientLight intensity={0.4} />
@@ -74,14 +76,15 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
           <ArrayBackground data={data} spacing={spacing} />
 
           {data.map((value, i) => (
-            <Box
+            <DraggableBox
               key={i}
               index={i}
               value={value}
-              position={positions[i]}
+              initialPosition={positions[i]}
               selected={selectedBox === i}
               onClick={() => handleClick(i)}
               ref={(r) => addBoxRef(r)}
+              setOrbitEnabled={setOrbitEnabled}
             />
           ))}
 
@@ -100,8 +103,32 @@ const VisualPageAR = ({ data = [10, 20, 30, 40], spacing = 2.0 }) => {
           boxRefs={boxRefs}
           setSelectedBox={setSelectedBox}
         />
-        <OrbitControls makeDefault />
+        <OrbitControls makeDefault enabled={orbitEnabled} />
       </Canvas>
+      
+      {/* AR Button - Optional */}
+      <button
+        onClick={() => {
+          const canvas = document.querySelector('canvas');
+          if (canvas && canvas.__r3f) {
+            startAR(canvas.__r3f.gl);
+          }
+        }}
+        style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          padding: '8px 16px',
+          backgroundColor: '#3b82f6',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          zIndex: 1000
+        }}
+      >
+        Start AR
+      </button>
     </div>
   );
 };
@@ -211,19 +238,144 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
   );
 };
 
-// === Box ===
-const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
+// === Fixed Draggable Box Component ===
+const DraggableBox = forwardRef(({ 
+  index, 
+  value, 
+  initialPosition, 
+  selected, 
+  onClick,
+  setOrbitEnabled
+}, ref) => {
   const size = [1.6, 1.2, 1];
   const color = selected ? "#facc15" : index % 2 === 0 ? "#60a5fa" : "#34d399";
   const groupRef = useRef();
+  const meshRef = useRef();
+  const [hovered, setHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [clickTimeout, setClickTimeout] = useState(null);
+  
+  const { camera, gl, scene } = useThree();
+  
+  useCursor(hovered && !isDragging, 'grab');
+  useCursor(isDragging, 'grabbing');
 
   useEffect(() => {
-    if (groupRef.current) groupRef.current.userData = { boxIndex: index };
-  }, [index]);
+    if (groupRef.current) {
+      groupRef.current.userData = { boxIndex: index };
+      groupRef.current.position.set(...initialPosition);
+    }
+  }, [index, initialPosition]);
+
+  useEffect(() => {
+    if (!groupRef.current) return;
+
+    let isDraggingLocal = false;
+    let plane = new THREE.Plane();
+    let raycaster = new THREE.Raycaster();
+    let mouse = new THREE.Vector2();
+    let intersection = new THREE.Vector3();
+    let offset = new THREE.Vector3();
+    let startPos = new THREE.Vector3();
+
+    const handlePointerDown = (e) => {
+      if (e.target !== gl.domElement) return;
+      
+      const rect = gl.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObject(groupRef.current, true);
+      
+      if (intersects.length > 0) {
+        e.stopPropagation();
+        isDraggingLocal = true;
+        setIsDragging(true);
+        setOrbitEnabled(false);
+        
+        // Create a plane perpendicular to the camera
+        const cameraDirection = new THREE.Vector3();
+        camera.getWorldDirection(cameraDirection);
+        plane.setFromNormalAndCoplanarPoint(
+          cameraDirection.negate(),
+          intersects[0].point
+        );
+        
+        // Calculate offset
+        if (raycaster.ray.intersectPlane(plane, intersection)) {
+          offset.copy(intersection).sub(groupRef.current.position);
+        }
+        
+        startPos.copy(groupRef.current.position);
+        
+        // Set up click detection
+        const timeout = setTimeout(() => {
+          setClickTimeout(null);
+        }, 200);
+        setClickTimeout(timeout);
+      }
+    };
+
+    const handlePointerMove = (e) => {
+      if (!isDraggingLocal) return;
+      
+      const rect = gl.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      
+      raycaster.setFromCamera(mouse, camera);
+      
+      if (raycaster.ray.intersectPlane(plane, intersection)) {
+        groupRef.current.position.copy(intersection.sub(offset));
+      }
+    };
+
+    const handlePointerUp = (e) => {
+      if (isDraggingLocal) {
+        const endPos = new THREE.Vector3();
+        endPos.copy(groupRef.current.position);
+        
+        // Check if it was a click (not moved much)
+        const distance = startPos.distanceTo(endPos);
+        if (distance < 0.1 && clickTimeout) {
+          onClick();
+        }
+        
+        if (clickTimeout) {
+          clearTimeout(clickTimeout);
+          setClickTimeout(null);
+        }
+        
+        isDraggingLocal = false;
+        setIsDragging(false);
+        setOrbitEnabled(true);
+      }
+    };
+
+    gl.domElement.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+
+    return () => {
+      gl.domElement.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [camera, gl, scene, onClick, setOrbitEnabled, clickTimeout]);
+
+  // Floating animation when dragging
+  useFrame((state) => {
+    if (isDragging && groupRef.current) {
+      const time = state.clock.getElapsedTime();
+      groupRef.current.rotation.y = Math.sin(time * 2) * 0.1;
+    } else if (groupRef.current) {
+      groupRef.current.rotation.y *= 0.9;
+    }
+  });
 
   return (
     <group
-      position={position}
       ref={(g) => {
         groupRef.current = g;
         if (typeof ref === "function") ref(g);
@@ -231,16 +383,20 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
       }}
     >
       <mesh
+        ref={meshRef}
         castShadow
         receiveShadow
         position={[0, size[1] / 2, 0]}
-        onClick={onClick}
+        onPointerOver={() => setHovered(true)}
+        onPointerOut={() => setHovered(false)}
       >
         <boxGeometry args={size} />
         <meshStandardMaterial
           color={color}
-          emissive={selected ? "#fbbf24" : "#000000"}
-          emissiveIntensity={selected ? 0.4 : 0}
+          emissive={selected || hovered || isDragging ? "#fbbf24" : "#000000"}
+          emissiveIntensity={isDragging ? 0.6 : selected ? 0.4 : hovered ? 0.2 : 0}
+          transparent
+          opacity={isDragging ? 0.85 : 1}
         />
       </mesh>
 
@@ -252,7 +408,11 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
         color="white"
       />
 
-      <mesh onClick={onClick} position={[0, -0.3, size[2] / 2 + 0.01]}>
+      <mesh 
+        position={[0, -0.3, size[2] / 2 + 0.01]}
+        onPointerOver={() => setHovered(true)}
+        onPointerOut={() => setHovered(false)}
+      >
         <planeGeometry args={[0.9, 0.4]} />
         <meshBasicMaterial transparent opacity={0} />
         <Text
@@ -266,7 +426,7 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
         </Text>
       </mesh>
 
-      {selected && (
+      {selected && !isDragging && (
         <Text
           position={[0, size[1] + 0.8, 0]}
           fontSize={0.3}
@@ -276,6 +436,25 @@ const Box = forwardRef(({ index, value, position, selected, onClick }, ref) => {
         >
           Value {value} at index {index}
         </Text>
+      )}
+      
+      {isDragging && (
+        <>
+          <Text
+            position={[0, -1, 0]}
+            fontSize={0.25}
+            color="#38bdf8"
+            anchorX="center"
+            anchorY="middle"
+          >
+            Dragging...
+          </Text>
+          {/* Drop zone indicator */}
+          <mesh position={[0, -0.6, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.8, 1, 32]} />
+            <meshBasicMaterial color="#38bdf8" transparent opacity={0.3} />
+          </mesh>
+        </>
       )}
     </group>
   );
