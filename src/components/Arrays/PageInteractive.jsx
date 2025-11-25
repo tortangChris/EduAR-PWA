@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Assessment from "./Assessment";
 import ARButtonAssessment from "./ARButtonAssessement";
 
-const PageInteractive = () => {
+const PageInteractive = ({ onAssessmentPassStatusChange }) => {
   const [activeView, setActiveView] = useState(null); 
   // null = default buttons screen
 
@@ -19,7 +19,9 @@ const PageInteractive = () => {
             className="w-55 h-48 bg-gray-900 rounded-xl shadow-lg flex flex-col items-center justify-center p-4 hover:scale-105 transition-transform"
           >
             <div className="w-20 h-20 bg-gray-300 rounded-md mb-2"></div>
-            <span className="text-sm font-semibold text-center">3D AR Assessment</span>
+            <span className="text-sm font-semibold text-center">
+              3D AR Assessment
+            </span>
           </button>
 
           {/* BOTTOM BUTTON → ARButtonAssessment */}
@@ -28,7 +30,9 @@ const PageInteractive = () => {
             className="w-55 h-48 bg-gray-900 rounded-xl shadow-lg flex flex-col items-center justify-center p-4 hover:scale-105 transition-transform"
           >
             <div className="w-20 h-20 bg-gray-300 rounded-md mb-2"></div>
-            <span className="text-sm font-semibold text-center">Real-Objects AR Assessment</span>
+            <span className="text-sm font-semibold text-center">
+              Real-Objects AR Assessment
+            </span>
           </button>
 
         </div>
@@ -37,7 +41,10 @@ const PageInteractive = () => {
       {/* If activeView === "assessment", show Assessment component */}
       {activeView === "assessment" && (
         <div className="w-full h-[300px] bg-gray-900 rounded-xl flex items-center justify-center relative">
-          <Assessment />
+          <Assessment
+            passingRatio={0.75} // generic passing rule
+            onPassStatusChange={onAssessmentPassStatusChange} // inform parent (Arrays)
+          />
 
           <button
             onClick={() => setActiveView(null)}

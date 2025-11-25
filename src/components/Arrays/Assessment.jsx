@@ -6,7 +6,12 @@ import * as THREE from "three";
 
 const DEFAULT_DATA = [10, 20, 30, 40, 50];
 
-const ArrayAssessment = ({ initialData = DEFAULT_DATA, spacing = 2.0 }) => {
+const ArrayAssessment = ({
+  initialData = DEFAULT_DATA,
+  spacing = 2.0,
+  passingRatio = 0.75, // NEW: generic passing rule
+  onPassStatusChange,   // NEW: to inform parent (Array.jsx)
+}) => {
   const modes = ["intro", "access", "search", "insert", "delete", "done"];
   const [modeIndex, setModeIndex] = useState(0);
   const mode = modes[modeIndex];
@@ -21,25 +26,71 @@ const ArrayAssessment = ({ initialData = DEFAULT_DATA, spacing = 2.0 }) => {
   const [score, setScore] = useState(0);
   const totalAssessments = 4;
 
+  // NEW: track if passed
+  const [isPassed, setIsPassed] = useState(false);
+
   const positions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
+  // 🔹 On mount, check kung passed na sa localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("arrayAssessmentPassed");
+      if (stored === "true") {
+        setIsPassed(true);
+        setScore(totalAssessments); // optional: full score display
+        setModeIndex(modes.indexOf("done")); // jump to done
+        onPassStatusChange && onPassStatusChange(true);
+      }
+    } catch (e) {
+      console.warn("Unable to access localStorage", e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     setSelectedIndex(null);
     setFeedback(null);
     setAnimState({});
+
     if (mode === "access") prepareAccessQuestion();
     if (mode === "search") prepareSearchQuestion();
     if (mode === "insert") prepareInsertQuestion();
     if (mode === "delete") prepareDeleteQuestion();
-    if (mode === "intro") setData([...initialData]);
+    if (mode === "intro") {
+      setData([...initialData]);
+      setScore(0);
+    }
     if (mode === "done") setQuestion(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modeIndex]);
 
-  const nextMode = () => setModeIndex((m) => Math.min(m + 1, modes.length - 1));
+  // 🔹 Kapag nasa "done" mode na, compute kung pasado at i-save
+  useEffect(() => {
+    if (mode !== "done") return;
+
+    const ratio = score / totalAssessments;
+    const passed = ratio >= passingRatio;
+
+    setIsPassed(passed);
+    onPassStatusChange && onPassStatusChange(passed);
+
+    try {
+      if (passed) {
+        localStorage.setItem("arrayAssessmentPassed", "true");
+      } else {
+        // optional: linisin kung gusto mong ulitin pag bumalik
+        localStorage.removeItem("arrayAssessmentPassed");
+      }
+    } catch (e) {
+      console.warn("Unable to write localStorage", e);
+    }
+  }, [mode, score, totalAssessments, passingRatio, onPassStatusChange]);
+
+  const nextMode = () =>
+    setModeIndex((m) => Math.min(m + 1, modes.length - 1));
 
   // --- Question generators ---
   const prepareAccessQuestion = () => {
@@ -182,7 +233,9 @@ const ArrayAssessment = ({ initialData = DEFAULT_DATA, spacing = 2.0 }) => {
             mode === "intro"
               ? "Click the box below to start the assessment"
               : mode === "done"
-              ? ""
+              ? isPassed
+                ? "You passed this assessment!"
+                : "You did not reach the passing score."
               : question
               ? question.prompt
               : ""
@@ -207,24 +260,18 @@ const ArrayAssessment = ({ initialData = DEFAULT_DATA, spacing = 2.0 }) => {
           <StartBox position={[0, 0, 0]} onClick={() => handleBoxClick(0)} />
         ) : mode === "done" ? (
           <>
-            {/* <FadeText
-              text={`Assessment Complete!`}
-              position={[0, 1.5, 0]}
-              fontSize={0.6}
-              color="#facc15"
-            /> */}
             <FadeText
               text={`Your Score: ${score} / ${totalAssessments}`}
               position={[0, 1.8, 0]}
               fontSize={0.5}
               color="#60a5fa"
             />
-            {/* <FadeText
-              text={`Final array: [${data.join(", ")}]`}
-              position={[0, -1.2, 0]}
-              fontSize={0.4}
-              color="#34d399"
-            /> */}
+            <FadeText
+              text={isPassed ? "Status: PASSED" : "Status: FAILED"}
+              position={[0, 1.2, 0]}
+              fontSize={0.45}
+              color={isPassed ? "#22c55e" : "#ef4444"}
+            />
           </>
         ) : (
           data.map((value, i) => {
@@ -316,15 +363,6 @@ const Box = ({
       >
         {String(value)}
       </Text>
-      {/* <Text
-        position={[0, size[1] / 2 - 0.35, size[2] / 2 + 0.02]}
-        fontSize={0.25}
-        color="#fde68a"
-        anchorX="center"
-        anchorY="middle"
-      >
-        [{index}]
-      </Text> */}
     </group>
   );
 };
