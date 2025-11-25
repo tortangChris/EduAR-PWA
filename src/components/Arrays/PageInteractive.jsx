@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Assessment from "./Assessment";
 import ARButtonAssessment from "./ARButtonAssessement";
 
-const Page6 = () => {
+const PageInteractive = () => {
   const [activeView, setActiveView] = useState(null); 
   // null = default buttons screen
 
@@ -66,4 +66,4 @@ const Page6 = () => {
   );
 };
 
-export default Page6;
+export default PageInteractive;
