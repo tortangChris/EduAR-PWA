@@ -1,362 +1,562 @@
-// ArrayAssessment.jsx
-import React, { useMemo, useState, useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
+import React, { useMemo, useState, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 
-const DEFAULT_DATA = [10, 20, 30, 40, 50];
+const StackActivity3D = () => {
+  // More challenging sequence
+  const steps = [
+    { type: "PUSH", value: 7 },
+    { type: "PUSH", value: 2 },
+    { type: "PUSH", value: 9 },
+    { type: "POP" },
+    { type: "PUSH", value: 4 },
+    { type: "POP" },
+    { type: "PUSH", value: 1 },
+    { type: "POP" },
+    { type: "POP" },
+  ];
 
-const ArrayAssessment = ({
-  initialData = DEFAULT_DATA,
-  spacing = 2.0,
-  passingRatio = 0.75, // NEW: generic passing rule
-  onPassStatusChange,   // NEW: to inform parent (Array.jsx)
-}) => {
-  const modes = ["intro", "access", "search", "insert", "delete", "done"];
-  const [modeIndex, setModeIndex] = useState(0);
-  const mode = modes[modeIndex];
+  // Tokens include distractors
+  const [tokens, setTokens] = useState([
+    { id: 1, value: 7, position: [-7, 0.7, -3], used: false },
+    { id: 2, value: 2, position: [-7, 0.7, -1], used: false },
+    { id: 3, value: 9, position: [-7, 0.7, 1], used: false },
+    { id: 4, value: 4, position: [-7, 0.7, 3], used: false },
+    { id: 5, value: 1, position: [-9, 0.7, -2], used: false },
+    { id: 6, value: 3, position: [-9, 0.7, 0], used: false }, // distractor
+    { id: 7, value: 8, position: [-9, 0.7, 2], used: false }, // distractor
+  ]);
 
-  const [data, setData] = useState([...initialData]);
-  const [question, setQuestion] = useState(null);
-  const [selectedIndex, setSelectedIndex] = useState(null);
-  const [feedback, setFeedback] = useState(null);
-  const [animState, setAnimState] = useState({});
+  const [stack, setStack] = useState([]);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [feedback, setFeedback] = useState(
+    "Follow the algorithm using drag (PUSH) and click (POP)."
+  );
+  const [completed, setCompleted] = useState(false);
+  const [mistakes, setMistakes] = useState(0);
 
-  // --- New states for scoring & progress ---
-  const [score, setScore] = useState(0);
-  const totalAssessments = 4;
+  const [isDraggingAny, setIsDraggingAny] = useState(false);
 
-  // NEW: track if passed
-  const [isPassed, setIsPassed] = useState(false);
+  const boxHeight = 1.1;
+  const gap = 0.15;
+  const stackX = 0;
+  const stackZ = 0;
 
-  const positions = useMemo(() => {
-    const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [data, spacing]);
+  const stackPositions = useMemo(() => {
+    return stack.map((_, i) => {
+      const y = i * (boxHeight + gap);
+      return [stackX, y, stackZ];
+    });
+  }, [stack]);
 
-  // 🔹 On mount, check kung passed na sa localStorage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("arrayAssessmentPassed");
-      if (stored === "true") {
-        setIsPassed(true);
-        setScore(totalAssessments); // optional: full score display
-        setModeIndex(modes.indexOf("done")); // jump to done
-        onPassStatusChange && onPassStatusChange(true);
-      }
-    } catch (e) {
-      console.warn("Unable to access localStorage", e);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const expectedStep = steps[currentStep] || null;
 
-  useEffect(() => {
-    setSelectedIndex(null);
-    setFeedback(null);
-    setAnimState({});
+  const handleTokenDrop = (id, pos, value) => {
+    if (completed) return;
 
-    if (mode === "access") prepareAccessQuestion();
-    if (mode === "search") prepareSearchQuestion();
-    if (mode === "insert") prepareInsertQuestion();
-    if (mode === "delete") prepareDeleteQuestion();
-    if (mode === "intro") {
-      setData([...initialData]);
-      setScore(0);
-    }
-    if (mode === "done") setQuestion(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modeIndex]);
+    const [x, , z] = pos;
+    const distanceToStack = Math.hypot(x - stackX, z - stackZ);
 
-  // 🔹 Kapag nasa "done" mode na, compute kung pasado at i-save
-  useEffect(() => {
-    if (mode !== "done") return;
+    if (distanceToStack < 2.0) {
+      // Attempt PUSH
+      if (!expectedStep) return;
 
-    const ratio = score / totalAssessments;
-    const passed = ratio >= passingRatio;
-
-    setIsPassed(passed);
-    onPassStatusChange && onPassStatusChange(passed);
-
-    try {
-      if (passed) {
-        localStorage.setItem("arrayAssessmentPassed", "true");
+      if (expectedStep.type === "PUSH") {
+        if (expectedStep.value === value) {
+          const newStack = [...stack, { id, value }];
+          setStack(newStack);
+          setTokens((prev) =>
+            prev.map((t) => (t.id === id ? { ...t, used: true } : t))
+          );
+          advanceStep(`✅ Correct: PUSH ${value} on top.`);
+        } else {
+          addMistake(
+            `❌ Wrong value. Expected PUSH ${expectedStep.value}, but used ${value}.`
+          );
+        }
       } else {
-        // optional: linisin kung gusto mong ulitin pag bumalik
-        localStorage.removeItem("arrayAssessmentPassed");
+        addMistake(
+          `❌ Wrong action. Expected ${expectedStep.type}, but you tried PUSH.`
+        );
       }
-    } catch (e) {
-      console.warn("Unable to write localStorage", e);
+    } else {
+      // Just update position where dropped
+      setTokens((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, position: pos } : t))
+      );
     }
-  }, [mode, score, totalAssessments, passingRatio, onPassStatusChange]);
-
-  const nextMode = () =>
-    setModeIndex((m) => Math.min(m + 1, modes.length - 1));
-
-  // --- Question generators ---
-  const prepareAccessQuestion = () => {
-    const idx = Math.floor(Math.random() * data.length);
-    setQuestion({
-      prompt: `Which box is at index ${idx}? (Access — O(1))`,
-      answerIndex: idx,
-      type: "access",
-    });
   };
 
-  const prepareSearchQuestion = () => {
-    const value = data[Math.floor(Math.random() * data.length)];
-    setQuestion({
-      prompt: `Click the box containing the value ${value}. (Search — O(n))`,
-      answerValue: value,
-      type: "search",
-    });
+  const addMistake = (msg) => {
+    setMistakes((m) => m + 1);
+    setFeedback(msg);
   };
 
-  const prepareInsertQuestion = () => {
-    const insertValue = 99;
-    const k = Math.floor(Math.random() * data.length); // avoid inserting at end
-    const answerIndex = k < data.length ? k : data.length - 1;
-    setQuestion({
-      prompt: `If we insert ${insertValue} at index ${k}, which element (value) will shift right? (Insertion — O(n))`,
-      insertValue,
-      k,
-      answerIndex,
-      type: "insert",
-    });
+  const advanceStep = (msg) => {
+    const nextStep = currentStep + 1;
+    setFeedback(msg);
+    setCurrentStep(nextStep);
+
+    if (nextStep >= steps.length) {
+      setCompleted(true);
+      const finalStack = stack
+        .map((s) => s.value)
+        .join(" → ") || "(empty stack)";
+      const resultMsg =
+        mistakes <= 2
+          ? "🎉 Great job! You passed the assessment."
+          : "⚠ You finished the sequence, but made too many mistakes. Try again for a cleaner run.";
+
+      setFeedback(
+        `${msg}\n\nFinal stack (bottom → top): ${finalStack}\nMistakes: ${mistakes}\n${resultMsg}`
+      );
+    }
   };
 
-  const prepareDeleteQuestion = () => {
-    let k = Math.floor(Math.random() * data.length);
-    if (k === data.length - 1 && data.length > 1) k = data.length - 2;
-    const answerIndex = k + 1 < data.length ? k + 1 : null;
-    setQuestion({
-      prompt: `Delete the value at index ${k}. After deletion, which value will end up at index ${k}? (Deletion — O(n))`,
-      k,
-      answerIndex,
-      type: "delete",
-    });
-  };
+  const handlePopClick = () => {
+    if (completed) return;
+    if (!expectedStep) return;
 
-  // --- Click handler ---
-  const handleBoxClick = (i) => {
-    if (mode === "intro") {
-      setModeIndex(1);
+    if (stack.length === 0) {
+      addMistake("❌ Cannot POP: stack is empty.");
       return;
     }
-    if (!question) return;
 
-    setSelectedIndex(i);
-    const markScore = (correct) => {
-      if (correct) setScore((s) => s + 1);
-    };
-
-    if (question.type === "access") {
-      const correct = i === question.answerIndex;
-      markScore(correct);
-      showFeedback(correct, `Value ${data[i]}`, nextMode);
-    } else if (question.type === "search") {
-      const correct = data[i] === question.answerValue;
-      markScore(correct);
-      showFeedback(correct, `Clicked ${data[i]}`, nextMode);
-    } else if (question.type === "insert") {
-      const correct = i === question.answerIndex;
-      markScore(correct);
-      showFeedback(correct, `Clicked ${data[i]}`, () => {
-        const newArr = [...data];
-        newArr.splice(
-          Math.min(question.k, newArr.length),
-          0,
-          question.insertValue
-        );
-        const shiftFlags = {};
-        for (let idx = question.k; idx < newArr.length; idx++)
-          shiftFlags[idx] = "shift";
-        setAnimState(shiftFlags);
-        setTimeout(() => {
-          setData(newArr);
-          setAnimState({});
-          nextMode();
-        }, 600);
-      });
-    } else if (question.type === "delete") {
-      const correct =
-        question.answerIndex !== null && i === question.answerIndex;
-      markScore(correct);
-      showFeedback(correct, `Clicked ${data[i]}`, () => {
-        const newArr = [...data];
-        const fadeFlags = { [question.k]: "fade" };
-        setAnimState(fadeFlags);
-        setTimeout(() => {
-          newArr.splice(question.k, 1);
-          setData(newArr);
-          setAnimState({});
-          nextMode();
-        }, 600);
-      });
+    if (expectedStep.type !== "POP") {
+      addMistake(
+        `❌ Wrong action. Expected ${expectedStep.type}, but you tried POP.`
+      );
+      return;
     }
+
+    const top = stack[stack.length - 1];
+    const newStack = stack.slice(0, -1);
+    setStack(newStack);
+    advanceStep(`✅ Correct: POP removed ${top.value} from top.`);
   };
 
-  const showFeedback = (correct, label, callback) => {
-    setFeedback({
-      text: correct ? `Correct — ${label}` : `Incorrect — ${label}`,
-      correct,
-    });
-    setTimeout(() => {
-      setFeedback(null);
-      callback && callback();
-    }, 800);
+  const resetActivity = () => {
+    setStack([]);
+    setCurrentStep(0);
+    setFeedback("Activity reset. Follow the sequence again.");
+    setCompleted(false);
+    setMistakes(0);
+    setTokens([
+      { id: 1, value: 7, position: [-7, 0.7, -3], used: false },
+      { id: 2, value: 2, position: [-7, 0.7, -1], used: false },
+      { id: 3, value: 9, position: [-7, 0.7, 1], used: false },
+      { id: 4, value: 4, position: [-7, 0.7, 3], used: false },
+      { id: 5, value: 1, position: [-9, 0.7, -2], used: false },
+      { id: 6, value: 3, position: [-9, 0.7, 0], used: false },
+      { id: 7, value: 8, position: [-9, 0.7, 2], used: false },
+    ]);
+    setIsDraggingAny(false);
   };
 
-  // --- Render ---
+  const currentStepLabel = expectedStep
+    ? expectedStep.type === "PUSH"
+      ? `Step ${currentStep + 1} of ${steps.length}: PUSH ?`
+      : `Step ${currentStep + 1} of ${steps.length}: POP`
+    : "All steps done";
+
+  const algorithmList = steps
+    .map((s, i) =>
+      s.type === "PUSH"
+        ? `${i + 1}. PUSH ${s.value}`
+        : `${i + 1}. POP`
+    )
+    .join("\n");
+
   return (
-    <div className="w-full h-[300px]">
-      <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 10, 5]} intensity={0.8} />
+    <div className="w-full h-[460px]">
+      <Canvas camera={{ position: [11, 9, 16], fov: 50 }}>
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[10, 15, 10]} intensity={0.9} />
 
-        {/* Header */}
-        <FadeText
-          text={
-            mode === "intro"
-              ? "Arrays — Assessment"
-              : mode === "done"
-              ? "Assessment Complete!"
-              : `Assessment ${modeIndex}: ${mode.toUpperCase()}`
-          }
-          position={[0, 3.2, 0]}
-          fontSize={0.6}
-          color="#facc15"
+        {/* Title panel in 3D */}
+        <Panel3D
+          position={[0, 9, -2]}
+          size={[10, 1.8, 0.4]}
+          color="#0f172a"
+          title="Stack Assessment (3D)"
+          subtitle="Use drag to PUSH and click top box to POP"
         />
 
-        {/* Instruction or question */}
-        <FadeText
-          text={
-            mode === "intro"
-              ? "Click the box below to start the assessment"
-              : mode === "done"
-              ? isPassed
-                ? "You passed this assessment!"
-                : "You did not reach the passing score."
-              : question
-              ? question.prompt
-              : ""
-          }
-          position={[0, 2.4, 0]}
-          fontSize={0.34}
-          color="white"
+        {/* Floor */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
+          <planeGeometry args={[40, 20]} />
+          <meshStandardMaterial color="#020617" />
+        </mesh>
+
+        {/* Stack background board */}
+        <StackBackground
+          levels={7}
+          boxHeight={boxHeight}
+          gap={gap}
+          position={[stackX, 0, stackZ - 1]}
         />
 
-        {/* Progress indicator */}
-        {mode !== "intro" && mode !== "done" && (
-          <FadeText
-            text={`Progress: ${modeIndex} / ${totalAssessments}`}
-            position={[0, 1.7, 0]}
-            fontSize={0.28}
-            color="#fde68a"
+        {/* Drop zone as 3D frame */}
+        <DropZonePanel position={[stackX, 0.1, stackZ]} />
+
+        {/* Stack boxes */}
+        {stack.map((item, i) => (
+          <StackBox
+            key={item.id}
+            index={i}
+            value={item.value}
+            position={stackPositions[i]}
+            isTop={i === stack.length - 1}
+            onTopClick={i === stack.length - 1 ? handlePopClick : undefined}
           />
+        ))}
+
+        {/* Tokens label panel */}
+        <Panel3D
+          position={[-8, 3.5, -5]}
+          size={[6, 2, 0.4]}
+          color="#111827"
+          title="Tokens"
+          subtitle="Drag a token into the green zone to attempt PUSH."
+        />
+
+        {/* Tokens (draggable) */}
+        {tokens.map(
+          (token) =>
+            !token.used && (
+              <DraggableToken
+                key={token.id}
+                id={token.id}
+                value={token.value}
+                initialPosition={token.position}
+                onDrop={handleTokenDrop}
+                setGlobalDragging={setIsDraggingAny}
+              />
+            )
         )}
 
-        {/* Boxes */}
-        {mode === "intro" ? (
-          <StartBox position={[0, 0, 0]} onClick={() => handleBoxClick(0)} />
-        ) : mode === "done" ? (
-          <>
-            <FadeText
-              text={`Your Score: ${score} / ${totalAssessments}`}
-              position={[0, 1.8, 0]}
-              fontSize={0.5}
-              color="#60a5fa"
-            />
-            <FadeText
-              text={isPassed ? "Status: PASSED" : "Status: FAILED"}
-              position={[0, 1.2, 0]}
-              fontSize={0.45}
-              color={isPassed ? "#22c55e" : "#ef4444"}
-            />
-          </>
-        ) : (
-          data.map((value, i) => {
-            let extraPosX = 0;
-            let extraOpacity = 1;
-            if (animState[i] === "shift") extraPosX = 0.2;
-            if (animState[i] === "fade") extraOpacity = 0.25;
-            const isSelected = selectedIndex === i;
-            return (
-              <group key={i} position={[positions[i][0] + extraPosX, 0, 0]}>
-                <Box
-                  index={i}
-                  value={value}
-                  position={[0, 0, 0]}
-                  selected={isSelected}
-                  onClick={() => handleBoxClick(i)}
-                  opacity={extraOpacity}
-                />
-              </group>
-            );
-          })
-        )}
+        {/* Right-side assessment / steps panel */}
+        <StepsPanel3D
+          position={[9, 4.5, 0]}
+          size={[7, 7, 0.5]}
+          currentStepLabel={currentStepLabel}
+          algorithmList={algorithmList}
+          feedback={feedback}
+          mistakes={mistakes}
+          onReset={resetActivity}
+        />
 
-        {feedback && (
-          <FloatingFeedback
-            text={feedback.text}
-            correct={feedback.correct}
-            position={[0, 1.3, 0]}
-          />
-        )}
-
-        <OrbitControls makeDefault />
+        <OrbitControls
+          makeDefault
+          enableRotate={!isDraggingAny}
+          enablePan={!isDraggingAny}
+          enableZoom={!isDraggingAny}
+        />
       </Canvas>
     </div>
   );
 };
 
-// --- Start Box ---
-const StartBox = ({ position = [0, 0, 0], onClick }) => {
-  const size = [5.0, 2.2, 1.0];
+/* === Generic 3D Panel with title + subtitle === */
+const Panel3D = ({ position, size, color, title, subtitle }) => {
+  const [w, h, d] = size;
+
   return (
     <group position={position}>
-      <mesh position={[0, 0.6, 0]} onClick={onClick}>
+      <mesh>
         <boxGeometry args={size} />
-        <meshStandardMaterial color="#60a5fa" emissive="#000000" />
+        <meshStandardMaterial color={color} opacity={0.95} transparent />
       </mesh>
+
+      {/* Title text on front face */}
       <Text
-        position={[0, 0.6, size[2] / 2 + 0.02]}
+        position={[0, 0.3, d / 2 + 0.01]}
         fontSize={0.45}
-        color="white"
+        color="#e5e7eb"
+        anchorX="center"
+        anchorY="middle"
+        maxWidth={w - 0.6}
+        textAlign="center"
+      >
+        {title}
+      </Text>
+
+      {/* Subtitle text */}
+      {subtitle && (
+        <Text
+          position={[0, -0.4, d / 2 + 0.01]}
+          fontSize={0.28}
+          color="#93c5fd"
+          anchorX="center"
+          anchorY="middle"
+          maxWidth={w - 0.6}
+          textAlign="center"
+        >
+          {subtitle}
+        </Text>
+      )}
+    </group>
+  );
+};
+
+/* === Steps + Feedback Panel === */
+const StepsPanel3D = ({
+  position,
+  size,
+  currentStepLabel,
+  algorithmList,
+  feedback,
+  mistakes,
+  onReset,
+}) => {
+  const [w, h, d] = size;
+
+  return (
+    <group position={position}>
+      <mesh>
+        <boxGeometry args={size} />
+        <meshStandardMaterial color="#020617" opacity={0.98} transparent />
+      </mesh>
+
+      {/* Header */}
+      <Text
+        position={[0, h / 2 - 0.7, d / 2 + 0.01]}
+        fontSize={0.4}
+        color="#e5e7eb"
         anchorX="center"
         anchorY="middle"
       >
-        Start Assessment
+        Algorithm & Status
+      </Text>
+
+      {/* Current step label */}
+      <Text
+        position={[0, h / 2 - 1.6, d / 2 + 0.01]}
+        fontSize={0.3}
+        color="#a5b4fc"
+        anchorX="center"
+        anchorY="middle"
+        maxWidth={w - 0.6}
+        textAlign="center"
+      >
+        {currentStepLabel}
+      </Text>
+
+      {/* Algorithm list */}
+      <Text
+        position={[-w / 2 + 0.5, 0.5, d / 2 + 0.01]}
+        fontSize={0.26}
+        color="#bae6fd"
+        anchorX="left"
+        anchorY="top"
+        maxWidth={w - 1}
+        textAlign="left"
+      >
+        {algorithmList}
+      </Text>
+
+      {/* Feedback */}
+      <Text
+        position={[0, -0.9, d / 2 + 0.01]}
+        fontSize={0.26}
+        color="#fde68a"
+        anchorX="center"
+        anchorY="middle"
+        maxWidth={w - 0.6}
+        textAlign="center"
+      >
+        {feedback}
+      </Text>
+
+      {/* Mistakes + Reset */}
+      <Text
+        position={[-w / 2 + 0.6, -h / 2 + 0.8, d / 2 + 0.01]}
+        fontSize={0.28}
+        color="#fca5a5"
+        anchorX="left"
+        anchorY="middle"
+      >
+        Mistakes: {mistakes}
+      </Text>
+
+      <Text
+        position={[w / 2 - 0.6, -h / 2 + 0.8, d / 2 + 0.01]}
+        fontSize={0.28}
+        color="#38bdf8"
+        anchorX="right"
+        anchorY="middle"
+        onClick={onReset}
+      >
+        🔄 Reset
       </Text>
     </group>
   );
 };
 
-// --- Individual Box ---
-const Box = ({
-  index,
-  value,
-  position = [0, 0, 0],
-  selected,
-  onClick,
-  opacity = 1,
-}) => {
-  const size = [1.6, 1.2, 1];
-  const color = selected ? "#f87171" : index % 2 === 0 ? "#60a5fa" : "#34d399";
+/* === Stack Background Board === */
+const StackBackground = ({ levels, boxHeight, gap, position }) => {
+  const totalHeight = levels * (boxHeight + gap) + 1;
+  const width = 3.2;
+  const depth = 0.3;
+
+  const boxGeo = useMemo(
+    () => new THREE.BoxGeometry(width, totalHeight, depth),
+    [width, totalHeight, depth]
+  );
+  const edgesGeo = useMemo(() => new THREE.EdgesGeometry(boxGeo), [boxGeo]);
+
   return (
-    <group position={position}>
-      <mesh castShadow receiveShadow position={[0, 0.2, 0]} onClick={onClick}>
-        <boxGeometry args={size} />
-        <meshStandardMaterial
-          color={color}
-          emissive={selected ? "#fbbf24" : "#000000"}
-          emissiveIntensity={selected ? 0.6 : 0}
-          transparent={opacity < 1}
-          opacity={opacity}
-        />
+    <group position={[position[0], totalHeight / 2 - 0.5, position[2]]}>
+      <mesh geometry={boxGeo}>
+        <meshStandardMaterial color="#020617" opacity={0.9} transparent />
+      </mesh>
+      <lineSegments geometry={edgesGeo}>
+        <lineBasicMaterial color="#4b5563" linewidth={1} />
+      </lineSegments>
+    </group>
+  );
+};
+
+/* === Drop Zone as 3D panel frame === */
+const DropZonePanel = ({ position }) => {
+  return (
+    <group position={[position[0], 0.1, position[2]]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.3, 1.8, 32]} />
+        <meshStandardMaterial color="#22c55e" opacity={0.35} transparent />
       </mesh>
       <Text
-        position={[0, 0.2, size[2] / 2 + 0.01]}
+        position={[0, 0.05, 2]}
+        fontSize={0.3}
+        color="#bbf7d0"
+        anchorX="center"
+        anchorY="middle"
+      >
+        PUSH zone
+      </Text>
+    </group>
+  );
+};
+
+/* === Stack Box (click top to POP) === */
+const StackBox = ({ index, value, position, isTop, onTopClick }) => {
+  const size = [2, 1.1, 1.1];
+  const baseColor = isTop ? "#f97316" : "#38bdf8";
+
+  return (
+    <group position={position}>
+      <mesh
+        castShadow
+        receiveShadow
+        position={[0, size[1] / 2, 0]}
+        onClick={isTop ? onTopClick : undefined}
+      >
+        <boxGeometry args={size} />
+        <meshStandardMaterial
+          color={baseColor}
+          emissive={isTop ? "#fb923c" : "#000000"}
+          emissiveIntensity={isTop ? 0.6 : 0}
+        />
+      </mesh>
+
+      {/* Value on front face */}
+      <Text
+        position={[0, size[1] / 2 + 0.05, size[2] / 2 + 0.02]}
         fontSize={0.4}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {String(value)}
+      </Text>
+
+      {/* Index label on left side */}
+      <Text
+        position={[-size[0] / 2 - 0.3, size[1] / 2 - 0.1, 0]}
+        fontSize={0.26}
+        color="#e5e7eb"
+        anchorX="right"
+        anchorY="middle"
+      >
+        idx {index}
+      </Text>
+
+      {isTop && (
+        <Text
+          position={[0, size[1] + 0.7, 0]}
+          fontSize={0.28}
+          color="#fde68a"
+          anchorX="center"
+          anchorY="middle"
+        >
+          Top (click to POP)
+        </Text>
+      )}
+    </group>
+  );
+};
+
+/* === Draggable Token === */
+const DraggableToken = ({
+  id,
+  value,
+  initialPosition,
+  onDrop,
+  setGlobalDragging,
+}) => {
+  const [position, setPosition] = useState(initialPosition);
+  const [dragging, setDragging] = useState(false);
+
+  const handlePointerDown = (e) => {
+    e.stopPropagation();
+    setDragging(true);
+    setGlobalDragging(true);
+    document.body.style.cursor = "grabbing";
+  };
+
+  const handlePointerUp = (e) => {
+    e.stopPropagation();
+    setDragging(false);
+    setGlobalDragging(false);
+    document.body.style.cursor = "default";
+    onDrop(id, position, value);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!dragging) return;
+    e.stopPropagation();
+    const p = e.point;
+    setPosition([p.x, 0.7, p.z]);
+  };
+
+  const handlePointerOver = (e) => {
+    e.stopPropagation();
+    if (!dragging) document.body.style.cursor = "grab";
+  };
+
+  const handlePointerOut = (e) => {
+    e.stopPropagation();
+    if (!dragging) document.body.style.cursor = "default";
+  };
+
+  return (
+    <group position={position}>
+      <mesh
+        castShadow
+        receiveShadow
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerMove={handlePointerMove}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
+      >
+        <boxGeometry args={[1.2, 0.8, 1.2]} />
+        <meshStandardMaterial color="#22c55e" />
+      </mesh>
+      <Text
+        position={[0, 0.5, 0.7]}
+        fontSize={0.38}
         color="white"
         anchorX="center"
         anchorY="middle"
@@ -367,54 +567,4 @@ const Box = ({
   );
 };
 
-// --- Floating Feedback ---
-const FloatingFeedback = ({ text, correct = true, position = [0, 0, 0] }) => {
-  return (
-    <group position={position}>
-      <Text
-        fontSize={0.36}
-        color={correct ? "#10b981" : "#ef4444"}
-        anchorX="center"
-        anchorY="middle"
-      >
-        {text}
-      </Text>
-    </group>
-  );
-};
-
-// --- Fade-in text ---
-const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
-  const [opacity, setOpacity] = useState(0);
-
-  useEffect(() => {
-    let frame;
-    let start;
-    const duration = 700;
-    const animate = (ts) => {
-      if (!start) start = ts;
-      const progress = Math.min((ts - start) / duration, 1);
-      setOpacity(progress);
-      if (progress < 1) frame = requestAnimationFrame(animate);
-    };
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
-  }, [text]);
-
-  return (
-    <Text
-      position={position}
-      fontSize={fontSize}
-      color={color}
-      anchorX="center"
-      anchorY="middle"
-      fillOpacity={opacity}
-      maxWidth={12}
-      textAlign="center"
-    >
-      {text}
-    </Text>
-  );
-};
-
-export default ArrayAssessment;
+export default StackActivity3D;
