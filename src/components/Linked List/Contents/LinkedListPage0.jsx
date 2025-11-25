@@ -18,7 +18,7 @@ const LinkedListPage0 = () => {
         </li>
         <li>
           <strong>Unlock next module:</strong> Passed the Assessment → module
-          marked complete → then <strong>Module 4 (Stack and Queue)</strong>{" "}
+          marked complete → then <strong>Module 3 (Stack)</strong>{" "}
           unlocks.
         </li>
       </ul>
