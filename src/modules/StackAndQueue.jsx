@@ -23,9 +23,9 @@ const StackAndQueue = () => {
     <Page0 />,
     <Page1 />,
     <Page2 />,
-    <Page3 />,
-    <Page4 />,
-    <Page5 />,
+    // <Page3 />,
+    // <Page4 />,
+    // <Page5 />,
   ];
 
   const totalPages = pages.length;
