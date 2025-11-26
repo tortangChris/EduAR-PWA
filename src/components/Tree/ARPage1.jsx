@@ -1,203 +1,344 @@
-import React, { useRef, useState, useMemo, useEffect, forwardRef } from "react";
+// ARPage3.jsx
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 
-const ARTreePage = () => {
-  const [selectedNode, setSelectedNode] = useState(null);
-  const nodeRefs = useRef([]);
+const ARPage3 = () => {
+  const [queue, setQueue] = useState([10, 20, 30]);
+  const [highlighted, setHighlighted] = useState(null);
+  const [operationInfo, setOperationInfo] = useState(null);
+  const [selectedButton, setSelectedButton] = useState(null);
+  const buttonRefs = useRef([]);
+  const structureRef = useRef();
 
-  const nodes = [
-    { id: "A", pos: [0, 3, -6], type: "Root" },
-    { id: "B", pos: [-2, 1.5, -6], type: "Child" },
-    { id: "C", pos: [2, 1.5, -6], type: "Child" },
-    { id: "D", pos: [-3, 0, -6], type: "Leaf" },
-    { id: "E", pos: [-1, 0, -6], type: "Leaf" },
-    { id: "F", pos: [1, 0, -6], type: "Leaf" },
-    { id: "G", pos: [3, 0, -6], type: "Leaf" },
-  ];
+  // Structure position (whole structure moves together)
+  const [structurePos, setStructurePos] = useState([0, 0, -8]);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const edges = [
-    ["A", "B"],
-    ["A", "C"],
-    ["B", "D"],
-    ["B", "E"],
-    ["C", "F"],
-    ["C", "G"],
-  ];
+  const spacing = 2;
+  const positions = useMemo(() => queue.map((_, i) => [i * spacing, 0, 0]), [queue, spacing]);
 
-  const addNodeRef = (r) => {
-    if (r && !nodeRefs.current.includes(r)) nodeRefs.current.push(r);
+  // Drag whole structure
+  const onDragStart = () => {
+    setIsDragging(true);
+    setOperationInfo(null);
   };
 
-  const handleNodeClick = (node) => {
-    setSelectedNode((prev) => (prev?.id === node.id ? null : node));
+  const onDragMove = (newPos) => {
+    setStructurePos(newPos);
   };
 
-  // Start AR session
+  const onDragEnd = () => {
+    setIsDragging(false);
+  };
+
+  const showOperationInfo = (title, complexity, description) => {
+    if (!isDragging) {
+      setOperationInfo({ title, complexity, description });
+    }
+  };
+
+  // === Queue Operations ===
+  const handleEnqueue = () => {
+    if (isDragging) return;
+    const newVal = Math.floor(Math.random() * 90) + 10;
+    setQueue((prev) => [...prev, newVal]);
+    showOperationInfo("Enqueue()", "O(1)", "Adds an element to the rear of the queue.");
+  };
+
+  const handleDequeue = () => {
+    if (isDragging) return;
+    if (queue.length === 0) return;
+    setHighlighted(0);
+    setTimeout(() => {
+      setQueue((prev) => prev.slice(1));
+      setHighlighted(null);
+    }, 600);
+    showOperationInfo("Dequeue()", "O(1)", "Removes the element from the front of the queue.");
+  };
+
+  // === AR Session start ===
   const startAR = (gl) => {
     if (navigator.xr) {
       navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
         if (supported) {
           navigator.xr
-            .requestSession("immersive-ar", {
-              requiredFeatures: ["hit-test", "local-floor"],
-            })
+            .requestSession("immersive-ar", { requiredFeatures: ["hit-test", "local-floor"] })
             .then((session) => gl.xr.setSession(session))
             .catch((err) => console.error("AR session failed:", err));
         } else {
-          console.warn("AR not supported on this device.");
+          console.warn("immersive-ar not supported");
         }
       });
     }
   };
 
+  // collect button group refs
+  const addButtonRef = (r) => {
+    if (!r) return;
+    if (!buttonRefs.current.includes(r)) buttonRefs.current.push(r);
+  };
+
+  // clear refs when queue changes
+  useEffect(() => {
+    return () => {
+      buttonRefs.current = [];
+    };
+  }, []);
+
   return (
     <div className="w-full h-[300px]">
       <Canvas
-        camera={{ position: [0, 2, 0], fov: 60 }}
+        camera={{ position: [0, 4, 10], fov: 50 }}
         onCreated={({ gl }) => {
           gl.xr.enabled = true;
           startAR(gl);
         }}
       >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[3, 5, 3]} intensity={0.8} />
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* Header */}
-        <FadeInText
-          show={true}
-          text={"Introduction to Trees"}
-          position={[0, 4.5, -6]}
-          fontSize={0.6}
-          color="white"
-        />
-
-        <FadeInText
-          show={true}
-          text={"A hierarchical, non-linear data structure of connected nodes"}
-          position={[0, 3.8, -6]}
-          fontSize={0.3}
-          color="#fde68a"
-        />
-
-        {/* Tree structure */}
-        {edges.map(([a, b], i) => {
-          const start = nodes.find((n) => n.id === a).pos;
-          const end = nodes.find((n) => n.id === b).pos;
-          return <Connection key={i} start={start} end={end} />;
-        })}
-
-        {nodes.map((node, i) => (
-          <TreeNode
-            key={i}
-            ref={(r) => addNodeRef(r)}
-            node={node}
-            position={node.pos}
-            selected={selectedNode?.id === node.id}
-            onClick={() => handleNodeClick(node)}
+        {/* Whole structure group - moves together when dragging */}
+        <group position={structurePos} ref={structureRef}>
+          {/* Headers */}
+          <FadeInText 
+            show 
+            text={"Introduction to Queues"} 
+            position={[0, 4.5, 0]} 
+            fontSize={0.55} 
+            color="white" 
           />
-        ))}
+          <FadeInText 
+            show 
+            text={isDragging ? "✋ Moving Structure..." : "FIFO (First In, First Out) Principle"} 
+            position={[0, 3.7, 0]} 
+            fontSize={0.35} 
+            color={isDragging ? "#f97316" : "#fde68a"} 
+          />
 
-        {/* Info panel */}
-        {selectedNode && (
-          <NodeInfoPanel node={selectedNode} position={[5, 2, -6]} />
-        )}
+          {/* Queue Base and Boxes */}
+          <QueueBase width={queue.length * spacing + 2} isDragging={isDragging} />
 
+          {queue.map((value, i) => (
+            <QueueBox
+              key={i}
+              value={value}
+              position={positions[i]}
+              isFront={i === 0}
+              isRear={i === queue.length - 1}
+              highlight={highlighted === i}
+            />
+          ))}
+
+          {/* Operation Info Panel (left) */}
+          {operationInfo && !isDragging && (
+            <OperationInfoPanel info={operationInfo} position={[-6, 1.5, 0]} />
+          )}
+
+          {/* Operations Panel (right) */}
+          {!isDragging && (
+            <OperationsPanel
+              position={[6, 1.5, 0]}
+              onEnqueue={handleEnqueue}
+              onDequeue={handleDequeue}
+              addButtonRef={addButtonRef}
+              selectedButton={selectedButton}
+            />
+          )}
+
+          <FadeInText 
+            show={!isDragging} 
+            text={"Real-Life Example: A line at the ticket counter —\nfirst person served first."} 
+            position={[0, -2.5, 0]} 
+            fontSize={0.3} 
+            color="#a5f3fc" 
+          />
+        </group>
+
+        {/* AR Interaction Manager */}
         <ARInteractionManager
-          nodeRefs={nodeRefs}
-          setSelectedNode={setSelectedNode}
-          nodes={nodes}
+          buttonRefs={buttonRefs}
+          structureRef={structureRef}
+          setSelectedButton={setSelectedButton}
+          handleEnqueue={handleEnqueue}
+          handleDequeue={handleDequeue}
+          isDragging={isDragging}
+          onDragStart={onDragStart}
+          onDragMove={onDragMove}
+          onDragEnd={onDragEnd}
         />
 
-        <OrbitControls makeDefault />
+        <OrbitControls makeDefault enabled={!isDragging} />
       </Canvas>
     </div>
   );
 };
 
-// === Clickable node (with XR hit detection) ===
-const TreeNode = forwardRef(({ node, position, selected, onClick }, ref) => {
-  const color =
-    node.type === "Root"
-      ? "#60a5fa"
-      : node.type === "Child"
-      ? "#34d399"
-      : "#fbbf24";
+// === AR Interaction Manager with Drag and Drop ===
+const ARInteractionManager = ({ 
+  buttonRefs, 
+  structureRef,
+  setSelectedButton, 
+  handleEnqueue, 
+  handleDequeue,
+  isDragging,
+  onDragStart,
+  onDragMove,
+  onDragEnd
+}) => {
+  const { gl } = useThree();
+  const longPressTimer = useRef(null);
+  const touchedButton = useRef(null);
+  const touchedStructure = useRef(false);
+  const isDraggingRef = useRef(false);
 
-  const displayColor = selected ? "#f87171" : color;
-
-  const groupRef = useRef();
   useEffect(() => {
-    if (groupRef.current) groupRef.current.userData = { nodeId: node.id };
-  }, [node]);
+    isDraggingRef.current = isDragging;
+  }, [isDragging]);
 
-  return (
-    <group
-      position={position}
-      ref={(g) => {
-        groupRef.current = g;
-        if (typeof ref === "function") ref(g);
-        else if (ref) ref.current = g;
-      }}
-    >
-      <mesh onClick={onClick}>
-        <sphereGeometry args={[0.3, 32, 32]} />
-        <meshStandardMaterial color={displayColor} />
-      </mesh>
+  useEffect(() => {
+    const onSessionStart = () => {
+      const session = gl.xr.getSession();
+      if (!session) return;
 
-      <FadeInText
-        show={true}
-        text={node.id}
-        position={[0, 0.6, 0]}
-        fontSize={0.25}
-        color="#fff"
-      />
-    </group>
-  );
-});
+      // Get camera ray (center of phone screen)
+      const getCameraRay = () => {
+        const xrCamera = gl.xr.getCamera();
+        const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
+        const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion).normalize();
+        const origin = cam.getWorldPosition(new THREE.Vector3());
+        return { origin, dir };
+      };
 
-// === Edges between nodes ===
-const Connection = ({ start, end }) => {
-  const points = useMemo(
-    () => [new THREE.Vector3(...start), new THREE.Vector3(...end)],
-    [start, end]
-  );
-  const geometry = useMemo(
-    () => new THREE.BufferGeometry().setFromPoints(points),
-    [points]
-  );
-  return (
-    <line geometry={geometry}>
-      <lineBasicMaterial color="#94a3b8" linewidth={2} />
-    </line>
-  );
+      // Check what we hit
+      const getHitInfo = () => {
+        const { origin, dir } = getCameraRay();
+        const raycaster = new THREE.Raycaster();
+        raycaster.set(origin, dir);
+
+        const candidates = (buttonRefs.current || [])
+          .filter(Boolean)
+          .map((group) => (group ? group.children : []))
+          .flat();
+
+        const intersects = raycaster.intersectObjects(candidates, true);
+        if (intersects.length > 0) {
+          let hit = intersects[0].object;
+          while (hit && hit.userData?.action === undefined && hit.parent) {
+            hit = hit.parent;
+          }
+          const action = hit?.userData?.action;
+          if (action) {
+            return { type: 'button', action };
+          }
+          return { type: 'structure' };
+        }
+        return null;
+      };
+
+      // Calculate 3D position where phone is pointing
+      const getPointPosition = () => {
+        const { origin, dir } = getCameraRay();
+        
+        // Project ray to a distance (8 units in front)
+        const distance = 8;
+        const x = origin.x + dir.x * distance;
+        const y = origin.y + dir.y * distance;
+        const z = origin.z + dir.z * distance;
+        
+        return [x, y, z];
+      };
+
+      // Touch start
+      const onSelectStart = () => {
+        if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+        }
+
+        const hitInfo = getHitInfo();
+        
+        if (hitInfo?.type === 'button') {
+          touchedButton.current = hitInfo.action;
+          touchedStructure.current = true;
+        } else if (hitInfo !== null) {
+          touchedStructure.current = true;
+          touchedButton.current = null;
+        } else {
+          touchedStructure.current = false;
+          touchedButton.current = null;
+        }
+
+        // If touching any part of structure, start long press for drag
+        if (touchedStructure.current) {
+          longPressTimer.current = setTimeout(() => {
+            onDragStart();
+            longPressTimer.current = null;
+          }, 500);
+        }
+      };
+
+      // Touch end
+      const onSelectEnd = () => {
+        if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+        }
+
+        if (isDraggingRef.current) {
+          // Drop structure at current position
+          onDragEnd();
+        } else if (touchedButton.current) {
+          // Short tap on button - trigger action
+          const action = touchedButton.current;
+          setSelectedButton(action);
+          if (action === "enqueue") handleEnqueue();
+          else if (action === "dequeue") handleDequeue();
+        }
+
+        touchedButton.current = null;
+        touchedStructure.current = false;
+      };
+
+      session.addEventListener("selectstart", onSelectStart);
+      session.addEventListener("selectend", onSelectEnd);
+
+      // Frame loop - move structure while dragging
+      const onFrame = (time, frame) => {
+        if (isDraggingRef.current) {
+          const newPos = getPointPosition();
+          onDragMove(newPos);
+        }
+        session.requestAnimationFrame(onFrame);
+      };
+      session.requestAnimationFrame(onFrame);
+
+      session.addEventListener("end", () => {
+        session.removeEventListener("selectstart", onSelectStart);
+        session.removeEventListener("selectend", onSelectEnd);
+        if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+        }
+      });
+    };
+
+    gl.xr.addEventListener("sessionstart", onSessionStart);
+
+    return () => {
+      try {
+        gl.xr.removeEventListener("sessionstart", onSessionStart);
+      } catch (e) {}
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+      }
+    };
+  }, [gl, buttonRefs, structureRef, setSelectedButton, handleEnqueue, handleDequeue, onDragStart, onDragMove, onDragEnd]);
+
+  return null;
 };
 
-// === Info panel ===
-const NodeInfoPanel = ({ node, position }) => {
-  let description = "";
-  if (node.type === "Root")
-    description = "Topmost node in the tree. Has no parent.";
-  else if (node.type === "Child")
-    description = "A node that has a parent and may have children.";
-  else description = "A leaf node — has no children.";
-
-  const text = `🔹 Node: ${node.id}\nType: ${node.type}\n\n${description}`;
-
-  return (
-    <FadeInText
-      show={true}
-      text={text}
-      position={position}
-      fontSize={0.28}
-      color="#a5f3fc"
-    />
-  );
-};
-
-// === Fade-in text ===
-const FadeInText = ({ show, text, position, fontSize, color }) => {
+// === FadeInText ===
+const FadeInText = ({ show = true, text, position, fontSize = 0.35, color = "white" }) => {
   const ref = useRef();
   const opacity = useRef(0);
   const scale = useRef(0.6);
@@ -217,67 +358,111 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
   });
 
   return (
-    <Text
-      ref={ref}
-      position={position}
-      fontSize={fontSize}
-      color={color}
-      anchorX="center"
-      anchorY="middle"
-      material-transparent
-      maxWidth={8}
-      textAlign="center"
-    >
+    <Text ref={ref} position={position} fontSize={fontSize} color={color} anchorX="center" anchorY="middle" material-transparent maxWidth={10} textAlign="center">
       {text}
     </Text>
   );
 };
 
-// === AR interaction manager ===
-const ARInteractionManager = ({ nodeRefs, setSelectedNode, nodes }) => {
-  const { gl } = useThree();
+// === QueueBox ===
+const QueueBox = ({ value, position, isFront, isRear, highlight }) => {
+  const color = highlight ? "#facc15" : "#34d399";
+  const meshRef = useRef();
 
-  useEffect(() => {
-    const onSessionStart = () => {
-      const session = gl.xr.getSession();
-      if (!session) return;
+  useFrame(() => {
+    if (meshRef.current && meshRef.current.scale.y < 1) meshRef.current.scale.y += 0.1;
+  });
 
-      const onSelect = () => {
-        const xrCamera = gl.xr.getCamera();
-        const raycaster = new THREE.Raycaster();
-        const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
-        const dir = new THREE.Vector3(0, 0, -1)
-          .applyQuaternion(cam.quaternion)
-          .normalize();
-        const origin = cam.getWorldPosition(new THREE.Vector3());
-        raycaster.set(origin, dir);
+  return (
+    <group position={position}>
+      <mesh ref={meshRef} position={[0, 0.5, 0]}>
+        <boxGeometry args={[1.5, 1, 1]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
 
-        const candidates = (nodeRefs.current || [])
-          .map((group) => (group ? group.children : []))
-          .flat();
+      <FadeInText text={String(value)} position={[0, 0.5, 0.6]} fontSize={0.4} color="white" />
 
-        const intersects = raycaster.intersectObjects(candidates, true);
-        if (intersects.length > 0) {
-          let hit = intersects[0].object;
-          while (hit && !hit.userData?.nodeId && hit.parent) {
-            hit = hit.parent;
-          }
-          const nodeId = hit?.userData?.nodeId;
-          const node = nodes.find((n) => n.id === nodeId);
-          if (node) setSelectedNode(node);
-        }
-      };
-
-      session.addEventListener("select", onSelect);
-      const cleanup = () => session.removeEventListener("select", onSelect);
-      session.addEventListener("end", cleanup);
-    };
-
-    gl.xr.addEventListener("sessionstart", onSessionStart);
-    return () => gl.xr.removeEventListener("sessionstart", onSessionStart);
-  }, [gl, nodeRefs, setSelectedNode, nodes]);
-
-  return null;
+      {isFront && <Text position={[-1.6, 0.5, 0]} fontSize={0.3} color="#60a5fa">Front 🔵</Text>}
+      {isRear && <Text position={[1.6, 0.5, 0]} fontSize={0.3} color="#f472b6">🟣 Rear</Text>}
+    </group>
+  );
 };
 
-export default ARTreePage;
+// === QueueBase ===
+const QueueBase = ({ width, isDragging }) => {
+  const geometry = useMemo(() => new THREE.BoxGeometry(width, 0.2, 2), [width]);
+  const edges = useMemo(() => new THREE.EdgesGeometry(geometry), [geometry]);
+  
+  return (
+    <group position={[width / 2 - 2, -0.1, 0]}>
+      <mesh>
+        <primitive object={geometry} />
+        <meshBasicMaterial 
+          color={isDragging ? "#1e3a5f" : "#1e293b"} 
+          opacity={0.3} 
+          transparent 
+        />
+      </mesh>
+      <lineSegments geometry={edges}>
+        <lineBasicMaterial 
+          color={isDragging ? "#f97316" : "#64748b"} 
+          linewidth={2} 
+        />
+      </lineSegments>
+    </group>
+  );
+};
+
+// === OperationsPanel ===
+const OperationsPanel = ({ position, onEnqueue, onDequeue, addButtonRef, selectedButton }) => {
+  const [activeButton, setActiveButton] = useState(null);
+
+  useEffect(() => {
+    if (selectedButton) {
+      setActiveButton(selectedButton);
+      const t = setTimeout(() => setActiveButton(null), 300);
+      return () => clearTimeout(t);
+    }
+  }, [selectedButton]);
+
+  const handleClick = (e, action, callback) => {
+    e.stopPropagation();
+    setActiveButton(action);
+    callback();
+    setTimeout(() => setActiveButton(null), 250);
+  };
+
+  const renderButton = (label, action, y, callback) => {
+    const isActive = activeButton === action;
+    const color = isActive ? "#22c55e" : "#38bdf8";
+
+    return (
+      <group position={[0, y, 0]} ref={addButtonRef} userData={{ action }}>
+        <mesh onClick={(e) => handleClick(e, action, callback)} castShadow receiveShadow userData={{ action }}>
+          <boxGeometry args={[2.8, 0.6, 0.1]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+        <Text position={[0, 0, 0.06]} fontSize={0.35} color="white" anchorX="center" anchorY="middle" onClick={(e) => handleClick(e, action, callback)}>
+          {label}
+        </Text>
+      </group>
+    );
+  };
+
+  return (
+    <group position={position}>
+      <FadeInText show text={"Queue Functions:"} position={[0, 3, 0]} fontSize={0.35} color="#fde68a" />
+      {renderButton("➕ Enqueue", "enqueue", 2.2, onEnqueue)}
+      {renderButton("➖ Dequeue", "dequeue", 1.4, onDequeue)}
+      <FadeInText show text={"Operations → O(1)\nFIFO Order"} position={[0, -2, 0]} fontSize={0.28} color="#fef9c3" />
+    </group>
+  );
+};
+
+// === OperationInfoPanel ===
+const OperationInfoPanel = ({ info, position }) => {
+  const content = [`🔹 ${info.title}`, `Complexity: ${info.complexity}`, "", info.description].join("\n");
+  return <FadeInText show text={content} position={position} fontSize={0.32} color="#a5f3fc" />;
+};
+
+export default ARPage3;
