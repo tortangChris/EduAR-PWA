@@ -38,11 +38,11 @@ const ARDetection = () => {
       </div>
 
       {/* MAIN AR CARD */}
-      <div className="bg-base-200 rounded-2xl shadow-md h-[calc(70vh-6.5rem)] p-4 flex flex-col gap-3">
+      <div className="bg-base-200 rounded-2xl shadow-md h-[calc(70vh-6.5rem)] p-3 flex flex-col gap-3">
         {/* 🔥 DSA MODE BUTTONS – nasa labas na ng camera */}
         <div className="flex items-center justify-between gap-3 text-xs">
           <span className="font-semibold text-gray-500">DSA Mode</span>
-          <div className="flex flex-wrap gap-1 justify-end">
+          <div className="flex flex-wrap gap-1 justify-start">
             {dsaModes.map((m) => {
               const active = selectedDSA === m.value;
               return (
