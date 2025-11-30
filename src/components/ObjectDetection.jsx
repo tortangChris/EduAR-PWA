@@ -501,7 +501,7 @@ const ObjectDection = () => {
           maxWidth: "100%",
         }}
       >
-        EduAR – DSA Concept Detection · {status}
+        DSA Concept Detection · {status}
       </div>
 
       {/* DATA STRUCTURE OVERLAY – only when may concept */}
