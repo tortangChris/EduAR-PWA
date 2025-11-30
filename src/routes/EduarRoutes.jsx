@@ -20,7 +20,7 @@ const EduarRoutes = {
     { path: "auth/signup", element: <SignUp /> },
     { path: "home", element: <Home /> },
     { path: "modules", element: <Modules /> },
-    { path: "ARDetection", element: <ARDetection /> },
+    // { path: "ARDetection", element: <ARDetection /> },
     { path: "ar-assessment", element: <AR /> },
     { path: "personal", element: <Personal /> },
     { path: "settings", element: <Settings /> },
