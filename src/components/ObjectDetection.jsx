@@ -1,3 +1,4 @@
+// ../components/ObjectDetection.jsx
 import React, { useRef, useEffect, useState } from "react";
 
 // --- OpenCV-based book stack detection (unchanged) ---
@@ -28,9 +29,9 @@ const detectBookStacksFromEdges = (videoEl) => {
       lines,
       1,
       Math.PI / 180,
-      80, // threshold
-      50, // minLineLength
-      10 // maxLineGap
+      80,
+      50,
+      10
     );
 
     const verticalLines = [];
@@ -118,7 +119,7 @@ const drawArrow = (ctx, x1, y1, x2, y2) => {
   ctx.fill();
 };
 
-const ObjectDection = () => {
+const ObjectDection = ({ selectedDSA = "none" }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -130,16 +131,10 @@ const ObjectDection = () => {
   const [debugLabels, setDebugLabels] = useState([]);
   const [concept, setConcept] = useState("");
   const [conceptDetail, setConceptDetail] = useState("");
-
-  // 🔥 NEW: loading flag for overlay
   const [isLoading, setIsLoading] = useState(true);
 
-  // 🔥 NEW: DSA selection mode
-  // "none" = off, "Auto" = old behavior, others = forced structure
-  const [selectedDSA, setSelectedDSA] = useState("none");
-  const selectedDSARef = useRef("none");
-
-  // keep ref in sync with state (para hindi ma-reset yung camera effect)
+  // 🔥 ref para sa kasalukuyang DSA mode (galing sa parent)
+  const selectedDSARef = useRef(selectedDSA);
   useEffect(() => {
     selectedDSARef.current = selectedDSA;
   }, [selectedDSA]);
@@ -178,7 +173,7 @@ const ObjectDection = () => {
 
         videoRef.current.onloadeddata = () => {
           setStatus("Camera running...");
-          setIsLoading(false); // ✅ camera + model ready
+          setIsLoading(false);
           detectLoop();
         };
       } catch (err) {
@@ -188,7 +183,6 @@ const ObjectDection = () => {
       }
     };
 
-    // 🔥 UPDATED: scene analysis now respects selectedDSARef
     const analyzeScene = (predictions, stacks) => {
       const mode = selectedDSARef.current; // "none" | "Auto" | "Array" | "Stack" | "Queue" | "Linked List"
 
@@ -220,7 +214,6 @@ const ObjectDection = () => {
       const cupCountLocal = cups.length;
       const arrayLikeCount = phones.length + bottles.length;
 
-      // Small helpers para hindi ulit-ulit
       const tryQueue = () => {
         if (queueCountLocal >= 2) {
           const ys = persons.map((p) => p.bbox[1]);
@@ -279,9 +272,7 @@ const ObjectDection = () => {
         return false;
       };
 
-      // --- Mode logic ---
       if (mode === "Auto") {
-        // old behavior, priority: Queue → Stack → Linked List → Array
         if (tryQueue()) return;
         if (tryStack()) return;
         if (tryLinkedList()) return;
@@ -291,7 +282,6 @@ const ObjectDection = () => {
         return;
       }
 
-      // Explicit modes – dapat match yung pattern, else clear
       if (mode === "Queue") {
         if (!tryQueue()) {
           setConcept("");
@@ -324,12 +314,10 @@ const ObjectDection = () => {
         return;
       }
 
-      // fallback
       setConcept("");
       setConceptDetail("");
     };
 
-    // 🔥 UPDATED: drawing also respects selectedDSARef
     const draw = (predictions, stacks) => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -337,15 +325,12 @@ const ObjectDection = () => {
 
       const ctx = canvas.getContext("2d");
 
-      // Match canvas to video size
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       const mode = selectedDSARef.current;
 
-      // Phones → array
       const phones = predictions.filter(
         (p) => p.class === "cell phone" && p.score > 0.4
       );
@@ -371,7 +356,6 @@ const ObjectDection = () => {
         });
       }
 
-      // Queue (persons)
       const persons = predictions.filter(
         (p) => p.class === "person" && p.score > 0.4
       );
@@ -401,7 +385,6 @@ const ObjectDection = () => {
         });
       }
 
-      // Linked list (cups)
       const cups = predictions.filter(
         (p) => p.class === "cup" && p.score > 0.4
       );
@@ -446,7 +429,6 @@ const ObjectDection = () => {
         });
       }
 
-      // Book stacks (OpenCV)
       if (stacks && stacks.length > 0 && (mode === "Auto" || mode === "Stack")) {
         const stackColors = ["#f97316", "#3b82f6", "#ec4899", "#22c55e"];
 
@@ -533,21 +515,12 @@ const ObjectDection = () => {
     };
   }, []);
 
-  const dsaModes = [
-    { value: "none", label: "Off" },
-    { value: "Auto", label: "Auto" },
-    { value: "Array", label: "Array" },
-    { value: "Stack", label: "Stack" },
-    { value: "Queue", label: "Queue" },
-    { value: "Linked List", label: "Linked List" },
-  ];
-
   return (
     <div
       style={{
         position: "relative",
         width: "100%",
-        height: "100%", // 🔑 susunod sa parent container
+        height: "100%",
         borderRadius: 16,
         overflow: "hidden",
         background: "black",
@@ -588,55 +561,10 @@ const ObjectDection = () => {
           background: "rgba(15, 23, 42, 0.8)",
           color: "#e5e7eb",
           fontSize: "0.7rem",
-          maxWidth: "30%",
+          maxWidth: "100%",
         }}
       >
         DSA Concept Detection · {status}
-      </div>
-
-      {/* 🔥 NEW: DSA MODE SELECTOR */}
-      <div
-        style={{
-          position: "absolute",
-          top: 16,
-          right: 16,
-          padding: "6px 8px",
-          borderRadius: 999,
-          background: "rgba(15, 23, 42, 0.9)",
-          color: "#e5e7eb",
-          fontSize: "0.7rem",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-        }}
-      >
-        <span style={{ opacity: 0.8 }}>Mode:</span>
-        {dsaModes.map((m) => (
-          <button
-            key={m.value}
-            onClick={() => setSelectedDSA(m.value)}
-            style={{
-              border: "none",
-              cursor: "pointer",
-              padding: "4px 8px",
-              borderRadius: 999,
-              fontSize: "0.7rem",
-              background:
-                selectedDSA === m.value
-                  ? "rgba(52, 211, 153, 0.9)"
-                  : "rgba(15, 23, 42, 0.9)",
-              color: selectedDSA === m.value ? "#0f172a" : "#e5e7eb",
-              borderColor:
-                selectedDSA === m.value
-                  ? "rgba(52, 211, 153, 1)"
-                  : "rgba(75, 85, 99, 1)",
-              borderWidth: 1,
-              borderStyle: "solid",
-            }}
-          >
-            {m.label}
-          </button>
-        ))}
       </div>
 
       {/* DATA STRUCTURE OVERLAY – only when may concept */}
@@ -687,7 +615,6 @@ const ObjectDection = () => {
             fontSize: "0.9rem",
           }}
         >
-          {/* simple loader circle */}
           <div
             style={{
               width: 32,
@@ -704,7 +631,6 @@ const ObjectDection = () => {
             Please allow camera permission.
           </div>
 
-          {/* inline keyframes for the spinner */}
           <style>
             {`
               @keyframes spin {
