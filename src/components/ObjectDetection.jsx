@@ -167,7 +167,7 @@ const ObjectDection = () => {
         videoRef.current.srcObject = stream;
 
         videoRef.current.onloadeddata = () => {
-          setStatus("Camera running ✔️ Detecting objects...");
+          setStatus("Camera running...");
           setIsLoading(false); // ✅ camera + model ready
           detectLoop();
         };
