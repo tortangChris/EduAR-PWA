@@ -131,6 +131,9 @@ const ObjectDection = () => {
   const [concept, setConcept] = useState("");
   const [conceptDetail, setConceptDetail] = useState("");
 
+  // 🔥 NEW: loading flag for overlay
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     let model = null;
     let animationFrameId = null;
@@ -139,6 +142,9 @@ const ObjectDection = () => {
 
     const start = async () => {
       try {
+        setIsLoading(true);
+        setStatus("Loading model...");
+
         const [tf, cocoSsd] = await Promise.all([
           import("@tensorflow/tfjs"),
           import("@tensorflow-models/coco-ssd"),
@@ -149,7 +155,7 @@ const ObjectDection = () => {
         }
 
         model = await cocoSsd.load();
-        setStatus("Model Loaded ✔️");
+        setStatus("Model loaded ✔️ – starting camera...");
 
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" },
@@ -161,12 +167,14 @@ const ObjectDection = () => {
         videoRef.current.srcObject = stream;
 
         videoRef.current.onloadeddata = () => {
-          setStatus("Camera Running ✔️ Detecting objects...");
+          setStatus("Camera running ✔️ Detecting objects...");
+          setIsLoading(false); // ✅ camera + model ready
           detectLoop();
         };
       } catch (err) {
         console.error(err);
         setStatus("❌ Error loading camera or model.");
+        setIsLoading(false);
       }
     };
 
@@ -254,7 +262,7 @@ const ObjectDection = () => {
 
       const ctx = canvas.getContext("2d");
 
-      // Full-screen canvas matching video
+      // Match canvas to video size
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
@@ -264,7 +272,6 @@ const ObjectDection = () => {
       const phones = predictions.filter(
         (p) => p.class === "cell phone" && p.score > 0.4
       );
-
       setArrayCount(phones.length);
 
       phones.forEach((p, index) => {
@@ -289,7 +296,6 @@ const ObjectDection = () => {
       const persons = predictions.filter(
         (p) => p.class === "person" && p.score > 0.4
       );
-
       if (persons.length > 0) {
         const personsSorted = [...persons].sort(
           (a, b) => a.bbox[0] - b.bbox[0]
@@ -446,93 +452,136 @@ const ObjectDection = () => {
     };
   }, []);
 
-  // sa loob ng ObjectDection component
-return (
-  <div
-    style={{
-      position: "relative",
-      width: "100%",
-      height: "100%",      // 🔑 fill lang yung parent container
-      borderRadius: 16,
-      overflow: "hidden",
-      background: "black",
-    }}
-  >
-    {/* Camera video */}
-    <video
-      ref={videoRef}
-      autoPlay
-      muted
-      playsInline
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "cover", // 🔑 para punuin yung box, walang distortion
-      }}
-    />
-
-    {/* Drawing canvas on top */}
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-      }}
-    />
-
-    {/* STATUS – small pill inside camera */}
+  return (
     <div
       style={{
-        position: "absolute",
-        top: 16,
-        left: 16,
-        padding: "6px 10px",
-        borderRadius: 999,
-        background: "rgba(15, 23, 42, 0.8)",
-        color: "#e5e7eb",
-        fontSize: "0.7rem",
-        maxWidth: "60%",
+        position: "relative",
+        width: "100%",
+        height: "100%", // 🔑 susunod sa parent container
+        borderRadius: 16,
+        overflow: "hidden",
+        background: "black",
       }}
     >
-      EduAR – DSA Concept Detection · {status}
-    </div>
+      {/* CAMERA */}
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+        }}
+      />
 
-    {/* DATA STRUCTURE OVERLAY – lalabas lang pag may concept */}
-    {concept && (
+      {/* CANVAS OVERLAY */}
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+        }}
+      />
+
+      {/* STATUS PILL */}
       <div
         style={{
           position: "absolute",
-          bottom: 24,
-          left: "50%",
-          transform: "translateX(-50%)",
-          maxWidth: "90%",
-          padding: "10px 14px",
-          borderRadius: 10,
+          top: 16,
+          left: 16,
+          padding: "6px 10px",
+          borderRadius: 999,
           background: "rgba(15, 23, 42, 0.8)",
-          border: "1px solid rgba(148, 163, 184, 0.8)",
-          color: "#f9fafb",
-          fontSize: "0.85rem",
-          backdropFilter: "blur(6px)",
+          color: "#e5e7eb",
+          fontSize: "0.7rem",
+          maxWidth: "60%",
         }}
       >
+        EduAR – DSA Concept Detection · {status}
+      </div>
+
+      {/* DATA STRUCTURE OVERLAY – only when may concept */}
+      {concept && (
         <div
           style={{
-            fontSize: "0.95rem",
-            marginBottom: 4,
-            fontWeight: 600,
+            position: "absolute",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            maxWidth: "90%",
+            padding: "10px 14px",
+            borderRadius: 10,
+            background: "rgba(15, 23, 42, 0.8)",
+            border: "1px solid rgba(148, 163, 184, 0.8)",
+            color: "#f9fafb",
+            fontSize: "0.85rem",
+            backdropFilter: "blur(6px)",
           }}
         >
-          🧠 Detected Data Structure:{" "}
-          <span style={{ color: "#34D399" }}>{concept}</span>
+          <div
+            style={{
+              fontSize: "0.95rem",
+              marginBottom: 4,
+              fontWeight: 600,
+            }}
+          >
+            🧠 Detected Data Structure:{" "}
+            <span style={{ color: "#34D399" }}>{concept}</span>
+          </div>
+          <div>{conceptDetail}</div>
         </div>
-        <div>{conceptDetail}</div>
-      </div>
-    )}
-  </div>
-);
+      )}
 
+      {/* 🔥 LOADING OVERLAY */}
+      {isLoading && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            color: "#e5e7eb",
+            fontSize: "0.9rem",
+          }}
+        >
+          {/* simple loader circle */}
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "999px",
+              border: "3px solid rgba(156,163,175,0.6)",
+              borderTopColor: "#34D399",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
+          <div>Preparing AR scanner...</div>
+          <div style={{ fontSize: "0.75rem", opacity: 0.8 }}>
+            {status} <br />
+            Please allow camera permission.
+          </div>
+
+          {/* inline keyframes for the spinner */}
+          <style>
+            {`
+              @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default ObjectDection;
