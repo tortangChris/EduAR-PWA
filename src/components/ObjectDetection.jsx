@@ -572,32 +572,44 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         <div
           style={{
             position: "absolute",
-            bottom: 24,
-            left: "50%",
-            transform: "translateX(-50%)",
-            maxWidth: "90%",
-            padding: "10px 14px",
-            borderRadius: 10,
-            background: "rgba(15, 23, 42, 0.8)",
-            border: "1px solid rgba(148, 163, 184, 0.8)",
+            bottom: 12,
+            left: 12,
+            transform: "none",
+            // mas maliit na card sa gilid
+            maxWidth: "65%",
+            padding: "8px 10px",
+            borderRadius: 8,
+            background: "rgba(15, 23, 42, 0.85)",
+            border: "1px solid rgba(148, 163, 184, 0.9)",
             color: "#f9fafb",
-            fontSize: "0.85rem",
-            backdropFilter: "blur(6px)",
+            fontSize: "0.75rem",
+            lineHeight: 1.3,
+            backdropFilter: "blur(4px)",
+            // para di na sakupin buong screen pag mahaba explanation
+            maxHeight: "35%",
+            overflowY: "auto",
           }}
         >
           <div
             style={{
-              fontSize: "0.95rem",
-              marginBottom: 4,
+              fontSize: "0.85rem",
+              marginBottom: 2,
               fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
             }}
           >
-            🧠 Detected Data Structure:{" "}
-            <span style={{ color: "#34D399" }}>{concept}</span>
+            <span>🧠</span>
+            <span>
+              Detected:{" "}
+              <span style={{ color: "#34D399" }}>{concept}</span>
+            </span>
           </div>
           <div>{conceptDetail}</div>
         </div>
       )}
+
 
       {/* 🔥 LOADING OVERLAY */}
       {isLoading && (
