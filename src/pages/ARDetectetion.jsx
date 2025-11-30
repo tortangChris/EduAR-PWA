@@ -24,7 +24,7 @@ const ARDetection = () => {
         </div>
       </div>
 
-       <div className="bg-base-200 rounded-2xl shadow-md h-[calc(100vh-6.5rem)] overflow-y-auto p-5">
+       <div className="bg-base-200 rounded-2xl shadow-md h-[calc(80vh-6.5rem)] overflow-y-auto p-5">
         <ObjectDection/>
          {/* <button
             onClick={() => setActiveView("assessment")}
