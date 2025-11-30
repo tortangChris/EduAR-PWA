@@ -1,23 +1,11 @@
 import React, { useRef, useEffect, useState } from "react";
-// ❌ Removed these to avoid putting tfjs + coco-ssd in main bundle
-// import * as cocoSsd from "@tensorflow-models/coco-ssd";
-// import "@tensorflow/tfjs";
 
-/**
- * Detect vertical book spines using OpenCV edges from the current video frame.
- * Returns an array of stacks, each stack = array of vertical lines sorted top→bottom.
- * Each line: { x1, y1, x2, y2, x, yTop, yBottom }
- *
- * Unlimited stacks:
- * - Sort lines by x
- * - Group lines into stacks if malapit ang x (within threshold)
- */
+// --- OpenCV-based book stack detection (unchanged) ---
 const detectBookStacksFromEdges = (videoEl) => {
   if (!window.cv || !videoEl.videoWidth || !videoEl.videoHeight) return [];
 
   const cv = window.cv;
 
-  // 1. Capture current frame to an offscreen canvas
   const capCanvas = document.createElement("canvas");
   capCanvas.width = videoEl.videoWidth;
   capCanvas.height = videoEl.videoHeight;
@@ -31,12 +19,10 @@ const detectBookStacksFromEdges = (videoEl) => {
   const lines = new cv.Mat();
 
   try {
-    // 2. Grayscale + blur + edges
     cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
     cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0, 0);
-    cv.Canny(blur, edges, 50, 150); // thresholds pwede i-tune
+    cv.Canny(blur, edges, 50, 150);
 
-    // 3. HoughLinesP to find vertical-ish lines (book spines)
     cv.HoughLinesP(
       edges,
       lines,
@@ -49,7 +35,6 @@ const detectBookStacksFromEdges = (videoEl) => {
 
     const verticalLines = [];
 
-    // Access lines via data32S
     for (let i = 0; i < lines.rows; i++) {
       const x1 = lines.data32S[i * 4 + 0];
       const y1 = lines.data32S[i * 4 + 1];
@@ -59,7 +44,6 @@ const detectBookStacksFromEdges = (videoEl) => {
       const dx = Math.abs(x2 - x1);
       const dy = Math.abs(y2 - y1);
 
-      // Vertical-ish line (spine): maliit ang dx, mahaba ang dy
       if (dx < 15 && dy > 40) {
         const cx = (x1 + x2) / 2;
         const yTop = Math.min(y1, y2);
@@ -72,11 +56,10 @@ const detectBookStacksFromEdges = (videoEl) => {
       return [];
     }
 
-    // 4. Sort by x, then group into stacks by proximity (unlimited stacks)
     verticalLines.sort((a, b) => a.x - b.x);
 
     const stacks = [];
-    const distanceThreshold = 40; // px; adjust kung kailangan mas tight/loose
+    const distanceThreshold = 40;
 
     verticalLines.forEach((line) => {
       if (stacks.length === 0) {
@@ -88,20 +71,17 @@ const detectBookStacksFromEdges = (videoEl) => {
       const lastLine = lastStack[lastStack.length - 1];
 
       if (Math.abs(line.x - lastLine.x) <= distanceThreshold) {
-        // Same stack
         lastStack.push(line);
       } else {
-        // New stack
         stacks.push([line]);
       }
     });
 
-    // 5. Sort lines inside each stack by top y (para top→bottom)
     stacks.forEach((stack) => {
       stack.sort((a, b) => a.yTop - b.yTop);
     });
 
-    return stacks; // Unlimited stacks, depende sa arrangement
+    return stacks;
   } catch (e) {
     console.error("OpenCV stack detection error:", e);
     return [];
@@ -114,7 +94,7 @@ const detectBookStacksFromEdges = (videoEl) => {
   }
 };
 
-// Helper to draw an arrow between two points (for linked list)
+// Helper to draw arrow (linked list)
 const drawArrow = (ctx, x1, y1, x2, y2) => {
   const headLen = 10;
   const angle = Math.atan2(y2 - y1, x2 - x1);
@@ -146,7 +126,7 @@ const ObjectDection = () => {
   const [arrayCount, setArrayCount] = useState(0);
   const [bookCount, setBookCount] = useState(0);
   const [queueCount, setQueueCount] = useState(0);
-  const [linkedListCount, setLinkedListCount] = useState(0); // cups as nodes
+  const [linkedListCount, setLinkedListCount] = useState(0);
   const [debugLabels, setDebugLabels] = useState([]);
   const [concept, setConcept] = useState("");
   const [conceptDetail, setConceptDetail] = useState("");
@@ -155,26 +135,22 @@ const ObjectDection = () => {
     let model = null;
     let animationFrameId = null;
     let lastDetection = 0;
-    const DETECT_INTERVAL = 200; // ms (~5 FPS, less lag)
+    const DETECT_INTERVAL = 200; // ms
 
     const start = async () => {
       try {
-        // 🔥 Lazy-load tfjs + coco-ssd here (code splitting)
         const [tf, cocoSsd] = await Promise.all([
           import("@tensorflow/tfjs"),
           import("@tensorflow-models/coco-ssd"),
         ]);
 
-        // (Optional) wait until tf is ready
         if (tf && tf.ready) {
           await tf.ready();
         }
 
-        // Load detection model
         model = await cocoSsd.load();
         setStatus("Model Loaded ✔️");
 
-        // Start camera
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" },
           audio: false,
@@ -215,12 +191,11 @@ const ObjectDection = () => {
       const queueCountLocal = persons.length;
       const cupCountLocal = cups.length;
 
-      // --- Queue rule (persons in a horizontal line) ---
+      // Queue rule
       if (queueCountLocal >= 2) {
-        const ys = persons.map((p) => p.bbox[1]); // y positions
+        const ys = persons.map((p) => p.bbox[1]);
         const maxY = Math.max(...ys);
         const minY = Math.min(...ys);
-        // if halos magkalevel ang y, assume horizontal line (queue)
         if (maxY - minY < 80) {
           setConcept("Queue (FIFO)");
           setConceptDetail(
@@ -230,7 +205,7 @@ const ObjectDection = () => {
         }
       }
 
-      // --- Stack rule (books using OpenCV vertical edges/spines) ---
+      // Stack rule
       if (bookCountLocal >= 1 && stacks && stacks.length >= 1) {
         const stackCount = stacks.length;
         setConcept("Stack (LIFO)");
@@ -240,7 +215,7 @@ const ObjectDection = () => {
         return;
       }
 
-      // --- Linked List rule (cups in a horizontal row with arrows) ---
+      // Linked List rule
       if (cupCountLocal >= 3) {
         const cupsSorted = [...cups].sort((a, b) => a.bbox[0] - b.bbox[0]);
         const ys = cupsSorted.map((c) => c.bbox[1]);
@@ -257,7 +232,7 @@ const ObjectDection = () => {
         }
       }
 
-      // --- Array rule (multiple similar objects: phones + bottles) ---
+      // Array rule
       const arrayLikeCount = phones.length + bottles.length;
       if (arrayLikeCount >= 2) {
         setConcept("Array");
@@ -279,13 +254,13 @@ const ObjectDection = () => {
 
       const ctx = canvas.getContext("2d");
 
-      // Match canvas to video size
+      // Full-screen canvas matching video
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // ----- Draw cell phones as array elements -----
+      // Phones → array
       const phones = predictions.filter(
         (p) => p.class === "cell phone" && p.score > 0.4
       );
@@ -295,25 +270,22 @@ const ObjectDection = () => {
       phones.forEach((p, index) => {
         const [x, y, width, height] = p.bbox;
 
-        // bounding box
         ctx.strokeStyle = "#00ff00";
         ctx.lineWidth = 4;
         ctx.strokeRect(x, y, width, height);
 
-        // label background below object
         const label = `index[${index}]`;
         const labelHeight = 26;
 
         ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
         ctx.fillRect(x, y + height, width, labelHeight);
 
-        // label text
         ctx.fillStyle = "#00ff00";
         ctx.font = "18px Arial";
         ctx.fillText(label, x + 5, y + height + 18);
       });
 
-      // ----- Draw queue (persons) -----
+      // Queue (persons)
       const persons = predictions.filter(
         (p) => p.class === "person" && p.score > 0.4
       );
@@ -326,7 +298,7 @@ const ObjectDection = () => {
         personsSorted.forEach((p, index) => {
           const [x, y, width, height] = p.bbox;
 
-          ctx.strokeStyle = "#e5e7eb"; // light gray
+          ctx.strokeStyle = "#e5e7eb";
           ctx.lineWidth = 3;
           ctx.strokeRect(x, y, width, height);
 
@@ -342,7 +314,7 @@ const ObjectDection = () => {
         });
       }
 
-      // ----- Draw linked list (cups) -----
+      // Linked list (cups)
       const cups = predictions.filter(
         (p) => p.class === "cup" && p.score > 0.4
       );
@@ -358,22 +330,18 @@ const ObjectDection = () => {
           const cx = x + width / 2;
           const cy = y + height / 2;
 
-          // Node bounding box
           ctx.strokeStyle = "#facc15";
           ctx.strokeRect(x, y, width, height);
 
-          // Node label background
           const label = `node[${index}]`;
           const labelHeight = 20;
           ctx.fillStyle = "#facc15";
           ctx.fillRect(x, y - labelHeight, width, labelHeight);
 
-          // Node label text
           ctx.fillStyle = "#0f172a";
           ctx.font = "14px Arial";
           ctx.fillText(label, x + 4, y - 4);
 
-          // Arrow to next node
           if (index < cupsSorted.length - 1) {
             const next = cupsSorted[index + 1];
             const [nx, ny, nWidth, nHeight] = next.bbox;
@@ -384,7 +352,6 @@ const ObjectDection = () => {
             ctx.fillStyle = "#facc15";
             drawArrow(ctx, cx + width / 2, cy, nCx - nWidth / 2, nCy);
           } else {
-            // Last node → null
             ctx.fillStyle = "#facc15";
             ctx.font = "14px Arial";
             ctx.fillText("null", cx + width / 2 + 10, cy + 4);
@@ -392,14 +359,13 @@ const ObjectDection = () => {
         });
       }
 
-      // ----- Draw book stacks from OpenCV edges -----
+      // Book stacks (OpenCV)
       if (stacks && stacks.length > 0) {
-        const stackColors = ["#f97316", "#3b82f6", "#ec4899", "#22c55e"]; // orange, blue, pink, green
+        const stackColors = ["#f97316", "#3b82f6", "#ec4899", "#22c55e"];
 
         stacks.forEach((stack, sIdx) => {
           const color = stackColors[sIdx % stackColors.length];
 
-          // Draw each vertical line (book spine) in this stack
           stack.forEach((line) => {
             ctx.beginPath();
             ctx.moveTo(line.x1, line.y1);
@@ -409,7 +375,6 @@ const ObjectDection = () => {
             ctx.stroke();
           });
 
-          // Draw a label at the top of the stack (average x)
           const avgX =
             stack.reduce((sum, l) => sum + l.x, 0) / Math.max(stack.length, 1);
           const topY = Math.min(...stack.map((l) => l.yTop));
@@ -434,14 +399,12 @@ const ObjectDection = () => {
           try {
             const predictions = await model.detect(videoRef.current);
 
-            // Debug label list
             setDebugLabels(
               predictions.map(
                 (p) => `${p.class} (${Math.round(p.score * 100)}%)`
               )
             );
 
-            // Update counts from coco-ssd
             const books = predictions.filter(
               (p) => p.class === "book" && p.score > 0.4
             );
@@ -455,7 +418,6 @@ const ObjectDection = () => {
             setQueueCount(persons.length);
             setLinkedListCount(cups.length);
 
-            // Use OpenCV stacks only if cv is loaded and may books talaga
             let stacks = [];
             if (books.length > 0 && window.cv) {
               stacks = detectBookStacksFromEdges(videoRef.current);
@@ -487,89 +449,20 @@ const ObjectDection = () => {
   return (
     <div
       style={{
-        minHeight: "100vh",
-        background: "#111827",
-        color: "white",
-        padding: "12px",
+        position: "fixed",
+        inset: 0,
+        background: "black",
+        overflow: "hidden",
       }}
     >
-      <h1 style={{ textAlign: "center", marginBottom: "4px" }}>
-        EduAR – DSA Concept Detection
-      </h1>
-
-      <p style={{ textAlign: "center" }}>{status}</p>
-
-      <p style={{ textAlign: "center", marginTop: "6px" }}>
-        📱 Cellphones detected as array elements:{" "}
-        <strong>{arrayCount}</strong>
-      </p>
-
-      <p style={{ textAlign: "center", marginTop: "2px" }}>
-        📚 Books detected (stack): <strong>{bookCount}</strong>
-      </p>
-
-      <p style={{ textAlign: "center", marginTop: "2px" }}>
-        👥 Persons detected (queue): <strong>{queueCount}</strong>
-      </p>
-
-      <p style={{ textAlign: "center", marginTop: "2px" }}>
-        🥤 Cups detected (linked list nodes):{" "}
-        <strong>{linkedListCount}</strong>
-      </p>
-
-      {concept && (
-        <div
-          style={{
-            maxWidth: "480px",
-            margin: "8px auto",
-            padding: "10px",
-            borderRadius: "8px",
-            background: "#111827",
-            border: "1px solid #4B5563",
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: "1.05rem" }}>
-            🧠 Detected Data Structure:{" "}
-            <span style={{ color: "#34D399" }}>{concept}</span>
-          </h2>
-          <p style={{ marginTop: "6px", fontSize: "0.9rem" }}>
-            {conceptDetail}
-          </p>
-        </div>
-      )}
-
-      {/* Debug info */}
-      <div
-        style={{
-          background: "#1f2937",
-          maxWidth: "480px",
-          margin: "8px auto",
-          padding: "8px",
-          borderRadius: "8px",
-          fontSize: "0.8rem",
-        }}
-      >
-        <strong>Debug (detected classes):</strong>
-        {debugLabels.length === 0 ? (
-          <div style={{ marginTop: "4px" }}>None</div>
-        ) : (
-          <ul style={{ marginTop: "4px", paddingLeft: "18px" }}>
-            {debugLabels.map((lbl, i) => (
-              <li key={i}>{lbl}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* Video + Canvas */}
       <div
         style={{
           position: "relative",
           width: "100%",
-          maxWidth: "480px",
-          margin: "0 auto",
+          height: "100%",
         }}
       >
+        {/* Fullscreen camera */}
         <video
           ref={videoRef}
           autoPlay
@@ -577,10 +470,12 @@ const ObjectDection = () => {
           playsInline
           style={{
             width: "100%",
-            borderRadius: "10px",
+            height: "100%",
+            objectFit: "cover",
           }}
         />
 
+        {/* Drawing canvas on top */}
         <canvas
           ref={canvasRef}
           style={{
@@ -590,6 +485,80 @@ const ObjectDection = () => {
             height: "100%",
           }}
         />
+
+        {/* STATUS – small pill on top-left, inside camera */}
+        <div
+          style={{
+            position: "absolute",
+            top: 16,
+            left: 16,
+            padding: "6px 10px",
+            borderRadius: 999,
+            background: "rgba(15, 23, 42, 0.8)",
+            color: "#e5e7eb",
+            fontSize: "0.7rem",
+            maxWidth: "60%",
+          }}
+        >
+          EduAR – DSA Concept Detection · {status}
+        </div>
+
+        {/* DATA STRUCTURE OVERLAY – only shows when concept is detected */}
+        {concept && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 24,
+              left: "50%",
+              transform: "translateX(-50%)",
+              maxWidth: "90%",
+              padding: "10px 14px",
+              borderRadius: 10,
+              background: "rgba(15, 23, 42, 0.8)",
+              border: "1px solid rgba(148, 163, 184, 0.8)",
+              color: "#f9fafb",
+              fontSize: "0.85rem",
+              backdropFilter: "blur(6px)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.95rem",
+                marginBottom: 4,
+                fontWeight: 600,
+              }}
+            >
+              🧠 Detected Data Structure:{" "}
+              <span style={{ color: "#34D399" }}>{concept}</span>
+            </div>
+            <div>{conceptDetail}</div>
+          </div>
+        )}
+
+        {/* OPTIONAL DEV OVERLAY – easy to re-enable pag gusto mo ng debug
+        {debugLabels.length > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              padding: "8px",
+              borderRadius: 8,
+              background: "rgba(15, 23, 42, 0.7)",
+              color: "#e5e7eb",
+              fontSize: "0.7rem",
+              maxWidth: "40%",
+            }}
+          >
+            <strong>Debug:</strong>
+            <ul style={{ margin: "4px 0 0", paddingLeft: 16 }}>
+              {debugLabels.map((lbl, i) => (
+                <li key={i}>{lbl}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        */}
       </div>
     </div>
   );
