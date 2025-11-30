@@ -446,122 +446,93 @@ const ObjectDection = () => {
     };
   }, []);
 
-  return (
+  // sa loob ng ObjectDection component
+return (
+  <div
+    style={{
+      position: "relative",
+      width: "100%",
+      height: "100%",      // 🔑 fill lang yung parent container
+      borderRadius: 16,
+      overflow: "hidden",
+      background: "black",
+    }}
+  >
+    {/* Camera video */}
+    <video
+      ref={videoRef}
+      autoPlay
+      muted
+      playsInline
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover", // 🔑 para punuin yung box, walang distortion
+      }}
+    />
+
+    {/* Drawing canvas on top */}
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+      }}
+    />
+
+    {/* STATUS – small pill inside camera */}
     <div
       style={{
-        position: "fixed",
-        inset: 0,
-        background: "black",
-        overflow: "hidden",
+        position: "absolute",
+        top: 16,
+        left: 16,
+        padding: "6px 10px",
+        borderRadius: 999,
+        background: "rgba(15, 23, 42, 0.8)",
+        color: "#e5e7eb",
+        fontSize: "0.7rem",
+        maxWidth: "60%",
       }}
     >
+      EduAR – DSA Concept Detection · {status}
+    </div>
+
+    {/* DATA STRUCTURE OVERLAY – lalabas lang pag may concept */}
+    {concept && (
       <div
         style={{
-          position: "relative",
-          width: "100%",
-          height: "100%",
+          position: "absolute",
+          bottom: 24,
+          left: "50%",
+          transform: "translateX(-50%)",
+          maxWidth: "90%",
+          padding: "10px 14px",
+          borderRadius: 10,
+          background: "rgba(15, 23, 42, 0.8)",
+          border: "1px solid rgba(148, 163, 184, 0.8)",
+          color: "#f9fafb",
+          fontSize: "0.85rem",
+          backdropFilter: "blur(6px)",
         }}
       >
-        {/* Fullscreen camera */}
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-          }}
-        />
-
-        {/* Drawing canvas on top */}
-        <canvas
-          ref={canvasRef}
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-          }}
-        />
-
-        {/* STATUS – small pill on top-left, inside camera */}
         <div
           style={{
-            position: "absolute",
-            top: 16,
-            left: 16,
-            padding: "6px 10px",
-            borderRadius: 999,
-            background: "rgba(15, 23, 42, 0.8)",
-            color: "#e5e7eb",
-            fontSize: "0.7rem",
-            maxWidth: "60%",
+            fontSize: "0.95rem",
+            marginBottom: 4,
+            fontWeight: 600,
           }}
         >
-          EduAR – DSA Concept Detection · {status}
+          🧠 Detected Data Structure:{" "}
+          <span style={{ color: "#34D399" }}>{concept}</span>
         </div>
-
-        {/* DATA STRUCTURE OVERLAY – only shows when concept is detected */}
-        {concept && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: 24,
-              left: "50%",
-              transform: "translateX(-50%)",
-              maxWidth: "90%",
-              padding: "10px 14px",
-              borderRadius: 10,
-              background: "rgba(15, 23, 42, 0.8)",
-              border: "1px solid rgba(148, 163, 184, 0.8)",
-              color: "#f9fafb",
-              fontSize: "0.85rem",
-              backdropFilter: "blur(6px)",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "0.95rem",
-                marginBottom: 4,
-                fontWeight: 600,
-              }}
-            >
-              🧠 Detected Data Structure:{" "}
-              <span style={{ color: "#34D399" }}>{concept}</span>
-            </div>
-            <div>{conceptDetail}</div>
-          </div>
-        )}
-
-        {/* OPTIONAL DEV OVERLAY – easy to re-enable pag gusto mo ng debug
-        {debugLabels.length > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              top: 16,
-              right: 16,
-              padding: "8px",
-              borderRadius: 8,
-              background: "rgba(15, 23, 42, 0.7)",
-              color: "#e5e7eb",
-              fontSize: "0.7rem",
-              maxWidth: "40%",
-            }}
-          >
-            <strong>Debug:</strong>
-            <ul style={{ margin: "4px 0 0", paddingLeft: 16 }}>
-              {debugLabels.map((lbl, i) => (
-                <li key={i}>{lbl}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        */}
+        <div>{conceptDetail}</div>
       </div>
-    </div>
-  );
+    )}
+  </div>
+);
+
 };
 
 export default ObjectDection;
