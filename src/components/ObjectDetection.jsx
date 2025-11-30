@@ -498,7 +498,7 @@ const ObjectDection = () => {
           background: "rgba(15, 23, 42, 0.8)",
           color: "#e5e7eb",
           fontSize: "0.7rem",
-          maxWidth: "60%",
+          maxWidth: "100%",
         }}
       >
         EduAR – DSA Concept Detection · {status}
