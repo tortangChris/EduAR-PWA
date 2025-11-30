@@ -5,7 +5,7 @@ const BottomNav = () => {
   const navItems = [
     { to: "/home", label: "Home", icon: Home },
     { to: "/modules", label: "Modules", icon: BookOpen },
-    { to: "/arDetection", label: "Scan Object", icon: ScanIcon },
+    // { to: "/arDetection", label: "Scan Object", icon: ScanIcon },
     { to: "/settings", label: "Settings", icon: Settings },
   ];
 
