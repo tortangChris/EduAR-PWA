@@ -23,30 +23,16 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
     let lastDetection = 0;
     const DETECT_INTERVAL = 200; // ms
 
-    // ✅ Mga klase ng object na puwedeng gawing Array
-    const ARRAY_CLASSES = ["cell phone", "bottle", "laptop", "book", "chair"];
+    // 👉 Helper: approximate frontview vs sideview gamit aspect ratio
+    const isFrontView = (bbox) => {
+      const [, , width, height] = bbox;
+      if (!width || !height) return true;
 
-    // ✅ Helper: piliin lang yung nasa "front row" (pinaka-ibaba sa frame)
-    const getFrontRowObjects = (objects) => {
-      if (!objects || objects.length <= 1) {
-        // wala o isa lang – treat as is
-        return objects || [];
-      }
-
-      // gamitin yung bottomY = y + height
-      const bottoms = objects.map((p) => p.bbox[1] + p.bbox[3]);
-      const maxBottom = Math.max(...bottoms);
-
-      // threshold para sa front row – malapit sa maxBottom
-      const THRESHOLD = 40; // px margin, adjust kung gusto mong mas strict
-
-      const front = objects.filter((p) => {
-        const bottom = p.bbox[1] + p.bbox[3];
-        return bottom >= maxBottom - THRESHOLD;
-      });
-
-      // sort left → right para array index (0,1,2…) based sa x
-      return front.sort((a, b) => a.bbox[0] - b.bbox[0]);
+      const aspect = width / height;
+      // Assumption:
+      // - mas "square / wide" (aspect >= 0.8) → frontview
+      // - mas "payat / tall" → sideview (hindi isasali sa Array)
+      return aspect >= 0.8;
     };
 
     const start = async () => {
@@ -97,20 +83,44 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         return;
       }
 
-      // ✅ Kuha lahat ng array-like objects (laptop, book, chair, bottle, cell phone)
-      const arrayCandidates = predictions.filter(
-        (p) => ARRAY_CLASSES.includes(p.class) && p.score > 0.4
+      // 🔎 Filter per class (now including laptop, book, chair)
+      const phones = predictions.filter(
+        (p) => p.class === "cell phone" && p.score > 0.4
+      );
+      const bottles = predictions.filter(
+        (p) => p.class === "bottle" && p.score > 0.4
+      );
+      const laptops = predictions.filter(
+        (p) => p.class === "laptop" && p.score > 0.4
+      );
+      const books = predictions.filter(
+        (p) => p.class === "book" && p.score > 0.4
+      );
+      const chairs = predictions.filter(
+        (p) => p.class === "chair" && p.score > 0.4
       );
 
-      // ✅ Limit lang sa front row para sa Array
-      const frontRowObjects = getFrontRowObjects(arrayCandidates);
-      const arrayLikeCount = frontRowObjects.length;
+      const allArrayCandidates = [
+        ...phones,
+        ...bottles,
+        ...laptops,
+        ...books,
+        ...chairs,
+      ];
+
+      // 🧭 Para sa Array: dapat FRONT VIEW lang (hindi sideview)
+      const frontViewArrayObjects = allArrayCandidates.filter((p) =>
+        isFrontView(p.bbox)
+      );
 
       const tryArray = () => {
+        const arrayLikeCount = frontViewArrayObjects.length;
+
         if (arrayLikeCount >= 2) {
           setConcept("Array");
           setConceptDetail(
-            `Detected ${arrayLikeCount} similar objects in the front row (laptop/book/chair/bottle/cell phone) → can be modeled as an Array (index-based, fixed positions).`
+            `Detected ${arrayLikeCount} front-view objects (cellphones, bottles, laptops, books, chairs) → can be modeled as an Array (index-based, fixed positions).` +
+              `\n\nNote: Side-view objects are ignored here so they won’t be misclassified as Array (reserved for Queue / other structures).`
           );
           return true;
         }
@@ -144,17 +154,44 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
 
       const mode = selectedDSARef.current;
 
-      // ✅ Parehong logic: piliin lang mga puwedeng Array, tapos front row
-      const arrayCandidates = predictions.filter(
-        (p) => ARRAY_CLASSES.includes(p.class) && p.score > 0.4
+      // 🔎 Same filters as analyzeScene
+      const phones = predictions.filter(
+        (p) => p.class === "cell phone" && p.score > 0.4
       );
-      const arrayObjects = getFrontRowObjects(arrayCandidates);
+      const bottles = predictions.filter(
+        (p) => p.class === "bottle" && p.score > 0.4
+      );
+      const laptops = predictions.filter(
+        (p) => p.class === "laptop" && p.score > 0.4
+      );
+      const books = predictions.filter(
+        (p) => p.class === "book" && p.score > 0.4
+      );
+      const chairs = predictions.filter(
+        (p) => p.class === "chair" && p.score > 0.4
+      );
 
-      // count = front-row array objects
-      setArrayCount(arrayObjects.length);
+      const allArrayCandidates = [
+        ...phones,
+        ...bottles,
+        ...laptops,
+        ...books,
+        ...chairs,
+      ];
 
-      if (arrayObjects.length > 0 && (mode === "Auto" || mode === "Array")) {
-        arrayObjects.forEach((p, index) => {
+      // FRONT VIEW lang ang lalagyan ng index[ ] (Array)
+      const frontViewArrayObjects = allArrayCandidates.filter((p) =>
+        isFrontView(p.bbox)
+      );
+
+      // ✅ Ito lang ang ibibilang as array count
+      setArrayCount(frontViewArrayObjects.length);
+
+      if (
+        frontViewArrayObjects.length > 0 &&
+        (mode === "Auto" || mode === "Array")
+      ) {
+        frontViewArrayObjects.forEach((p, index) => {
           const [x, y, width, height] = p.bbox;
 
           ctx.strokeStyle = "#00ff00";
@@ -172,6 +209,12 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           ctx.fillText(label, x + 5, y + height + 18);
         });
       }
+
+      // (Optional) pwede kang mag-drawing dito ng ibang color
+      // para sa sideview objects for future Queue logic.
+      // const sideViewObjects = allArrayCandidates.filter(
+      //   (p) => !isFrontView(p.bbox)
+      // );
     };
 
     const detectLoop = async () => {
@@ -255,7 +298,8 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           maxWidth: "100%",
         }}
       >
-        DSA Concept Detection · {status} · Array count: {arrayCount}
+        DSA Concept Detection · {status} · Array count (frontview only):{" "}
+        {arrayCount}
       </div>
 
       {/* DATA STRUCTURE OVERLAY – only when may concept */}
