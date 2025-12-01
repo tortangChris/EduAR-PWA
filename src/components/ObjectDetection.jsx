@@ -34,21 +34,27 @@ const isFrontView = (pred) => {
 
 /**
  * Side-view / naka-pila candidate para sa Queue:
- * - person na sobrang "vertical" (makitid) at hindi sobrang liit (to avoid kamay/face lang)
- * - book / cell phone na HINDI pasado sa front-view (so side / nakatagilid)
+ * - person na tall & skinny (side view) AT halos buong katawan (h malaki
+ *   relative sa frameHeight, para hindi face/hand lang)
+ * - book / cell phone na HINDI front-view (so side / nakatagilid)
  */
-const isSideViewQueueItem = (pred) => {
+const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
   const [x, y, w, h] = pred.bbox;
   if (w <= 0 || h <= 0) return false;
+  if (!frameWidth || !frameHeight) return false;
 
   // 🔒 reject sobrang liit na box (madalas face/hand/partial lang)
-  if (h < 100 || w < 30) return false;
+  const minHeight = frameHeight * 0.45; // ~45% ng frame → almost full body
+  const minWidth = frameWidth * 0.05;   // at least 5% ng width
+
+  if (h < minHeight || w < minWidth) return false;
 
   const aspect = w / h; // width / height
 
   if (pred.class === "person") {
     // tao na payat na box (tall & skinny) → side view / naka-pila
-    return aspect < 0.55;
+    // limit din sa lower bound para hindi sobrang sobrang nipis
+    return aspect < 0.6 && aspect > 0.2;
   }
 
   if (pred.class === "book" || pred.class === "cell phone") {
@@ -260,6 +266,10 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         return;
       }
 
+      const video = videoRef.current;
+      const frameWidth = video?.videoWidth || 0;
+      const frameHeight = video?.videoHeight || 0;
+
       const persons = predictions.filter(
         (p) => p.class === "person" && p.score > 0.4
       );
@@ -277,7 +287,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             p.class === "book" ||
             p.class === "cell phone") &&
           p.score > 0.4 &&
-          isSideViewQueueItem(p)
+          isSideViewQueueItem(p, frameWidth, frameHeight)
       );
 
       const arrayLike = getArrayObjects(predictions);
@@ -287,7 +297,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const cupCountLocal = cups.length;
 
       const tryQueue = () => {
-        // 👉 Gamit na natin yung queueItems (side-view lang) instead of lahat ng tao
+        // 👉 Gamit na natin yung queueItems (side-view + malaki lang)
         if (queueCountLocal >= 2) {
           const ys = queueItems.map((p) => p.bbox[1]);
           const maxY = Math.max(...ys);
@@ -405,6 +415,8 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       const mode = selectedDSARef.current;
+      const frameWidth = canvas.width;
+      const frameHeight = canvas.height;
 
       // ✅ Unified ARRAY OBJECTS (laptop, book, chair, bottle, cell phone)
       const arrayObjects = getArrayObjects(predictions);
@@ -443,7 +455,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             p.class === "book" ||
             p.class === "cell phone") &&
           p.score > 0.4 &&
-          isSideViewQueueItem(p)
+          isSideViewQueueItem(p, frameWidth, frameHeight)
       );
       setQueueCount(queueItems.length);
 
@@ -568,24 +580,25 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
               )
             );
 
+            const video = videoRef.current;
+            const frameWidth = video?.videoWidth || 0;
+            const frameHeight = video?.videoHeight || 0;
+
             const books = predictions.filter(
               (p) => p.class === "book" && p.score > 0.4
-            );
-            const persons = predictions.filter(
-              (p) => p.class === "person" && p.score > 0.4
             );
             const cups = predictions.filter(
               (p) => p.class === "cup" && p.score > 0.4
             );
 
-            // queue items = side-view person / book / cellphone
+            // queue items = side-view person / book / cellphone (buong katawan / malaki lang)
             const queueItems = predictions.filter(
               (p) =>
                 (p.class === "person" ||
                   p.class === "book" ||
                   p.class === "cell phone") &&
                 p.score > 0.4 &&
-                isSideViewQueueItem(p)
+                isSideViewQueueItem(p, frameWidth, frameHeight)
             );
 
             setBookCount(books.length);
