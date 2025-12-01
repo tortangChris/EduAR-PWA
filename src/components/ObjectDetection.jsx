@@ -34,12 +34,15 @@ const isFrontView = (pred) => {
 
 /**
  * Side-view / naka-pila candidate para sa Queue:
- * - person na sobrang "vertical" (makitid)
+ * - person na sobrang "vertical" (makitid) at hindi sobrang liit (to avoid kamay/face lang)
  * - book / cell phone na HINDI pasado sa front-view (so side / nakatagilid)
  */
 const isSideViewQueueItem = (pred) => {
   const [x, y, w, h] = pred.bbox;
   if (w <= 0 || h <= 0) return false;
+
+  // 🔒 reject sobrang liit na box (madalas face/hand/partial lang)
+  if (h < 100 || w < 30) return false;
 
   const aspect = w / h; // width / height
 
@@ -49,7 +52,7 @@ const isSideViewQueueItem = (pred) => {
   }
 
   if (pred.class === "book" || pred.class === "cell phone") {
-    // kung HINDI siya front-view → treat as side-view
+    // kung HINDI siya front-view → treat as side-view / nakatagilid
     return !isFrontView(pred);
   }
 
@@ -284,6 +287,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const cupCountLocal = cups.length;
 
       const tryQueue = () => {
+        // 👉 Gamit na natin yung queueItems (side-view lang) instead of lahat ng tao
         if (queueCountLocal >= 2) {
           const ys = queueItems.map((p) => p.bbox[1]);
           const maxY = Math.max(...ys);
