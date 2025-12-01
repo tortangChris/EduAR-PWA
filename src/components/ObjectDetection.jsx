@@ -326,7 +326,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           const stackCount = stacks.length;
           setConcept("Stack (LIFO)");
           setConceptDetail(
-            `Detected ${bookCountLocal} book(s) arranged into ${stackCount} stack(s) via vertical edges (spines) → behaves like a Stack (Last In, First Out).`
+            `Detected ${stack.length} book(s) arranged via vertical edges (spines) → behaves like a Stack (Last In, First Out).`
           );
           return true;
         }
