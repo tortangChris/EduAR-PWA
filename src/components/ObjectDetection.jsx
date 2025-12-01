@@ -4,6 +4,14 @@ import React, { useRef, useEffect, useState } from "react";
 // ✅ CLASSES for "Array" mode
 const ARRAY_CLASSES = ["laptop", "book", "chair", "bottle", "cell phone"];
 
+// ✅ CLASSES usable as Linked List "nodes"
+const LINKED_LIST_CLASSES = ["cup", "train"]; // 👈 add/remove classes here
+
+const getLinkedListNodes = (predictions) =>
+  predictions.filter(
+    (p) => LINKED_LIST_CLASSES.includes(p.class) && p.score > 0.4
+  );
+
 /**
  * Simple heuristic para i-approx kung front view yung object.
  * Ginagamit lang yung aspect ratio ng bounding box.
@@ -52,7 +60,7 @@ const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
     if (!frameWidth || !frameHeight) return false;
     // 🔒 almost full body
     const minHeight = frameHeight * 0.45; // ~45% ng frame height
-    const minWidth = frameWidth * 0.05;   // ~5% ng frame width
+    const minWidth = frameWidth * 0.05; // ~5% ng frame width
 
     if (h < minHeight || w < minWidth) return false;
 
@@ -280,9 +288,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const frameWidth = video?.videoWidth || 0;
       const frameHeight = video?.videoHeight || 0;
 
-      const cups = predictions.filter(
-        (p) => p.class === "cup" && p.score > 0.4
-      );
+      const linkedNodes = getLinkedListNodes(predictions);
       const books = predictions.filter(
         (p) => p.class === "book" && p.score > 0.4
       );
@@ -301,7 +307,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const arrayLikeCount = arrayLike.length;
       const bookCountLocal = books.length;
       const queueCountLocal = queueItems.length;
-      const cupCountLocal = cups.length;
+      const linkedListCountLocal = linkedNodes.length;
 
       const tryQueue = () => {
         if (queueCountLocal >= 2) {
@@ -334,17 +340,23 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       };
 
       const tryLinkedList = () => {
-        if (cupCountLocal >= 3) {
-          const cupsSorted = [...cups].sort((a, b) => a.bbox[0] - b.bbox[0]);
-          const ys = cupsSorted.map((c) => c.bbox[1]);
+        const nodeCount = linkedListCountLocal;
+        if (nodeCount >= 3) {
+          const nodesSorted = [...linkedNodes].sort(
+            (a, b) => a.bbox[0] - b.bbox[0]
+          );
+          const ys = nodesSorted.map((c) => c.bbox[1]);
           const maxY = Math.max(...ys);
           const minY = Math.min(...ys);
           const yRange = maxY - minY;
 
           if (yRange < 80) {
+            const usedClasses = Array.from(
+              new Set(linkedNodes.map((n) => n.class))
+            ).join(", ");
             setConcept("Linked List");
             setConceptDetail(
-              `Detected ${cupCountLocal} cup node(s) aligned in a row → can be modeled as a Singly Linked List (each node points to the next, last points to null).`
+              `Detected ${nodeCount} node(s) (${usedClasses}) aligned in a row → can be modeled as a Singly Linked List (each node points to the next, last points to null).`
             );
             return true;
           }
@@ -490,18 +502,18 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         });
       }
 
-      // LINKED LIST (cups)
-      const cups = predictions.filter(
-        (p) => p.class === "cup" && p.score > 0.4
-      );
-      setLinkedListCount(cups.length);
+      // LINKED LIST (cups, train, etc.)
+      const linkedNodes = getLinkedListNodes(predictions);
+      setLinkedListCount(linkedNodes.length);
 
-      if (cups.length >= 1 && (mode === "Auto" || mode === "Linked List")) {
-        const cupsSorted = [...cups].sort((a, b) => a.bbox[0] - b.bbox[0]);
+      if (linkedNodes.length >= 1 && (mode === "Auto" || mode === "Linked List")) {
+        const nodesSorted = [...linkedNodes].sort(
+          (a, b) => a.bbox[0] - b.bbox[0]
+        );
 
         ctx.lineWidth = 2;
 
-        cupsSorted.forEach((p, index) => {
+        nodesSorted.forEach((p, index) => {
           const [x, y, width, height] = p.bbox;
           const cx = x + width / 2;
           const cy = y + height / 2;
@@ -509,7 +521,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           ctx.strokeStyle = "#facc15";
           ctx.strokeRect(x, y, width, height);
 
-          const label = `node[${index}]`;
+          const label = `node[${index}] ${p.class}`;
           const labelHeight = 20;
           ctx.fillStyle = "#facc15";
           ctx.fillRect(x, y - labelHeight, width, labelHeight);
@@ -518,8 +530,8 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           ctx.font = "14px Arial";
           ctx.fillText(label, x + 4, y - 4);
 
-          if (index < cupsSorted.length - 1) {
-            const next = cupsSorted[index + 1];
+          if (index < nodesSorted.length - 1) {
+            const next = nodesSorted[index + 1];
             const [nx, ny, nWidth, nHeight] = next.bbox;
             const nCx = nx + nWidth / 2;
             const nCy = ny + nHeight / 2;
@@ -593,9 +605,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             const books = predictions.filter(
               (p) => p.class === "book" && p.score > 0.4
             );
-            const cups = predictions.filter(
-              (p) => p.class === "cup" && p.score > 0.4
-            );
+            const linkedNodes = getLinkedListNodes(predictions);
 
             // queue items = side-view person / book / cellphone
             const queueItems = predictions.filter(
@@ -609,7 +619,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
 
             setBookCount(books.length);
             setQueueCount(queueItems.length);
-            setLinkedListCount(cups.length);
+            setLinkedListCount(linkedNodes.length);
 
             let stacks = [];
             if (books.length > 0 && window.cv) {
