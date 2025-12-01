@@ -1,6 +1,55 @@
 // ../components/ObjectDetection.jsx
 import React, { useRef, useEffect, useState } from "react";
 
+// ✅ CLASSES for "Array" mode
+const ARRAY_CLASSES = ["laptop", "book", "chair", "bottle", "cell phone"];
+
+/**
+ * Simple heuristic para i-approx kung front view yung object.
+ * Ginagamit lang yung aspect ratio ng bounding box.
+ * (di perfect pero enough na pang demo / filtering ng sobrang side view)
+ */
+const isFrontView = (pred) => {
+  const [x, y, w, h] = pred.bbox;
+  if (w <= 0 || h <= 0) return false;
+  const aspect = w / h;
+
+  switch (pred.class) {
+    case "laptop":
+      // usually mas wide pag front (open) vs sobrang thin pag side
+      return aspect > 1.1 && aspect < 3.5;
+    case "book":
+    case "cell phone":
+      // i-allow both medyo vertical at medyo square, skip sobrang pahaba
+      return aspect > 0.35 && aspect < 1.8;
+    case "bottle":
+      // front bottle vs sobrang side → skip sobrang weird ratios
+      return aspect > 0.3 && aspect < 0.9;
+    case "chair":
+      return aspect > 0.6 && aspect < 2.0;
+    default:
+      return true;
+  }
+};
+
+/**
+ * Unified array detection:
+ * - filter by ARRAY_CLASSES
+ * - score > 0.4
+ * - front view only (via isFrontView)
+ * - sort left-to-right para maging index[0..n]
+ */
+const getArrayObjects = (predictions) => {
+  return predictions
+    .filter(
+      (p) =>
+        ARRAY_CLASSES.includes(p.class) &&
+        p.score > 0.4 &&
+        isFrontView(p)
+    )
+    .sort((a, b) => a.bbox[0] - b.bbox[0]); // left → right
+};
+
 // --- OpenCV-based book stack detection (unchanged) ---
 const detectBookStacksFromEdges = (videoEl) => {
   if (!window.cv || !videoEl.videoWidth || !videoEl.videoHeight) return [];
@@ -24,15 +73,7 @@ const detectBookStacksFromEdges = (videoEl) => {
     cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0, 0);
     cv.Canny(blur, edges, 50, 150);
 
-    cv.HoughLinesP(
-      edges,
-      lines,
-      1,
-      Math.PI / 180,
-      80,
-      50,
-      10
-    );
+    cv.HoughLinesP(edges, lines, 1, Math.PI / 180, 80, 50, 10);
 
     const verticalLines = [];
 
@@ -186,33 +227,27 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
     const analyzeScene = (predictions, stacks) => {
       const mode = selectedDSARef.current; // "none" | "Auto" | "Array" | "Stack" | "Queue" | "Linked List"
 
-      // ➜ Huwag mag-detect ng DSA kung wala pang napipili
       if (!mode || mode === "none") {
         setConcept("");
         setConceptDetail("");
         return;
       }
 
-      const phones = predictions.filter(
-        (p) => p.class === "cell phone" && p.score > 0.4
-      );
-      const bottles = predictions.filter(
-        (p) => p.class === "bottle" && p.score > 0.4
-      );
-      const books = predictions.filter(
-        (p) => p.class === "book" && p.score > 0.4
-      );
       const persons = predictions.filter(
         (p) => p.class === "person" && p.score > 0.4
       );
       const cups = predictions.filter(
         (p) => p.class === "cup" && p.score > 0.4
       );
+      const books = predictions.filter(
+        (p) => p.class === "book" && p.score > 0.4
+      );
 
+      const arrayLike = getArrayObjects(predictions);
+      const arrayLikeCount = arrayLike.length;
       const bookCountLocal = books.length;
       const queueCountLocal = persons.length;
       const cupCountLocal = cups.length;
-      const arrayLikeCount = phones.length + bottles.length;
 
       const tryQueue = () => {
         if (queueCountLocal >= 2) {
@@ -265,7 +300,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         if (arrayLikeCount >= 2) {
           setConcept("Array");
           setConceptDetail(
-            `Detected ${arrayLikeCount} similar objects (cellphones/bottles) → can be modeled as an Array (index-based, fixed positions).`
+            `Detected ${arrayLikeCount} front-view object(s) (laptop/book/chair/bottle/cell phone) → modeled as an Array (index-based, fixed positions).`
           );
           return true;
         }
@@ -331,31 +366,37 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
 
       const mode = selectedDSARef.current;
 
-      const phones = predictions.filter(
-        (p) => p.class === "cell phone" && p.score > 0.4
-      );
-      setArrayCount(phones.length);
+      // ✅ Unified ARRAY OBJECTS (laptop, book, chair, bottle, cell phone)
+      const arrayObjects = getArrayObjects(predictions);
+      setArrayCount(arrayObjects.length);
 
-      if (mode === "Auto" || mode === "Array") {
-        phones.forEach((p, index) => {
+      if (arrayObjects.length > 0 && (mode === "Auto" || mode === "Array")) {
+        arrayObjects.forEach((p, index) => {
           const [x, y, width, height] = p.bbox;
 
+          // box
           ctx.strokeStyle = "#00ff00";
           ctx.lineWidth = 4;
           ctx.strokeRect(x, y, width, height);
 
-          const label = `index[${index}]`;
+          // label sa baba ng box → index + class
+          const label = `index[${index}] ${p.class}`;
           const labelHeight = 26;
+          const labelPaddingX = 8;
+
+          const textWidth = ctx.measureText(label).width;
+          const bgWidth = Math.max(textWidth + labelPaddingX * 2, width);
 
           ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-          ctx.fillRect(x, y + height, width, labelHeight);
+          ctx.fillRect(x, y + height, bgWidth, labelHeight);
 
           ctx.fillStyle = "#00ff00";
-          ctx.font = "18px Arial";
-          ctx.fillText(label, x + 5, y + height + 18);
+          ctx.font = "16px Arial";
+          ctx.fillText(label, x + labelPaddingX, y + height + 18);
         });
       }
 
+      // QUEUE (persons)
       const persons = predictions.filter(
         (p) => p.class === "person" && p.score > 0.4
       );
@@ -385,6 +426,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         });
       }
 
+      // LINKED LIST (cups)
       const cups = predictions.filter(
         (p) => p.class === "cup" && p.score > 0.4
       );
@@ -428,6 +470,12 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           }
         });
       }
+
+      // STACK (books + OpenCV spine detection)
+      const books = predictions.filter(
+        (p) => p.class === "book" && p.score > 0.4
+      );
+      setBookCount(books.length);
 
       if (stacks && stacks.length > 0 && (mode === "Auto" || mode === "Stack")) {
         const stackColors = ["#f97316", "#3b82f6", "#ec4899", "#22c55e"];
@@ -575,7 +623,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             bottom: 12,
             left: 12,
             transform: "none",
-            // mas maliit na card sa gilid
             maxWidth: "65%",
             padding: "8px 10px",
             borderRadius: 8,
@@ -585,7 +632,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             fontSize: "0.75rem",
             lineHeight: 1.3,
             backdropFilter: "blur(4px)",
-            // para di na sakupin buong screen pag mahaba explanation
             maxHeight: "35%",
             overflowY: "auto",
           }}
@@ -609,7 +655,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           <div>{conceptDetail}</div>
         </div>
       )}
-
 
       {/* 🔥 LOADING OVERLAY */}
       {isLoading && (
