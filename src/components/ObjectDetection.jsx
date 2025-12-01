@@ -1,134 +1,12 @@
 // ../components/ObjectDetection.jsx
 import React, { useRef, useEffect, useState } from "react";
 
-// --- OpenCV-based book stack detection (unchanged) ---
-const detectBookStacksFromEdges = (videoEl) => {
-  if (!window.cv || !videoEl.videoWidth || !videoEl.videoHeight) return [];
-
-  const cv = window.cv;
-
-  const capCanvas = document.createElement("canvas");
-  capCanvas.width = videoEl.videoWidth;
-  capCanvas.height = videoEl.videoHeight;
-  const capCtx = capCanvas.getContext("2d");
-  capCtx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
-
-  const frame = cv.imread(capCanvas);
-  const gray = new cv.Mat();
-  const blur = new cv.Mat();
-  const edges = new cv.Mat();
-  const lines = new cv.Mat();
-
-  try {
-    cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
-    cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0, 0);
-    cv.Canny(blur, edges, 50, 150);
-
-    cv.HoughLinesP(
-      edges,
-      lines,
-      1,
-      Math.PI / 180,
-      80,
-      50,
-      10
-    );
-
-    const verticalLines = [];
-
-    for (let i = 0; i < lines.rows; i++) {
-      const x1 = lines.data32S[i * 4 + 0];
-      const y1 = lines.data32S[i * 4 + 1];
-      const x2 = lines.data32S[i * 4 + 2];
-      const y2 = lines.data32S[i * 4 + 3];
-
-      const dx = Math.abs(x2 - x1);
-      const dy = Math.abs(y2 - y1);
-
-      if (dx < 15 && dy > 40) {
-        const cx = (x1 + x2) / 2;
-        const yTop = Math.min(y1, y2);
-        const yBottom = Math.max(y1, y2);
-        verticalLines.push({ x1, y1, x2, y2, x: cx, yTop, yBottom });
-      }
-    }
-
-    if (verticalLines.length < 2) {
-      return [];
-    }
-
-    verticalLines.sort((a, b) => a.x - b.x);
-
-    const stacks = [];
-    const distanceThreshold = 40;
-
-    verticalLines.forEach((line) => {
-      if (stacks.length === 0) {
-        stacks.push([line]);
-        return;
-      }
-
-      const lastStack = stacks[stacks.length - 1];
-      const lastLine = lastStack[lastStack.length - 1];
-
-      if (Math.abs(line.x - lastLine.x) <= distanceThreshold) {
-        lastStack.push(line);
-      } else {
-        stacks.push([line]);
-      }
-    });
-
-    stacks.forEach((stack) => {
-      stack.sort((a, b) => a.yTop - b.yTop);
-    });
-
-    return stacks;
-  } catch (e) {
-    console.error("OpenCV stack detection error:", e);
-    return [];
-  } finally {
-    frame.delete();
-    gray.delete();
-    blur.delete();
-    edges.delete();
-    lines.delete();
-  }
-};
-
-// Helper to draw arrow (linked list)
-const drawArrow = (ctx, x1, y1, x2, y2) => {
-  const headLen = 10;
-  const angle = Math.atan2(y2 - y1, x2 - x1);
-
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(x2, y2);
-  ctx.lineTo(
-    x2 - headLen * Math.cos(angle - Math.PI / 6),
-    y2 - headLen * Math.sin(angle - Math.PI / 6)
-  );
-  ctx.lineTo(
-    x2 - headLen * Math.cos(angle + Math.PI / 6),
-    y2 - headLen * Math.sin(angle + Math.PI / 6)
-  );
-  ctx.closePath();
-  ctx.fill();
-};
-
 const ObjectDection = ({ selectedDSA = "none" }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
   const [status, setStatus] = useState("Loading model...");
   const [arrayCount, setArrayCount] = useState(0);
-  const [bookCount, setBookCount] = useState(0);
-  const [queueCount, setQueueCount] = useState(0);
-  const [linkedListCount, setLinkedListCount] = useState(0);
-  const [debugLabels, setDebugLabels] = useState([]);
   const [concept, setConcept] = useState("");
   const [conceptDetail, setConceptDetail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -144,6 +22,32 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
     let animationFrameId = null;
     let lastDetection = 0;
     const DETECT_INTERVAL = 200; // ms
+
+    // ✅ Mga klase ng object na puwedeng gawing Array
+    const ARRAY_CLASSES = ["cell phone", "bottle", "laptop", "book", "chair"];
+
+    // ✅ Helper: piliin lang yung nasa "front row" (pinaka-ibaba sa frame)
+    const getFrontRowObjects = (objects) => {
+      if (!objects || objects.length <= 1) {
+        // wala o isa lang – treat as is
+        return objects || [];
+      }
+
+      // gamitin yung bottomY = y + height
+      const bottoms = objects.map((p) => p.bbox[1] + p.bbox[3]);
+      const maxBottom = Math.max(...bottoms);
+
+      // threshold para sa front row – malapit sa maxBottom
+      const THRESHOLD = 40; // px margin, adjust kung gusto mong mas strict
+
+      const front = objects.filter((p) => {
+        const bottom = p.bbox[1] + p.bbox[3];
+        return bottom >= maxBottom - THRESHOLD;
+      });
+
+      // sort left → right para array index (0,1,2…) based sa x
+      return front.sort((a, b) => a.bbox[0] - b.bbox[0]);
+    };
 
     const start = async () => {
       try {
@@ -183,8 +87,8 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       }
     };
 
-    const analyzeScene = (predictions, stacks) => {
-      const mode = selectedDSARef.current; // "none" | "Auto" | "Array" | "Stack" | "Queue" | "Linked List"
+    const analyzeScene = (predictions) => {
+      const mode = selectedDSARef.current; // "none" | "Auto" | "Array" | ...
 
       // ➜ Huwag mag-detect ng DSA kung wala pang napipili
       if (!mode || mode === "none") {
@@ -193,120 +97,28 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         return;
       }
 
-      const phones = predictions.filter(
-        (p) => p.class === "cell phone" && p.score > 0.4
-      );
-      const bottles = predictions.filter(
-        (p) => p.class === "bottle" && p.score > 0.4
-      );
-      const books = predictions.filter(
-        (p) => p.class === "book" && p.score > 0.4
-      );
-      const persons = predictions.filter(
-        (p) => p.class === "person" && p.score > 0.4
-      );
-      const cups = predictions.filter(
-        (p) => p.class === "cup" && p.score > 0.4
+      // ✅ Kuha lahat ng array-like objects (laptop, book, chair, bottle, cell phone)
+      const arrayCandidates = predictions.filter(
+        (p) => ARRAY_CLASSES.includes(p.class) && p.score > 0.4
       );
 
-      const bookCountLocal = books.length;
-      const queueCountLocal = persons.length;
-      const cupCountLocal = cups.length;
-      const arrayLikeCount = phones.length + bottles.length;
-
-      const tryQueue = () => {
-        if (queueCountLocal >= 2) {
-          const ys = persons.map((p) => p.bbox[1]);
-          const maxY = Math.max(...ys);
-          const minY = Math.min(...ys);
-          if (maxY - minY < 80) {
-            setConcept("Queue (FIFO)");
-            setConceptDetail(
-              `Detected ${queueCountLocal} person(s) in a horizontal line → behaves like a Queue (First In, First Out).`
-            );
-            return true;
-          }
-        }
-        return false;
-      };
-
-      const tryStack = () => {
-        if (bookCountLocal >= 1 && stacks && stacks.length >= 1) {
-          const stackCount = stacks.length;
-          setConcept("Stack (LIFO)");
-          setConceptDetail(
-            `Detected ${bookCountLocal} book(s) arranged into ${stackCount} stack(s) via vertical edges (spines) → behaves like a Stack (Last In, First Out).`
-          );
-          return true;
-        }
-        return false;
-      };
-
-      const tryLinkedList = () => {
-        if (cupCountLocal >= 3) {
-          const cupsSorted = [...cups].sort((a, b) => a.bbox[0] - b.bbox[0]);
-          const ys = cupsSorted.map((c) => c.bbox[1]);
-          const maxY = Math.max(...ys);
-          const minY = Math.min(...ys);
-          const yRange = maxY - minY;
-
-          if (yRange < 80) {
-            setConcept("Linked List");
-            setConceptDetail(
-              `Detected ${cupCountLocal} cup node(s) aligned in a row → can be modeled as a Singly Linked List (each node points to the next, last points to null).`
-            );
-            return true;
-          }
-        }
-        return false;
-      };
+      // ✅ Limit lang sa front row para sa Array
+      const frontRowObjects = getFrontRowObjects(arrayCandidates);
+      const arrayLikeCount = frontRowObjects.length;
 
       const tryArray = () => {
         if (arrayLikeCount >= 2) {
           setConcept("Array");
           setConceptDetail(
-            `Detected ${arrayLikeCount} similar objects (cellphones/bottles) → can be modeled as an Array (index-based, fixed positions).`
+            `Detected ${arrayLikeCount} similar objects in the front row (laptop/book/chair/bottle/cell phone) → can be modeled as an Array (index-based, fixed positions).`
           );
           return true;
         }
         return false;
       };
 
-      if (mode === "Auto") {
-        if (tryQueue()) return;
-        if (tryStack()) return;
-        if (tryLinkedList()) return;
-        if (tryArray()) return;
-        setConcept("");
-        setConceptDetail("");
-        return;
-      }
-
-      if (mode === "Queue") {
-        if (!tryQueue()) {
-          setConcept("");
-          setConceptDetail("");
-        }
-        return;
-      }
-
-      if (mode === "Stack") {
-        if (!tryStack()) {
-          setConcept("");
-          setConceptDetail("");
-        }
-        return;
-      }
-
-      if (mode === "Linked List") {
-        if (!tryLinkedList()) {
-          setConcept("");
-          setConceptDetail("");
-        }
-        return;
-      }
-
-      if (mode === "Array") {
+      // Sa ngayon, ang "Auto" at "Array" mode lang ang may logic
+      if (mode === "Auto" || mode === "Array") {
         if (!tryArray()) {
           setConcept("");
           setConceptDetail("");
@@ -314,11 +126,12 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         return;
       }
 
+      // Iba pang mode (Stack, Queue, Linked List) – wala munang ginagawa
       setConcept("");
       setConceptDetail("");
     };
 
-    const draw = (predictions, stacks) => {
+    const draw = (predictions) => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       if (!video || !canvas) return;
@@ -331,13 +144,17 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
 
       const mode = selectedDSARef.current;
 
-      const phones = predictions.filter(
-        (p) => p.class === "cell phone" && p.score > 0.4
+      // ✅ Parehong logic: piliin lang mga puwedeng Array, tapos front row
+      const arrayCandidates = predictions.filter(
+        (p) => ARRAY_CLASSES.includes(p.class) && p.score > 0.4
       );
-      setArrayCount(phones.length);
+      const arrayObjects = getFrontRowObjects(arrayCandidates);
 
-      if (mode === "Auto" || mode === "Array") {
-        phones.forEach((p, index) => {
+      // count = front-row array objects
+      setArrayCount(arrayObjects.length);
+
+      if (arrayObjects.length > 0 && (mode === "Auto" || mode === "Array")) {
+        arrayObjects.forEach((p, index) => {
           const [x, y, width, height] = p.bbox;
 
           ctx.strokeStyle = "#00ff00";
@@ -355,108 +172,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           ctx.fillText(label, x + 5, y + height + 18);
         });
       }
-
-      const persons = predictions.filter(
-        (p) => p.class === "person" && p.score > 0.4
-      );
-      setQueueCount(persons.length);
-
-      if (persons.length > 0 && (mode === "Auto" || mode === "Queue")) {
-        const personsSorted = [...persons].sort(
-          (a, b) => a.bbox[0] - b.bbox[0]
-        );
-
-        personsSorted.forEach((p, index) => {
-          const [x, y, width, height] = p.bbox;
-
-          ctx.strokeStyle = "#e5e7eb";
-          ctx.lineWidth = 3;
-          ctx.strokeRect(x, y, width, height);
-
-          const label = `Q[${index}]`;
-          const labelHeight = 22;
-
-          ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
-          ctx.fillRect(x, y - labelHeight, width * 0.6, labelHeight);
-
-          ctx.fillStyle = "#f9fafb";
-          ctx.font = "14px Arial";
-          ctx.fillText(label, x + 4, y - 6);
-        });
-      }
-
-      const cups = predictions.filter(
-        (p) => p.class === "cup" && p.score > 0.4
-      );
-      setLinkedListCount(cups.length);
-
-      if (cups.length >= 1 && (mode === "Auto" || mode === "Linked List")) {
-        const cupsSorted = [...cups].sort((a, b) => a.bbox[0] - b.bbox[0]);
-
-        ctx.lineWidth = 2;
-
-        cupsSorted.forEach((p, index) => {
-          const [x, y, width, height] = p.bbox;
-          const cx = x + width / 2;
-          const cy = y + height / 2;
-
-          ctx.strokeStyle = "#facc15";
-          ctx.strokeRect(x, y, width, height);
-
-          const label = `node[${index}]`;
-          const labelHeight = 20;
-          ctx.fillStyle = "#facc15";
-          ctx.fillRect(x, y - labelHeight, width, labelHeight);
-
-          ctx.fillStyle = "#0f172a";
-          ctx.font = "14px Arial";
-          ctx.fillText(label, x + 4, y - 4);
-
-          if (index < cupsSorted.length - 1) {
-            const next = cupsSorted[index + 1];
-            const [nx, ny, nWidth, nHeight] = next.bbox;
-            const nCx = nx + nWidth / 2;
-            const nCy = ny + nHeight / 2;
-
-            ctx.strokeStyle = "#facc15";
-            ctx.fillStyle = "#facc15";
-            drawArrow(ctx, cx + width / 2, cy, nCx - nWidth / 2, nCy);
-          } else {
-            ctx.fillStyle = "#facc15";
-            ctx.font = "14px Arial";
-            ctx.fillText("null", cx + width / 2 + 10, cy + 4);
-          }
-        });
-      }
-
-      if (stacks && stacks.length > 0 && (mode === "Auto" || mode === "Stack")) {
-        const stackColors = ["#f97316", "#3b82f6", "#ec4899", "#22c55e"];
-
-        stacks.forEach((stack, sIdx) => {
-          const color = stackColors[sIdx % stackColors.length];
-
-          stack.forEach((line) => {
-            ctx.beginPath();
-            ctx.moveTo(line.x1, line.y1);
-            ctx.lineTo(line.x2, line.y2);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
-            ctx.stroke();
-          });
-
-          const avgX =
-            stack.reduce((sum, l) => sum + l.x, 0) / Math.max(stack.length, 1);
-          const topY = Math.min(...stack.map((l) => l.yTop));
-
-          ctx.fillStyle = color;
-          ctx.font = "16px Arial";
-          ctx.fillText(
-            `Stack ${sIdx + 1} (${stack.length} book/s)`,
-            avgX - 50,
-            Math.max(20, topY - 10)
-          );
-        });
-      }
     };
 
     const detectLoop = async () => {
@@ -468,32 +183,8 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           try {
             const predictions = await model.detect(videoRef.current);
 
-            setDebugLabels(
-              predictions.map(
-                (p) => `${p.class} (${Math.round(p.score * 100)}%)`
-              )
-            );
-
-            const books = predictions.filter(
-              (p) => p.class === "book" && p.score > 0.4
-            );
-            const persons = predictions.filter(
-              (p) => p.class === "person" && p.score > 0.4
-            );
-            const cups = predictions.filter(
-              (p) => p.class === "cup" && p.score > 0.4
-            );
-            setBookCount(books.length);
-            setQueueCount(persons.length);
-            setLinkedListCount(cups.length);
-
-            let stacks = [];
-            if (books.length > 0 && window.cv) {
-              stacks = detectBookStacksFromEdges(videoRef.current);
-            }
-
-            draw(predictions, stacks);
-            analyzeScene(predictions, stacks);
+            draw(predictions);
+            analyzeScene(predictions);
           } catch (err) {
             console.error("Detection error:", err);
           }
@@ -564,7 +255,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           maxWidth: "100%",
         }}
       >
-        DSA Concept Detection · {status}
+        DSA Concept Detection · {status} · Array count: {arrayCount}
       </div>
 
       {/* DATA STRUCTURE OVERLAY – only when may concept */}
@@ -575,7 +266,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             bottom: 12,
             left: 12,
             transform: "none",
-            // mas maliit na card sa gilid
             maxWidth: "65%",
             padding: "8px 10px",
             borderRadius: 8,
@@ -585,7 +275,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             fontSize: "0.75rem",
             lineHeight: 1.3,
             backdropFilter: "blur(4px)",
-            // para di na sakupin buong screen pag mahaba explanation
             maxHeight: "35%",
             overflowY: "auto",
           }}
@@ -609,7 +298,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           <div>{conceptDetail}</div>
         </div>
       )}
-
 
       {/* 🔥 LOADING OVERLAY */}
       {isLoading && (
