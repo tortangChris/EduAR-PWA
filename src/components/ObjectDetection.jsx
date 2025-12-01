@@ -33,6 +33,30 @@ const isFrontView = (pred) => {
 };
 
 /**
+ * Side-view / naka-pila candidate para sa Queue:
+ * - person na sobrang "vertical" (makitid)
+ * - book / cell phone na HINDI pasado sa front-view (so side / nakatagilid)
+ */
+const isSideViewQueueItem = (pred) => {
+  const [x, y, w, h] = pred.bbox;
+  if (w <= 0 || h <= 0) return false;
+
+  const aspect = w / h; // width / height
+
+  if (pred.class === "person") {
+    // tao na payat na box (tall & skinny) → side view / naka-pila
+    return aspect < 0.55;
+  }
+
+  if (pred.class === "book" || pred.class === "cell phone") {
+    // kung HINDI siya front-view → treat as side-view
+    return !isFrontView(pred);
+  }
+
+  return false;
+};
+
+/**
  * Unified array detection:
  * - filter by ARRAY_CLASSES
  * - score > 0.4
@@ -243,21 +267,33 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         (p) => p.class === "book" && p.score > 0.4
       );
 
+      // 🔥 Queue candidates: tao OR book OR cellphone na side-view / nakatagilid
+      const queueItems = predictions.filter(
+        (p) =>
+          (p.class === "person" ||
+            p.class === "book" ||
+            p.class === "cell phone") &&
+          p.score > 0.4 &&
+          isSideViewQueueItem(p)
+      );
+
       const arrayLike = getArrayObjects(predictions);
       const arrayLikeCount = arrayLike.length;
       const bookCountLocal = books.length;
-      const queueCountLocal = persons.length;
+      const queueCountLocal = queueItems.length;
       const cupCountLocal = cups.length;
 
       const tryQueue = () => {
         if (queueCountLocal >= 2) {
-          const ys = persons.map((p) => p.bbox[1]);
+          const ys = queueItems.map((p) => p.bbox[1]);
           const maxY = Math.max(...ys);
           const minY = Math.min(...ys);
+
+          // halos magkakapantay sa Y → naka-pila sa isang linya
           if (maxY - minY < 80) {
             setConcept("Queue (FIFO)");
             setConceptDetail(
-              `Detected ${queueCountLocal} person(s) in a horizontal line → behaves like a Queue (First In, First Out).`
+              `Detected ${queueCountLocal} side-view item(s) (person/book/cell phone) in a line → behaves like a Queue (First In, First Out).`
             );
             return true;
           }
@@ -396,29 +432,35 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         });
       }
 
-      // QUEUE (persons)
-      const persons = predictions.filter(
-        (p) => p.class === "person" && p.score > 0.4
+      // QUEUE (side-view persons / books / cell phones)
+      const queueItems = predictions.filter(
+        (p) =>
+          (p.class === "person" ||
+            p.class === "book" ||
+            p.class === "cell phone") &&
+          p.score > 0.4 &&
+          isSideViewQueueItem(p)
       );
-      setQueueCount(persons.length);
+      setQueueCount(queueItems.length);
 
-      if (persons.length > 0 && (mode === "Auto" || mode === "Queue")) {
-        const personsSorted = [...persons].sort(
+      if (queueItems.length > 0 && (mode === "Auto" || mode === "Queue")) {
+        const queueSorted = [...queueItems].sort(
           (a, b) => a.bbox[0] - b.bbox[0]
         );
 
-        personsSorted.forEach((p, index) => {
+        queueSorted.forEach((p, index) => {
           const [x, y, width, height] = p.bbox;
 
           ctx.strokeStyle = "#e5e7eb";
           ctx.lineWidth = 3;
           ctx.strokeRect(x, y, width, height);
 
-          const label = `Q[${index}]`;
+          // label: Q[index] + class (para kita kung tao / book / phone)
+          const label = `Q[${index}] ${p.class}`;
           const labelHeight = 22;
 
           ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
-          ctx.fillRect(x, y - labelHeight, width * 0.6, labelHeight);
+          ctx.fillRect(x, y - labelHeight, width * 0.9, labelHeight);
 
           ctx.fillStyle = "#f9fafb";
           ctx.font = "14px Arial";
@@ -531,8 +573,19 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             const cups = predictions.filter(
               (p) => p.class === "cup" && p.score > 0.4
             );
+
+            // queue items = side-view person / book / cellphone
+            const queueItems = predictions.filter(
+              (p) =>
+                (p.class === "person" ||
+                  p.class === "book" ||
+                  p.class === "cell phone") &&
+                p.score > 0.4 &&
+                isSideViewQueueItem(p)
+            );
+
             setBookCount(books.length);
-            setQueueCount(persons.length);
+            setQueueCount(queueItems.length);
             setLinkedListCount(cups.length);
 
             let stacks = [];
