@@ -34,31 +34,37 @@ const isFrontView = (pred) => {
 
 /**
  * Side-view / naka-pila candidate para sa Queue:
- * - person na tall & skinny (side view) AT halos buong katawan (h malaki
- *   relative sa frameHeight, para hindi face/hand lang)
- * - book / cell phone na HINDI front-view (so side / nakatagilid)
+ * - person: tall & skinny (side view) at halos buong katawan (height vs frame)
+ * - book / cell phone: hindi front view (so side / nakatagilid) at di sobrang liit
+ *
+ * NOTE:
+ *  - Person → may whole-body filter (para walang face/hand boxes).
+ *  - Book/phone → mas relaxed, para kahit maliit pero malinaw na side view,
+ *    puwedeng isama sa queue.
  */
 const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
   const [x, y, w, h] = pred.bbox;
   if (w <= 0 || h <= 0) return false;
-  if (!frameWidth || !frameHeight) return false;
-
-  // 🔒 reject sobrang liit na box (madalas face/hand/partial lang)
-  const minHeight = frameHeight * 0.45; // ~45% ng frame → almost full body
-  const minWidth = frameWidth * 0.05;   // at least 5% ng width
-
-  if (h < minHeight || w < minWidth) return false;
 
   const aspect = w / h; // width / height
 
   if (pred.class === "person") {
-    // tao na payat na box (tall & skinny) → side view / naka-pila
-    // limit din sa lower bound para hindi sobrang sobrang nipis
+    if (!frameWidth || !frameHeight) return false;
+    // 🔒 almost full body
+    const minHeight = frameHeight * 0.45; // ~45% ng frame height
+    const minWidth = frameWidth * 0.05;   // ~5% ng frame width
+
+    if (h < minHeight || w < minWidth) return false;
+
+    // tall & skinny → side-view na tao
     return aspect < 0.6 && aspect > 0.2;
   }
 
   if (pred.class === "book" || pred.class === "cell phone") {
-    // kung HINDI siya front-view → treat as side-view / nakatagilid
+    // skip super tiny na noise
+    if (h < 40 || w < 20) return false;
+
+    // side-view book/phone → hindi pasado sa front-view rules
     return !isFrontView(pred);
   }
 
@@ -71,6 +77,10 @@ const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
  * - score > 0.4
  * - front view only (via isFrontView)
  * - sort left-to-right para maging index[0..n]
+ *
+ * So:
+ *  - front-view book/phone → Array
+ *  - side-view book/phone → puwedeng Queue (via isSideViewQueueItem)
  */
 const getArrayObjects = (predictions) => {
   return predictions
@@ -270,9 +280,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const frameWidth = video?.videoWidth || 0;
       const frameHeight = video?.videoHeight || 0;
 
-      const persons = predictions.filter(
-        (p) => p.class === "person" && p.score > 0.4
-      );
       const cups = predictions.filter(
         (p) => p.class === "cup" && p.score > 0.4
       );
@@ -280,7 +287,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         (p) => p.class === "book" && p.score > 0.4
       );
 
-      // 🔥 Queue candidates: tao OR book OR cellphone na side-view / nakatagilid
+      // 🔥 Queue candidates: person / book / cellphone na side-view / nakatagilid
       const queueItems = predictions.filter(
         (p) =>
           (p.class === "person" ||
@@ -297,7 +304,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const cupCountLocal = cups.length;
 
       const tryQueue = () => {
-        // 👉 Gamit na natin yung queueItems (side-view + malaki lang)
         if (queueCountLocal >= 2) {
           const ys = queueItems.map((p) => p.bbox[1]);
           const maxY = Math.max(...ys);
@@ -591,7 +597,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
               (p) => p.class === "cup" && p.score > 0.4
             );
 
-            // queue items = side-view person / book / cellphone (buong katawan / malaki lang)
+            // queue items = side-view person / book / cellphone
             const queueItems = predictions.filter(
               (p) =>
                 (p.class === "person" ||
