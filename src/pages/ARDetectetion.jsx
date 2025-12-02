@@ -11,7 +11,6 @@ const ARDetection = () => {
 
   const dsaModes = [
     { value: "none", label: "Off" },
-    { value: "Auto", label: "Auto" },
     { value: "Array", label: "Array" },
     { value: "Stack", label: "Stack" },
     { value: "Queue", label: "Queue" },
