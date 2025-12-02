@@ -29,7 +29,7 @@ const ARDetection = () => {
             <div>
               <h2 className="text-xl font-bold">Scan Objects</h2>
               <p className="text-sm text-gray-500">
-                Find the Real-Object of Data Structure
+                Find the Real-Object of DSA
               </p>
             </div>
           </div>
