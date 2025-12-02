@@ -1,4 +1,3 @@
-// AssessmentAR.jsx
 import React, { useMemo, useState, useEffect, useRef, forwardRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
@@ -8,7 +7,7 @@ const DEFAULT_DATA = [10, 20, 30, 40, 50];
 
 const AssessmentAR = ({
   initialData = DEFAULT_DATA,
-  spacing = 2.5,
+  spacing = 2.0,
   passingRatio = 0.75,
   onPassStatusChange,
 }) => {
@@ -26,17 +25,33 @@ const AssessmentAR = ({
   const totalAssessments = 4;
 
   const [isPassed, setIsPassed] = useState(false);
-  const [draggedNode, setDraggedNode] = useState(null);
-  const [dragPosition, setDragPosition] = useState([0, 0, 0]);
-  const [isDragging, setIsDragging] = useState(false);
+  
+  // AR Drag state
+  const [draggedBox, setDraggedBox] = useState(null);
+  const [isDraggingStructure, setIsDraggingStructure] = useState(false);
+  
+  // Structure position (whole structure moves together)
+  const [structurePos, setStructurePos] = useState([0, 0, -8]);
 
-  const nodeRefs = useRef([]);
-  const dropZoneRef = useRef();
+  const boxRefs = useRef([]);
+  const structureRef = useRef();
+  const answerZoneRef = useRef();
+
+  const addBoxRef = (r) => {
+    if (r && !boxRefs.current.includes(r)) boxRefs.current.push(r);
+  };
 
   const originalPositions = useMemo(() => {
     const mid = (data.length - 1) / 2;
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
+
+  const [boxPositions, setBoxPositions] = useState([]);
+
+  // Initialize box positions
+  useEffect(() => {
+    setBoxPositions(originalPositions.map(pos => [...pos]));
+  }, [originalPositions]);
 
   // On mount, check localStorage
   useEffect(() => {
@@ -57,8 +72,8 @@ const AssessmentAR = ({
     setSelectedIndex(null);
     setFeedback(null);
     setAnimState({});
-    setDraggedNode(null);
-    setIsDragging(false);
+    setDraggedBox(null);
+    setBoxPositions(originalPositions.map(pos => [...pos]));
 
     if (mode === "access") prepareAccessQuestion();
     if (mode === "search") prepareSearchQuestion();
@@ -94,11 +109,10 @@ const AssessmentAR = ({
   const nextMode = () =>
     setModeIndex((m) => Math.min(m + 1, modes.length - 1));
 
-  // --- Question generators ---
   const prepareAccessQuestion = () => {
     const idx = Math.floor(Math.random() * data.length);
     setQuestion({
-      prompt: `Access the element at index ${idx}. Drag it to the answer zone. (O(1))`,
+      prompt: `Drag the box at index ${idx} to the answer zone. (Access — O(1))`,
       answerIndex: idx,
       type: "access",
     });
@@ -107,7 +121,7 @@ const AssessmentAR = ({
   const prepareSearchQuestion = () => {
     const value = data[Math.floor(Math.random() * data.length)];
     setQuestion({
-      prompt: `Search for value ${value}. Drag the correct box to the answer zone. (O(n))`,
+      prompt: `Drag the box containing value ${value} to the answer zone. (Search — O(n))`,
       answerValue: value,
       type: "search",
     });
@@ -116,50 +130,34 @@ const AssessmentAR = ({
   const prepareInsertQuestion = () => {
     const insertValue = 99;
     const k = Math.floor(Math.random() * data.length);
+    const answerIndex = k < data.length ? k : data.length - 1;
     setQuestion({
-      prompt: `To insert ${insertValue} at index ${k}, which element shifts right first? (O(n))`,
+      prompt: `If we insert ${insertValue} at index ${k}, which element will shift? Drag it to the answer zone.`,
       insertValue,
       k,
-      answerIndex: k,
+      answerIndex,
       type: "insert",
     });
   };
 
   const prepareDeleteQuestion = () => {
-    const k = Math.floor(Math.random() * data.length);
+    let k = Math.floor(Math.random() * data.length);
+    if (k === data.length - 1 && data.length > 1) k = data.length - 2;
+    const answerIndex = k + 1 < data.length ? k + 1 : null;
     setQuestion({
-      prompt: `Delete element at index ${k}. Drag the element to be removed. (O(n))`,
+      prompt: `Delete value at index ${k}. Which value will end up at index ${k}? Drag it to the answer zone.`,
       k,
-      answerIndex: k,
+      answerIndex,
       type: "delete",
     });
   };
 
-  // Drag functions
-  const onDragStart = (index) => {
-    setDraggedNode(index);
-    setDragPosition([...originalPositions[index]]);
-    setIsDragging(true);
-    setSelectedIndex(index);
-  };
-
-  const onDragMove = (newPos) => {
-    setDragPosition(newPos);
-  };
-
-  const onDragEnd = () => {
-    // Check if dropped on answer zone
-    if (draggedNode !== null && isOverDropZone(dragPosition)) {
-      handleDropOnAnswer(draggedNode);
-    }
-    
-    setDraggedNode(null);
-    setIsDragging(false);
-  };
-
-  const isOverDropZone = (pos) => {
-    // Drop zone is at z = 4, check if close enough
-    return pos[2] > 2.5 && Math.abs(pos[0]) < 3;
+  const resetBoxPosition = (index) => {
+    setBoxPositions((prev) => {
+      const updated = [...prev];
+      updated[index] = [...originalPositions[index]];
+      return updated;
+    });
   };
 
   const handleDropOnAnswer = (droppedIndex) => {
@@ -174,42 +172,54 @@ const AssessmentAR = ({
     if (question.type === "access") {
       correct = droppedIndex === question.answerIndex;
       markScore(correct);
-      showFeedback(correct, `Index ${droppedIndex} = ${data[droppedIndex]}`, () => {
+      showFeedback(correct, `Value ${data[droppedIndex]}`, () => {
+        resetBoxPosition(droppedIndex);
         nextMode();
       });
     } else if (question.type === "search") {
       correct = data[droppedIndex] === question.answerValue;
       markScore(correct);
-      showFeedback(correct, `Value ${data[droppedIndex]}`, () => {
+      showFeedback(correct, `Dropped ${data[droppedIndex]}`, () => {
+        resetBoxPosition(droppedIndex);
         nextMode();
       });
     } else if (question.type === "insert") {
       correct = droppedIndex === question.answerIndex;
       markScore(correct);
-      showFeedback(correct, `Index ${droppedIndex} shifts right`, () => {
+      showFeedback(correct, `Dropped ${data[droppedIndex]}`, () => {
         const newArr = [...data];
-        newArr.splice(question.k, 0, question.insertValue);
-        setAnimState({ new: question.k });
+        newArr.splice(
+          Math.min(question.k, newArr.length),
+          0,
+          question.insertValue
+        );
+        const shiftFlags = {};
+        for (let idx = question.k; idx < newArr.length; idx++)
+          shiftFlags[idx] = "shift";
+        setAnimState(shiftFlags);
         setTimeout(() => {
           setData(newArr);
           setAnimState({});
           nextMode();
-        }, 800);
+        }, 600);
       });
     } else if (question.type === "delete") {
-      correct = droppedIndex === question.answerIndex;
+      correct = question.answerIndex !== null && droppedIndex === question.answerIndex;
       markScore(correct);
-      showFeedback(correct, `Deleted index ${droppedIndex}`, () => {
-        setAnimState({ [question.k]: "fade" });
+      showFeedback(correct, `Dropped ${data[droppedIndex]}`, () => {
+        const newArr = [...data];
+        const fadeFlags = { [question.k]: "fade" };
+        setAnimState(fadeFlags);
         setTimeout(() => {
-          const newArr = [...data];
           newArr.splice(question.k, 1);
           setData(newArr);
           setAnimState({});
           nextMode();
-        }, 800);
+        }, 600);
       });
     }
+
+    setDraggedBox(null);
   };
 
   const showFeedback = (correct, label, callback) => {
@@ -220,21 +230,55 @@ const AssessmentAR = ({
     setTimeout(() => {
       setFeedback(null);
       callback && callback();
-    }, 1500);
+    }, 1200);
   };
 
-  const handleNodeClick = (i) => {
+  const handleBoxClick = (i) => {
     if (mode === "intro") {
       setModeIndex(1);
       return;
     }
-    setSelectedIndex((prev) => (prev === i ? null : i));
+    if (!isDraggingStructure) {
+      setSelectedIndex((prev) => (prev === i ? null : i));
+    }
   };
 
-  const addNodeRef = (r, index) => {
-    if (r) {
-      nodeRefs.current[index] = r;
+  // Structure drag handlers
+  const onStructureDragStart = () => {
+    setIsDraggingStructure(true);
+    setDraggedBox(null);
+    setSelectedIndex(null);
+  };
+
+  const onStructureDragMove = (newPos) => {
+    setStructurePos(newPos);
+  };
+
+  const onStructureDragEnd = () => {
+    setIsDraggingStructure(false);
+  };
+
+  // Box drag handlers for AR
+  const onBoxDragStart = (index) => {
+    setDraggedBox(index);
+    setSelectedIndex(index);
+  };
+
+  const onBoxDragMove = (index, newPos) => {
+    setBoxPositions((prev) => {
+      const updated = [...prev];
+      updated[index] = newPos;
+      return updated;
+    });
+  };
+
+  const onBoxDragEnd = (index, isOverAnswerZone) => {
+    if (isOverAnswerZone) {
+      handleDropOnAnswer(index);
+    } else {
+      resetBoxPosition(index);
     }
+    setDraggedBox(null);
   };
 
   const startAR = (gl) => {
@@ -257,7 +301,7 @@ const AssessmentAR = ({
   };
 
   return (
-    <div className="w-full h-[450px]">
+    <div className="w-full h-[400px]">
       <Canvas
         camera={{ position: [0, 5, 14], fov: 50 }}
         onCreated={({ gl }) => {
@@ -269,17 +313,18 @@ const AssessmentAR = ({
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
         <pointLight position={[-5, 5, 5]} intensity={0.3} />
 
-        <group position={[0, 0, -5]}>
+        {/* Whole structure group - moves together when dragging structure */}
+        <group position={structurePos} ref={structureRef}>
           {/* Header */}
           <FadeText
             text={
               mode === "intro"
-                ? "Array Assessment — AR Mode"
+                ? "Arrays — AR Assessment"
                 : mode === "done"
                 ? "Assessment Complete!"
-                : `Question ${modeIndex}: ${mode.toUpperCase()}`
+                : `Assessment ${modeIndex}: ${mode.toUpperCase()}`
             }
-            position={[0, 4.5, 0]}
+            position={[0, 4, 0]}
             fontSize={0.55}
             color="#facc15"
           />
@@ -287,8 +332,10 @@ const AssessmentAR = ({
           {/* Instruction or question */}
           <FadeText
             text={
-              mode === "intro"
-                ? "Tap the button below to start"
+              isDraggingStructure
+                ? "✋ Moving Structure..."
+                : mode === "intro"
+                ? "Tap the box below to start the assessment"
                 : mode === "done"
                 ? isPassed
                   ? "You passed this assessment!"
@@ -297,51 +344,44 @@ const AssessmentAR = ({
                 ? question.prompt
                 : ""
             }
-            position={[0, 3.7, 0]}
+            position={[0, 3.2, 0]}
             fontSize={0.28}
-            color="white"
+            color={isDraggingStructure ? "#f97316" : "white"}
           />
+
+          {/* AR Drag instruction */}
+          {mode !== "intro" && mode !== "done" && !isDraggingStructure && (
+            <FadeText
+              text="Long press box to drag • Long press empty space to move structure"
+              position={[0, 2.7, 0]}
+              fontSize={0.2}
+              color="#94a3b8"
+            />
+          )}
 
           {/* Progress indicator */}
           {mode !== "intro" && mode !== "done" && (
             <FadeText
               text={`Progress: ${modeIndex} / ${totalAssessments} | Score: ${score}`}
-              position={[0, 3.0, 0]}
+              position={[0, 2.3, 0]}
               fontSize={0.24}
               color="#fde68a"
             />
           )}
 
-          {/* Dragging indicator */}
-          {isDragging && draggedNode !== null && (
-            <FadeText
-              text={`✋ Dragging [${draggedNode}] → Drop in Answer Zone`}
-              position={[0, 2.4, 0]}
-              fontSize={0.3}
-              color="#f97316"
-            />
-          )}
-
-          {/* Ground Plane */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.2, 2]} receiveShadow>
-            <planeGeometry args={[20, 14]} />
-            <meshStandardMaterial color="#1e293b" transparent opacity={0.4} />
-          </mesh>
-
           {/* Answer Drop Zone */}
-          {mode !== "intro" && mode !== "done" && (
+          {mode !== "intro" && mode !== "done" && !isDraggingStructure && (
             <AnswerDropZone
-              ref={dropZoneRef}
-              position={[0, -0.5, 5]}
-              isActive={isDragging}
-              isHovered={isDragging && isOverDropZone(dragPosition)}
+              ref={answerZoneRef}
+              position={[0, -0.5, 4]}
+              isActive={draggedBox !== null}
               feedback={feedback}
             />
           )}
 
-          {/* Content based on mode */}
+          {/* Boxes */}
           {mode === "intro" ? (
-            <StartButton position={[0, 0.5, 0]} onClick={() => handleNodeClick(0)} />
+            <StartBox position={[0, 0, 0]} onClick={() => handleBoxClick(0)} />
           ) : mode === "done" ? (
             <>
               <FadeText
@@ -356,8 +396,8 @@ const AssessmentAR = ({
                 fontSize={0.45}
                 color={isPassed ? "#22c55e" : "#ef4444"}
               />
-              <RestartButton
-                position={[0, -0.3, 0]}
+              <RestartBox
+                position={[0, -0.5, 0]}
                 onClick={() => {
                   setModeIndex(0);
                   setData([...initialData]);
@@ -370,54 +410,57 @@ const AssessmentAR = ({
               />
             </>
           ) : (
-            <>
-              {/* Render nodes */}
-              {data.map((value, i) => {
-                const isBeingDragged = draggedNode === i;
-                const isFaded = animState[i] === "fade";
-                const isNew = animState.new === i;
+            data.map((value, i) => {
+              let extraOpacity = 1;
+              if (animState[i] === "fade") extraOpacity = 0.25;
+              const isSelected = selectedIndex === i;
 
-                return (
-                  <DraggableBox
-                    key={`box-${i}`}
-                    index={i}
-                    value={value}
-                    position={isBeingDragged ? dragPosition : originalPositions[i]}
-                    originalPosition={originalPositions[i]}
-                    selected={selectedIndex === i}
-                    isDragging={isBeingDragged}
-                    isOtherDragging={isDragging && !isBeingDragged}
-                    isFaded={isFaded}
-                    isNew={isNew}
-                    onClick={() => handleNodeClick(i)}
-                    ref={(r) => addNodeRef(r, i)}
-                  />
-                );
-              })}
-            </>
+              return (
+                <ARBox
+                  key={i}
+                  index={i}
+                  value={value}
+                  position={boxPositions[i] || originalPositions[i]}
+                  selected={isSelected}
+                  isDragging={draggedBox === i}
+                  opacity={extraOpacity}
+                  onClick={() => handleBoxClick(i)}
+                  ref={(r) => addBoxRef(r)}
+                />
+              );
+            })
           )}
 
-          {/* Feedback display */}
-          {feedback && (
+          {feedback && !isDraggingStructure && (
             <FloatingFeedback
               text={feedback.text}
               correct={feedback.correct}
-              position={[0, 2, 4]}
+              position={[0, 1.8, 4]}
             />
           )}
         </group>
 
         <ARInteractionManager
-          nodeRefs={nodeRefs}
-          isDragging={isDragging}
-          onDragStart={onDragStart}
-          onDragMove={onDragMove}
-          onDragEnd={onDragEnd}
+          boxRefs={boxRefs}
+          structureRef={structureRef}
+          answerZoneRef={answerZoneRef}
           mode={mode}
-          handleNodeClick={handleNodeClick}
+          draggedBox={draggedBox}
+          isDraggingStructure={isDraggingStructure}
+          onBoxClick={handleBoxClick}
+          onBoxDragStart={onBoxDragStart}
+          onBoxDragMove={onBoxDragMove}
+          onBoxDragEnd={onBoxDragEnd}
+          onStructureDragStart={onStructureDragStart}
+          onStructureDragMove={onStructureDragMove}
+          onStructureDragEnd={onStructureDragEnd}
+          answerZonePosition={[structurePos[0], structurePos[1] - 0.5, structurePos[2] + 4]}
         />
 
-        <OrbitControls makeDefault enabled={!isDragging} />
+        <OrbitControls 
+          makeDefault 
+          enabled={draggedBox === null && !isDraggingStructure} 
+        />
       </Canvas>
     </div>
   );
@@ -425,28 +468,43 @@ const AssessmentAR = ({
 
 // === AR Interaction Manager ===
 const ARInteractionManager = ({
-  nodeRefs,
-  isDragging,
-  onDragStart,
-  onDragMove,
-  onDragEnd,
+  boxRefs,
+  structureRef,
+  answerZoneRef,
   mode,
-  handleNodeClick,
+  draggedBox,
+  isDraggingStructure,
+  onBoxClick,
+  onBoxDragStart,
+  onBoxDragMove,
+  onBoxDragEnd,
+  onStructureDragStart,
+  onStructureDragMove,
+  onStructureDragEnd,
+  answerZonePosition,
 }) => {
   const { gl } = useThree();
   const longPressTimer = useRef(null);
-  const touchedNodeIndex = useRef(null);
-  const isDraggingRef = useRef(false);
+  const touchedBox = useRef(null);
+  const isDraggingBoxRef = useRef(false);
+  const isDraggingStructureRef = useRef(false);
+  const draggedBoxIndexRef = useRef(null);
 
   useEffect(() => {
-    isDraggingRef.current = isDragging;
-  }, [isDragging]);
+    isDraggingStructureRef.current = isDraggingStructure;
+  }, [isDraggingStructure]);
+
+  useEffect(() => {
+    isDraggingBoxRef.current = draggedBox !== null;
+    draggedBoxIndexRef.current = draggedBox;
+  }, [draggedBox]);
 
   useEffect(() => {
     const onSessionStart = () => {
       const session = gl.xr.getSession();
       if (!session) return;
 
+      // Get camera ray (center of phone screen)
       const getCameraRay = () => {
         const xrCamera = gl.xr.getCamera();
         const cam = xrCamera.cameras ? xrCamera.cameras[0] : xrCamera;
@@ -455,16 +513,16 @@ const ARInteractionManager = ({
         return { origin, dir };
       };
 
-      const getHitNodeIndex = () => {
+      // Check if pointing at any box
+      const getHitBox = () => {
         const { origin, dir } = getCameraRay();
         const raycaster = new THREE.Raycaster();
         raycaster.set(origin, dir);
 
         const allMeshes = [];
-        nodeRefs.current.forEach((group, idx) => {
+        boxRefs.current.forEach((group) => {
           if (group && group.children) {
             group.children.forEach((child) => {
-              child.userData.parentNodeIndex = idx;
               allMeshes.push(child);
             });
           }
@@ -474,67 +532,104 @@ const ARInteractionManager = ({
         if (hits.length > 0) {
           let obj = hits[0].object;
           while (obj) {
-            if (obj.userData?.parentNodeIndex !== undefined) {
-              return obj.userData.parentNodeIndex;
-            }
-            if (obj.userData?.nodeIndex !== undefined) {
-              return obj.userData.nodeIndex;
+            if (obj.userData?.boxIndex !== undefined) {
+              return obj.userData.boxIndex;
             }
             obj = obj.parent;
           }
+          return -1; // Hit structure but not specific box
         }
         return null;
       };
 
-      const getPointPosition = () => {
-        const { origin, dir } = getCameraRay();
-        const distance = 10;
-        const x = origin.x + dir.x * distance;
-        const y = Math.max(0, origin.y + dir.y * distance);
-        const z = origin.z + dir.z * distance;
-        return [x, y, z];
+      // Check if position is over answer zone
+      const isOverAnswerZone = (position) => {
+        if (mode === "intro" || mode === "done") return false;
+        
+        const zonePos = answerZonePosition;
+        const zoneSize = { width: 4, depth: 2.5 };
+        
+        const dx = Math.abs(position[0] - zonePos[0]);
+        const dz = Math.abs(position[2] - zonePos[2]);
+        
+        return dx < zoneSize.width / 2 && dz < zoneSize.depth / 2;
       };
 
-      const onSelectStart = () => {
-        if (mode === "intro" || mode === "done") return;
+      // Calculate 3D position where phone is pointing
+      const getPointPosition = (distance = 8) => {
+        const { origin, dir } = getCameraRay();
+        return [
+          origin.x + dir.x * distance,
+          origin.y + dir.y * distance,
+          origin.z + dir.z * distance
+        ];
+      };
 
+      // Touch start
+      const onSelectStart = () => {
         if (longPressTimer.current) {
           clearTimeout(longPressTimer.current);
         }
 
-        const hitIdx = getHitNodeIndex();
-        touchedNodeIndex.current = hitIdx;
-
-        if (hitIdx !== null) {
-          longPressTimer.current = setTimeout(() => {
-            onDragStart(hitIdx);
-            longPressTimer.current = null;
-          }, 500);
+        if (mode === "intro" || mode === "done") {
+          // In intro/done mode, just handle clicks
+          const hitBox = getHitBox();
+          if (hitBox !== null && hitBox >= 0) {
+            onBoxClick(hitBox);
+          }
+          return;
         }
+
+        const hitBox = getHitBox();
+        touchedBox.current = hitBox;
+
+        // Long press timer
+        longPressTimer.current = setTimeout(() => {
+          if (hitBox !== null && hitBox >= 0) {
+            // Long press on a box - start dragging box
+            onBoxDragStart(hitBox);
+          } else if (hitBox === -1 || hitBox === null) {
+            // Long press on empty space or structure - move whole structure
+            onStructureDragStart();
+          }
+          longPressTimer.current = null;
+        }, 500);
       };
 
+      // Touch end
       const onSelectEnd = () => {
         if (longPressTimer.current) {
           clearTimeout(longPressTimer.current);
           longPressTimer.current = null;
         }
 
-        if (isDraggingRef.current) {
-          onDragEnd();
-        } else if (touchedNodeIndex.current !== null) {
-          handleNodeClick(touchedNodeIndex.current);
+        if (isDraggingStructureRef.current) {
+          // Drop structure
+          onStructureDragEnd();
+        } else if (isDraggingBoxRef.current && draggedBoxIndexRef.current !== null) {
+          // Drop box - check if over answer zone
+          const currentPos = getPointPosition(6);
+          const overZone = isOverAnswerZone(currentPos);
+          onBoxDragEnd(draggedBoxIndexRef.current, overZone);
+        } else if (touchedBox.current !== null && touchedBox.current >= 0) {
+          // Short tap on box
+          onBoxClick(touchedBox.current);
         }
 
-        touchedNodeIndex.current = null;
+        touchedBox.current = null;
       };
 
       session.addEventListener("selectstart", onSelectStart);
       session.addEventListener("selectend", onSelectEnd);
 
+      // Frame loop - move box or structure while dragging
       const onFrame = (time, frame) => {
-        if (isDraggingRef.current) {
-          const newPos = getPointPosition();
-          onDragMove(newPos);
+        if (isDraggingStructureRef.current) {
+          const newPos = getPointPosition(8);
+          onStructureDragMove(newPos);
+        } else if (isDraggingBoxRef.current && draggedBoxIndexRef.current !== null) {
+          const newPos = getPointPosition(6);
+          onBoxDragMove(draggedBoxIndexRef.current, newPos);
         }
         session.requestAnimationFrame(onFrame);
       };
@@ -557,28 +652,23 @@ const ARInteractionManager = ({
         clearTimeout(longPressTimer.current);
       }
     };
-  }, [gl, nodeRefs, onDragStart, onDragMove, onDragEnd, mode, handleNodeClick]);
+  }, [gl, boxRefs, mode, answerZonePosition, onBoxClick, onBoxDragStart, onBoxDragMove, onBoxDragEnd, onStructureDragStart, onStructureDragMove, onStructureDragEnd]);
 
   return null;
 };
 
 // === Answer Drop Zone ===
-const AnswerDropZone = forwardRef(({ position, isActive, isHovered, feedback }, ref) => {
+const AnswerDropZone = forwardRef(({ position, isActive, feedback }, ref) => {
   const meshRef = useRef();
   const glowRef = useRef(0);
 
   useFrame(() => {
     if (meshRef.current) {
-      const targetScale = isHovered ? 1.15 : isActive ? 1.05 : 1;
-      meshRef.current.scale.lerp(
-        new THREE.Vector3(targetScale, targetScale, targetScale),
-        0.1
-      );
-
+      // Pulsing glow when active
       if (isActive) {
-        glowRef.current += 0.08;
+        glowRef.current += 0.05;
         const pulse = Math.sin(glowRef.current) * 0.3 + 0.7;
-        meshRef.current.material.emissiveIntensity = pulse * 0.6;
+        meshRef.current.material.emissiveIntensity = pulse * 0.5;
       } else {
         meshRef.current.material.emissiveIntensity = 0;
       }
@@ -589,42 +679,39 @@ const AnswerDropZone = forwardRef(({ position, isActive, isHovered, feedback }, 
     <group position={position} ref={ref}>
       {/* Drop zone base */}
       <mesh ref={meshRef}>
-        <boxGeometry args={[5, 0.4, 3]} />
+        <boxGeometry args={[4, 0.3, 2.5]} />
         <meshStandardMaterial
-          color={isHovered ? "#22c55e" : isActive ? "#8b5cf6" : "#475569"}
+          color={isActive ? "#22c55e" : "#475569"}
           transparent
           opacity={isActive ? 0.9 : 0.5}
-          emissive={isHovered ? "#22c55e" : isActive ? "#8b5cf6" : "#000000"}
+          emissive={isActive ? "#22c55e" : "#000000"}
           emissiveIntensity={0}
         />
       </mesh>
 
-      {/* Border */}
+      {/* Drop zone border */}
       <mesh position={[0, 0.01, 0]}>
-        <boxGeometry args={[5.1, 0.42, 3.1]} />
-        <meshBasicMaterial
-          color={isHovered ? "#22c55e" : "#a78bfa"}
-          wireframe
-        />
+        <boxGeometry args={[4.1, 0.32, 2.6]} />
+        <meshBasicMaterial color={isActive ? "#22c55e" : "#60a5fa"} wireframe />
       </mesh>
 
       {/* Label */}
       <Text
         position={[0, 0.5, 0]}
         fontSize={0.35}
-        color={isHovered ? "#22c55e" : isActive ? "#c4b5fd" : "#94a3b8"}
+        color={isActive ? "#22c55e" : "#94a3b8"}
         anchorX="center"
         anchorY="middle"
       >
-        {isHovered ? "✓ Release to Drop!" : isActive ? "↓ Drop Here ↓" : "Answer Zone"}
+        {isActive ? "📍 Drop Here!" : "Answer Zone"}
       </Text>
 
-      {/* Arrow indicator */}
+      {/* Arrow indicator when dragging */}
       {isActive && (
-        <group position={[0, 1.5, 0]}>
+        <group position={[0, 1.2, 0]}>
           <mesh rotation={[0, 0, Math.PI]}>
-            <coneGeometry args={[0.35, 0.7, 8]} />
-            <meshBasicMaterial color={isHovered ? "#22c55e" : "#a78bfa"} />
+            <coneGeometry args={[0.3, 0.6, 8]} />
+            <meshBasicMaterial color="#22c55e" />
           </mesh>
         </group>
       )}
@@ -632,84 +719,62 @@ const AnswerDropZone = forwardRef(({ position, isActive, isHovered, feedback }, 
   );
 });
 
-// === Draggable Box ===
-const DraggableBox = forwardRef(({
-  index,
-  value,
-  position,
-  originalPosition,
-  selected,
-  isDragging,
-  isOtherDragging,
-  isFaded,
-  isNew,
-  onClick,
-}, ref) => {
-  const size = [1.8, 1.2, 1];
+// === AR Box ===
+const ARBox = forwardRef(({ index, value, position, selected, isDragging, opacity = 1, onClick }, ref) => {
+  const size = [1.6, 1.2, 1];
   const groupRef = useRef();
-  const currentPos = useRef(new THREE.Vector3(...position));
+
+  useEffect(() => {
+    if (groupRef.current) groupRef.current.userData = { boxIndex: index };
+  }, [index]);
 
   const getColor = () => {
     if (isDragging) return "#f97316";
-    if (isNew) return "#22c55e";
     if (selected) return "#facc15";
-    if (isOtherDragging) return "#94a3b8";
     return index % 2 === 0 ? "#60a5fa" : "#34d399";
   };
 
-  useEffect(() => {
-    if (groupRef.current) {
-      groupRef.current.userData = { nodeIndex: index };
-    }
-  }, [index]);
-
   useFrame(() => {
-    if (!groupRef.current) return;
+    if (groupRef.current) {
+      const targetY = isDragging ? 2 : 0;
+      const targetScale = isDragging ? 1.2 : selected ? 1.05 : 1;
 
-    const targetPos = new THREE.Vector3(...position);
-    
-    if (isDragging) {
-      targetPos.y += 1.5; // Lift when dragging
-      targetPos.z += 0.5;
+      groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, position[0], 0.15);
+      groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, position[1] + targetY, 0.15);
+      groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, position[2], 0.15);
+
+      groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
     }
-
-    currentPos.current.lerp(targetPos, isDragging ? 0.3 : 0.15);
-    groupRef.current.position.copy(currentPos.current);
-
-    // Scale animation
-    const targetScale = isDragging ? 1.15 : isNew ? 1.1 : 1;
-    groupRef.current.scale.lerp(
-      new THREE.Vector3(targetScale, targetScale, targetScale),
-      0.1
-    );
   });
 
   return (
     <group
+      position={position}
       ref={(g) => {
         groupRef.current = g;
         if (typeof ref === "function") ref(g);
         else if (ref) ref.current = g;
       }}
-      onClick={onClick}
     >
       {/* Shadow when dragging */}
       {isDragging && (
-        <mesh position={[0, -1.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <circleGeometry args={[1.2, 32]} />
-          <meshBasicMaterial color="black" transparent opacity={0.3} />
+        <mesh position={[0, -1.8, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.9, 32]} />
+          <meshBasicMaterial color="black" transparent opacity={0.4} />
         </mesh>
       )}
 
-      {/* Main box */}
-      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
+      {/* Main Box */}
+      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]} onClick={onClick}>
         <boxGeometry args={size} />
         <meshStandardMaterial
           color={getColor()}
-          emissive={isDragging ? "#f97316" : isNew ? "#22c55e" : selected ? "#fbbf24" : "#000000"}
-          emissiveIntensity={isDragging ? 0.6 : isNew ? 0.5 : selected ? 0.4 : 0}
-          transparent={isOtherDragging || isFaded}
-          opacity={isFaded ? 0.3 : isOtherDragging ? 0.5 : 1}
+          emissive={isDragging ? "#f97316" : selected ? "#fbbf24" : "#000000"}
+          emissiveIntensity={isDragging ? 0.6 : selected ? 0.4 : 0}
+          metalness={0.1}
+          roughness={0.5}
+          transparent={opacity < 1}
+          opacity={opacity}
         />
       </mesh>
 
@@ -721,10 +786,10 @@ const DraggableBox = forwardRef(({
         </mesh>
       )}
 
-      {/* Value text */}
+      {/* Value label */}
       <Text
-        position={[0, size[1] / 2 + 0.1, size[2] / 2 + 0.01]}
-        fontSize={0.4}
+        position={[0, size[1] / 2 + 0.15, size[2] / 2 + 0.01]}
+        fontSize={0.45}
         color="white"
         anchorX="center"
         anchorY="middle"
@@ -732,127 +797,89 @@ const DraggableBox = forwardRef(({
         {String(value)}
       </Text>
 
-      {/* Index text */}
+      {/* Index label */}
       <Text
-        position={[0, -0.2, size[2] / 2 + 0.01]}
+        position={[0, -0.3, size[2] / 2 + 0.01]}
         fontSize={0.28}
-        color={isDragging ? "#f97316" : "#fbbf24"}
+        color="yellow"
         anchorX="center"
         anchorY="middle"
       >
         [{index}]
       </Text>
 
-      {/* Status labels */}
-      {selected && !isDragging && (
-        <Text
-          position={[0, size[1] + 0.8, 0]}
-          fontSize={0.25}
-          color="#fde68a"
-          anchorX="center"
-          anchorY="middle"
-        >
-          Value {value} at index {index}
-        </Text>
-      )}
-
-      {isDragging && (
+      {/* Status label */}
+      {(selected || isDragging) && (
         <Text
           position={[0, size[1] + 1, 0]}
-          fontSize={0.28}
-          color="#f97316"
-          anchorX="center"
-          anchorY="middle"
-        >
-          ✋ Drag to Answer Zone
-        </Text>
-      )}
-
-      {isNew && (
-        <Text
-          position={[0, size[1] + 0.8, 0]}
           fontSize={0.25}
-          color="#22c55e"
+          color={isDragging ? "#fb923c" : "#fde68a"}
           anchorX="center"
           anchorY="middle"
         >
-          ✨ Inserted!
+          {isDragging ? "📍 Drag to Answer Zone" : `Value ${value} at index ${index}`}
         </Text>
       )}
     </group>
   );
 });
 
-// === Start Button ===
-const StartButton = ({ position, onClick }) => {
+// === Start Box ===
+const StartBox = ({ position = [0, 0, 0], onClick }) => {
   const [hovered, setHovered] = useState(false);
-  const meshRef = useRef();
-
-  useFrame(() => {
-    if (meshRef.current) {
-      const scale = hovered ? 1.1 : 1;
-      meshRef.current.scale.lerp(new THREE.Vector3(scale, scale, scale), 0.1);
-    }
-  });
+  const size = [5.0, 2.2, 1.0];
 
   return (
     <group position={position}>
       <mesh
-        ref={meshRef}
+        position={[0, 0.6, 0]}
         onClick={onClick}
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
       >
-        <boxGeometry args={[5, 2, 1]} />
+        <boxGeometry args={size} />
         <meshStandardMaterial
-          color={hovered ? "#7c3aed" : "#8b5cf6"}
-          emissive={hovered ? "#7c3aed" : "#000000"}
-          emissiveIntensity={hovered ? 0.4 : 0}
+          color={hovered ? "#3b82f6" : "#60a5fa"}
+          emissive={hovered ? "#3b82f6" : "#000000"}
+          emissiveIntensity={hovered ? 0.3 : 0}
         />
       </mesh>
       <Text
-        position={[0, 0, 0.51]}
-        fontSize={0.4}
+        position={[0, 0.6, size[2] / 2 + 0.02]}
+        fontSize={0.45}
         color="white"
         anchorX="center"
         anchorY="middle"
       >
-        Start Assessment
+        Start AR Assessment
       </Text>
     </group>
   );
 };
 
-// === Restart Button ===
-const RestartButton = ({ position, onClick }) => {
+// === Restart Box ===
+const RestartBox = ({ position = [0, 0, 0], onClick }) => {
   const [hovered, setHovered] = useState(false);
-  const meshRef = useRef();
-
-  useFrame(() => {
-    if (meshRef.current) {
-      const scale = hovered ? 1.1 : 1;
-      meshRef.current.scale.lerp(new THREE.Vector3(scale, scale, scale), 0.1);
-    }
-  });
+  const size = [4.0, 1.5, 1.0];
 
   return (
     <group position={position}>
       <mesh
-        ref={meshRef}
+        position={[0, 0.6, 0]}
         onClick={onClick}
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
       >
-        <boxGeometry args={[4, 1.5, 1]} />
+        <boxGeometry args={size} />
         <meshStandardMaterial
-          color={hovered ? "#ea580c" : "#f97316"}
-          emissive={hovered ? "#ea580c" : "#000000"}
-          emissiveIntensity={hovered ? 0.4 : 0}
+          color={hovered ? "#f97316" : "#fb923c"}
+          emissive={hovered ? "#f97316" : "#000000"}
+          emissiveIntensity={hovered ? 0.3 : 0}
         />
       </mesh>
       <Text
-        position={[0, 0, 0.51]}
-        fontSize={0.32}
+        position={[0, 0.6, size[2] / 2 + 0.02]}
+        fontSize={0.35}
         color="white"
         anchorX="center"
         anchorY="middle"
@@ -864,45 +891,25 @@ const RestartButton = ({ position, onClick }) => {
 };
 
 // === Floating Feedback ===
-const FloatingFeedback = ({ text, correct, position }) => {
+const FloatingFeedback = ({ text, correct = true, position = [0, 0, 0] }) => {
   const groupRef = useRef();
-  const [scale, setScale] = useState(0);
-
-  useEffect(() => {
-    setScale(0);
-    const timer = setTimeout(() => setScale(1), 50);
-    return () => clearTimeout(timer);
-  }, [text]);
 
   useFrame(() => {
     if (groupRef.current) {
-      groupRef.current.scale.lerp(new THREE.Vector3(scale, scale, scale), 0.15);
+      groupRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.15);
     }
   });
 
   return (
-    <group ref={groupRef} position={position}>
-      {/* Background */}
+    <group ref={groupRef} position={position} scale={[0, 0, 0]}>
       <mesh position={[0, 0, -0.1]}>
-        <planeGeometry args={[7, 1.2]} />
+        <planeGeometry args={[5, 1]} />
         <meshBasicMaterial
           color={correct ? "#065f46" : "#7f1d1d"}
           transparent
-          opacity={0.95}
+          opacity={0.9}
         />
       </mesh>
-      
-      {/* Border */}
-      <mesh position={[0, 0, -0.05]}>
-        <planeGeometry args={[7.1, 1.3]} />
-        <meshBasicMaterial
-          color={correct ? "#22c55e" : "#ef4444"}
-          transparent
-          opacity={0.8}
-        />
-      </mesh>
-
-      {/* Text */}
       <Text
         fontSize={0.35}
         color={correct ? "#34d399" : "#f87171"}
@@ -915,15 +922,14 @@ const FloatingFeedback = ({ text, correct, position }) => {
   );
 };
 
-// === Fade-in Text ===
+// === Fade-in text ===
 const FadeText = ({ text, position, fontSize = 0.5, color = "white" }) => {
   const [opacity, setOpacity] = useState(0);
 
   useEffect(() => {
-    setOpacity(0);
     let frame;
     let start;
-    const duration = 400;
+    const duration = 500;
     const animate = (ts) => {
       if (!start) start = ts;
       const progress = Math.min((ts - start) / duration, 1);
