@@ -93,10 +93,7 @@ const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
 const getArrayObjects = (predictions) => {
   return predictions
     .filter(
-      (p) =>
-        ARRAY_CLASSES.includes(p.class) &&
-        p.score > 0.4 &&
-        isFrontView(p)
+      (p) => ARRAY_CLASSES.includes(p.class) && p.score > 0.4 && isFrontView(p)
     )
     .sort((a, b) => a.bbox[0] - b.bbox[0]); // left → right
 };
@@ -319,7 +316,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           if (maxY - minY < 80) {
             setConcept("Queue (FIFO)");
             setConceptDetail(
-              `Detected ${queueCountLocal} side-view item(s) (person/book/cell phone) in a line → behaves like a Queue (First In, First Out).`
+              `Detected ${queueCountLocal} side-view item(s) (person/book/cell phone) almost aligned horizontally → interpreted as a Queue.\n\n📚 How this teaches Queue (First In, First Out):\n• Each real object is one element in the queue.\n• The one at the front of the line will be served/removed first (dequeue).\n• New elements join at the back (enqueue).\n• This models real-world lines (canteen, printer jobs, task scheduling).`
             );
             return true;
           }
@@ -332,7 +329,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           const stackCount = stacks.length;
           setConcept("Stack (LIFO)");
           setConceptDetail(
-            `Detected ${bookCountLocal} book(s) arranged into ${stackCount} stack(s) via vertical edges (spines) → behaves like a Stack (Last In, First Out).`
+            `Detected ${bookCountLocal} book(s) arranged into ${stackCount} vertical stack(s) based on their spines.\n\n📚 How this teaches Stack (Last In, First Out):\n• Each book is one element on the stack.\n• The last book you place on top will be the first one you can remove (POP).\n• Adding a new book on top is PUSH.\n• This models function call stacks and undo/redo operations in real programs.`
           );
           return true;
         }
@@ -356,7 +353,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             ).join(", ");
             setConcept("Linked List");
             setConceptDetail(
-              `Detected ${nodeCount} node(s) (${usedClasses}) aligned in a row → can be modeled as a Singly Linked List (each node points to the next, last points to null).`
+              `Detected ${nodeCount} node(s) (${usedClasses}) aligned in a row and connected with arrows → modeled as a Singly Linked List.\n\n📚 How this teaches Linked List:\n• Each real object is a node that stores data plus a "next" pointer.\n• The AR arrows represent the next pointer from one node to the next.\n• To insert in the middle, we only change a few arrows (pointers), we don't shift all objects.\n• This demonstrates the difference vs arrays: linked lists are good for frequent inserts/removals in the middle.`
             );
             return true;
           }
@@ -366,9 +363,13 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
 
       const tryArray = () => {
         if (arrayLikeCount >= 2) {
-          setConcept("Array");
+          const indexMap = arrayLike
+            .map((obj, i) => `index[${i}] = ${obj.class}`)
+            .join(", ");
+
+          setConcept("Array – Index-Based Access");
           setConceptDetail(
-            `Detected ${arrayLikeCount} front-view object(s) (laptop/book/chair/bottle/cell phone) → modeled as an Array (index-based, fixed positions).`
+            `Detected ${arrayLikeCount} front-view object(s) (laptop/book/chair/bottle/cell phone) arranged from left to right.\n\n📚 How this teaches Arrays:\n• Each real object becomes one array element A[i].\n• The green label "index[i]" under each object shows its exact position in the array.\n• To access A[k], we jump directly to the k-th object in this line instead of counting one-by-one.\n• This models constant-time (O(1)) random access: any index can be reached in a single step using its index.\n\nCurrent mapping in your AR scene:\n${indexMap}`
           );
           return true;
         }
@@ -454,6 +455,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           const labelHeight = 26;
           const labelPaddingX = 8;
 
+          ctx.font = "16px Arial";
           const textWidth = ctx.measureText(label).width;
           const bgWidth = Math.max(textWidth + labelPaddingX * 2, width);
 
@@ -461,7 +463,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           ctx.fillRect(x, y + height, bgWidth, labelHeight);
 
           ctx.fillStyle = "#00ff00";
-          ctx.font = "16px Arial";
           ctx.fillText(label, x + labelPaddingX, y + height + 18);
         });
       }
@@ -506,7 +507,10 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const linkedNodes = getLinkedListNodes(predictions);
       setLinkedListCount(linkedNodes.length);
 
-      if (linkedNodes.length >= 1 && (mode === "Auto" || mode === "Linked List")) {
+      if (
+        linkedNodes.length >= 1 &&
+        (mode === "Auto" || mode === "Linked List")
+      ) {
         const nodesSorted = [...linkedNodes].sort(
           (a, b) => a.bbox[0] - b.bbox[0]
         );
@@ -553,7 +557,11 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       );
       setBookCount(books.length);
 
-      if (stacks && stacks.length > 0 && (mode === "Auto" || mode === "Stack")) {
+      if (
+        stacks &&
+        stacks.length > 0 &&
+        (mode === "Auto" || mode === "Stack")
+      ) {
         const stackColors = ["#f97316", "#3b82f6", "#ec4899", "#22c55e"];
 
         stacks.forEach((stack, sIdx) => {
@@ -720,6 +728,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             backdropFilter: "blur(4px)",
             maxHeight: "35%",
             overflowY: "auto",
+            whiteSpace: "pre-line", // 👈 para gumana line breaks sa conceptDetail
           }}
         >
           <div
@@ -734,8 +743,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           >
             <span>🧠</span>
             <span>
-              Detected:{" "}
-              <span style={{ color: "#34D399" }}>{concept}</span>
+              Detected: <span style={{ color: "#34D399" }}>{concept}</span>
             </span>
           </div>
           <div>{conceptDetail}</div>
