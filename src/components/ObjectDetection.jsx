@@ -1,6 +1,6 @@
 // ../components/ObjectDetection.jsx
 import React, { useRef, useEffect, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Text as DreiText } from "@react-three/drei";
 import * as THREE from "three";
 
@@ -16,8 +16,7 @@ const getLinkedListNodes = (predictions) =>
   );
 
 /**
- * Simple heuristic para i-approx kung front view yung object.
- * Ginagamit lang yung aspect ratio ng bounding box.
+ * Simple heuristic to approximate front view using aspect ratio.
  */
 const isFrontView = (pred) => {
   const [x, y, w, h] = pred.bbox;
@@ -40,7 +39,7 @@ const isFrontView = (pred) => {
 };
 
 /**
- * Side-view / naka-pila candidate para sa Queue
+ * Side-view / queue candidate.
  */
 const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
   const [x, y, w, h] = pred.bbox;
@@ -67,7 +66,11 @@ const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
 };
 
 /**
- * Unified array detection
+ * Unified array detection:
+ * - ARRAY_CLASSES
+ * - score > 0.4
+ * - front view only
+ * - sorted left→right
  */
 const getArrayObjects = (predictions) => {
   return predictions
@@ -209,7 +212,7 @@ const startAR = (gl) => {
   }
 };
 
-// Floating 3D label for the detected concept (3D text + 3D panel)
+// Floating 3D label for the detected concept
 const ConceptARLabel = ({ concept, detail }) => {
   const groupRef = useRef();
   const tRef = useRef(0);
@@ -217,80 +220,122 @@ const ConceptARLabel = ({ concept, detail }) => {
   useFrame((state, delta) => {
     if (!groupRef.current) return;
     tRef.current += delta;
+    // small floating animation
+    const yBase = 1.5;
+    groupRef.current.position.y = yBase + Math.sin(tRef.current * 1.5) * 0.1;
 
+    // always face camera
     const cam = state.camera;
-    const baseY = 1.4;
-    groupRef.current.position.y = baseY + Math.sin(tRef.current * 1.5) * 0.08;
-
-    // laging naka-face sa camera
     groupRef.current.lookAt(cam.position);
   });
 
   const textDetail =
     detail ||
     (concept === "Array"
-      ? "Array: contiguous memory, O(1) access by index."
+      ? "Array: items stored side by side in memory. Fast access with index (O(1))."
       : concept === "Queue (FIFO)"
-      ? "Queue: First In, First Out – enqueue rear, dequeue front."
+      ? "Queue: First In, First Out. Imagine a line of people waiting (O(1) front/back)."
       : concept === "Stack (LIFO)"
-      ? "Stack: Last In, First Out – push/pop sa top."
+      ? "Stack: Last In, First Out. Like a pile of books, you push and pop on top (O(1))."
       : concept === "Linked List"
-      ? "Linked List: nodes pointing to next, last → null."
+      ? "Linked List: each node points to the next node. Good for inserts/removals (O(1) at node)."
       : "");
 
-  const panelWidth = 3.2;
-  const panelHeight = 1.4;
-
   return (
-    <group ref={groupRef} position={[0, 1.4, -3]}>
-      {/* Background 3D panel */}
-      <mesh position={[0, 0, 0]}>
-        <boxGeometry args={[panelWidth, panelHeight, 0.08]} />
-        <meshStandardMaterial
-          color="#020617"
-          transparent
-          opacity={0.82}
-          roughness={0.4}
-          metalness={0.1}
-        />
-      </mesh>
-
-      {/* Inner glowing frame */}
-      <mesh position={[0, 0, 0.042]}>
-        <boxGeometry args={[panelWidth * 0.97, panelHeight * 0.93, 0.01]} />
-        <meshStandardMaterial
-          color="#0f172a"
-          emissive="#1f2937"
-          emissiveIntensity={0.3}
-        />
-      </mesh>
-
-      {/* Title (concept) */}
+    <group ref={groupRef} position={[0, 1.5, -3]}>
+      {/* Title */}
       <DreiText
-        position={[0, panelHeight * 0.25, 0.06]}
-        fontSize={0.28}
-        color="#60a5fa"
+        position={[0, 0.4, 0]}
+        fontSize={0.35}
+        color="#34D399"
         anchorX="center"
         anchorY="middle"
-        maxWidth={panelWidth * 0.9}
+        maxWidth={4}
       >
         {concept}
       </DreiText>
 
-      {/* Detail body */}
+      {/* Details */}
       <DreiText
-        position={[0, -panelHeight * 0.1, 0.06]}
+        position={[0, -0.1, 0]}
         fontSize={0.18}
         color="#e5e7eb"
         anchorX="center"
         anchorY="top"
-        maxWidth={panelWidth * 0.9}
+        maxWidth={3.2}
         textAlign="center"
       >
         {textDetail}
       </DreiText>
     </group>
   );
+};
+
+/* ========= MODE GUIDE (BEGINNER + LIGHT TECH) ========= */
+
+const getGuideText = (mode) => {
+  switch (mode) {
+    case "Array":
+      return [
+        "📚 Array mode",
+        "",
+        "• Point the camera at 2 or more front-view objects.",
+        "• Valid objects: laptop, book, chair, bottle, cell phone.",
+        "• Place them in a row from left to right on a table.",
+        "• We treat each object as an element with an index: a[0], a[1], a[2]...",
+        "• Access by index is very fast: O(1) time.",
+      ].join("\n");
+
+    case "Stack":
+      return [
+        "📘 Stack mode",
+        "",
+        "• Point the camera at a vertical pile of 2 or more books.",
+        "• The app looks for book spines forming a tall column.",
+        "• Think of plates or books stacked on top of each other.",
+        "• You only use the top: push() to add, pop() to remove.",
+        "• Last In, First Out (LIFO).",
+      ].join("\n");
+
+    case "Queue":
+      return [
+        "👥 Queue mode",
+        "",
+        "• Point the camera at 2 or more side-view people, books, or phones.",
+        "• They should form a horizontal line, like people lining up in a store.",
+        "• The first item in front will be the first one to leave the queue.",
+        "• Enqueue at the back, dequeue at the front.",
+        "• First In, First Out (FIFO).",
+      ].join("\n");
+
+    case "Linked List":
+      return [
+        "☕ Linked List mode",
+        "",
+        "• Point the camera at 3 or more cups or toy trains in a row.",
+        "• Place them side by side on a table with small gaps.",
+        "• Each object represents a node that points to the next node.",
+        "• You can insert or remove nodes without shifting the others.",
+        "• Great for dynamic sequences: insert/delete near O(1) when you have the node.",
+      ].join("\n");
+
+    case "Auto":
+      return [
+        "✨ Auto mode",
+        "",
+        "The camera will try to recognize the structure for you:",
+        "",
+        "• Array → 2+ front-view laptops/books/chairs/bottles/phones in a row.",
+        "• Stack → vertical stack of 2+ books (book spines on top of each other).",
+        "• Queue → 2+ side-view people/books/phones lined up horizontally.",
+        "• Linked List → 3+ cups or trains arranged like a chain.",
+        "",
+        "Move real objects and see how they map to data structures.",
+      ].join("\n");
+
+    default:
+      return "";
+  }
 };
 
 /* ========= MAIN COMPONENT ========= */
@@ -309,7 +354,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
   const [conceptDetail, setConceptDetail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  // 🔥 ref para sa kasalukuyang DSA mode (galing sa parent)
+  // 🔥 ref for current DSA mode
   const selectedDSARef = useRef(selectedDSA);
   useEffect(() => {
     selectedDSARef.current = selectedDSA;
@@ -522,7 +567,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const arrayObjects = getArrayObjects(predictions);
       setArrayCount(arrayObjects.length);
 
-      // ⭐ Do NOT draw boxes if only 1 array object
+      // No boxes if only 1 array object
       if (arrayObjects.length > 1 && (mode === "Auto" || mode === "Array")) {
         arrayObjects.forEach((p, index) => {
           const [x, y, width, height] = p.bbox;
@@ -558,7 +603,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       );
       setQueueCount(queueItems.length);
 
-      // ⭐ Do NOT draw queue boxes if only 1
+      // No boxes if only 1 queue item
       if (queueItems.length > 1 && (mode === "Auto" || mode === "Queue")) {
         const queueSorted = [...queueItems].sort(
           (a, b) => a.bbox[0] - b.bbox[0]
@@ -587,7 +632,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const linkedNodes = getLinkedListNodes(predictions);
       setLinkedListCount(linkedNodes.length);
 
-      // ⭐ Do NOT draw linked list boxes if only 1 node
+      // No boxes if only 1 node
       if (
         linkedNodes.length > 1 &&
         (mode === "Auto" || mode === "Linked List")
@@ -738,6 +783,8 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
     };
   }, []);
 
+  const guideText = !concept ? getGuideText(selectedDSA) : "";
+
   return (
     <div
       style={{
@@ -791,13 +838,13 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         DSA Concept Detection · {status}
       </div>
 
-      {/* ⭐ AR CANVAS – 3D text nalulutang sa environment */}
+      {/* ⭐ AR CANVAS – 3D text floating in the environment when concept is detected */}
       {concept && (
         <Canvas
           style={{
             position: "absolute",
             inset: 0,
-            pointerEvents: "none", // AR input via XR / device, hindi mouse
+            pointerEvents: "none",
           }}
           camera={{ position: [0, 0, 3], fov: 50 }}
           onCreated={({ gl }) => {
@@ -808,8 +855,42 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           <ambientLight intensity={0.7} />
           <directionalLight position={[2, 3, 4]} intensity={0.7} />
           <ConceptARLabel concept={concept} detail={conceptDetail} />
+          {/* disabled controls; only for debug in non-AR */}
           <OrbitControls enabled={false} />
         </Canvas>
+      )}
+
+      {/* 🔹 MODE GUIDE – Only when NO concept yet */}
+      {guideText && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 16,
+            right: 16,
+            maxWidth: "55%",
+            padding: "8px 10px",
+            borderRadius: 10,
+            background: "rgba(15, 23, 42, 0.85)",
+            border: "1px solid rgba(148, 163, 184, 0.9)",
+            color: "#e5e7eb",
+            fontSize: "0.75rem",
+            lineHeight: 1.3,
+            whiteSpace: "pre-wrap",
+            zIndex: 12,
+          }}
+        >
+          <div
+            style={{
+              fontWeight: 600,
+              fontSize: "0.78rem",
+              marginBottom: 4,
+              color: "#facc15",
+            }}
+          >
+            How to use this mode
+          </div>
+          {guideText}
+        </div>
       )}
 
       {/* 🔥 LOADING OVERLAY */}
