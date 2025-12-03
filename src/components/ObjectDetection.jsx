@@ -1,7 +1,8 @@
 // ../components/ObjectDetection.jsx
 import React, { useRef, useEffect, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { OrbitControls, Text as DreiText } from "@react-three/drei";
+import * as THREE from "three";
 
 // ✅ CLASSES for "Array" mode
 const ARRAY_CLASSES = ["laptop", "book", "chair", "bottle", "cell phone"];
@@ -26,14 +27,11 @@ const isFrontView = (pred) => {
 
   switch (pred.class) {
     case "laptop":
-      // usually mas wide pag front (open) vs sobrang thin pag side
       return aspect > 1.1 && aspect < 3.5;
     case "book":
     case "cell phone":
-      // i-allow both medyo vertical at medyo square, skip sobrang pahaba
       return aspect > 0.35 && aspect < 1.8;
     case "bottle":
-      // front bottle vs sobrang side → skip sobrang weird ratios
       return aspect > 0.3 && aspect < 0.9;
     case "chair":
       return aspect > 0.6 && aspect < 2.0;
@@ -43,9 +41,7 @@ const isFrontView = (pred) => {
 };
 
 /**
- * Side-view / naka-pila candidate para sa Queue:
- * - person: tall & skinny (side view) at halos buong katawan (height vs frame)
- * - book / cell phone: hindi front view (so side / nakatagilid) at di sobrang liit
+ * Side-view / naka-pila candidate para sa Queue
  */
 const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
   const [x, y, w, h] = pred.bbox;
@@ -55,21 +51,16 @@ const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
 
   if (pred.class === "person") {
     if (!frameWidth || !frameHeight) return false;
-    // 🔒 almost full body
-    const minHeight = frameHeight * 0.45; // ~45% ng frame height
-    const minWidth = frameWidth * 0.05; // ~5% ng frame width
+    const minHeight = frameHeight * 0.45;
+    const minWidth = frameWidth * 0.05;
 
     if (h < minHeight || w < minWidth) return false;
 
-    // tall & skinny → side-view na tao
     return aspect < 0.6 && aspect > 0.2;
   }
 
   if (pred.class === "book" || pred.class === "cell phone") {
-    // skip super tiny na noise
     if (h < 40 || w < 20) return false;
-
-    // side-view book/phone → hindi pasado sa front-view rules
     return !isFrontView(pred);
   }
 
@@ -77,18 +68,14 @@ const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
 };
 
 /**
- * Unified array detection:
- * - filter by ARRAY_CLASSES
- * - score > 0.4
- * - front view only (via isFrontView)
- * - sort left-to-right para maging index[0..n]
+ * Unified array detection
  */
 const getArrayObjects = (predictions) => {
   return predictions
     .filter(
       (p) => ARRAY_CLASSES.includes(p.class) && p.score > 0.4 && isFrontView(p)
     )
-    .sort((a, b) => a.bbox[0] - b.bbox[0]); // left → right
+    .sort((a, b) => a.bbox[0] - b.bbox[0]);
 };
 
 // --- OpenCV-based book stack detection ---
@@ -201,45 +188,88 @@ const drawArrow = (ctx, x1, y1, x2, y2) => {
   ctx.fill();
 };
 
-// === Fade-in Text (3D) ===
-const FadeInText = ({ show, text, position, fontSize, color }) => {
-  const ref = useRef();
-  const opacity = useRef(0);
-  const scale = useRef(0.6);
+/* ========= AR HELPERS ========= */
 
-  useFrame(() => {
-    if (!ref.current) return;
+// Start WebXR AR session (same style as VisualPageAR)
+const startAR = (gl) => {
+  if (navigator.xr) {
+    navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
+      if (supported) {
+        navigator.xr
+          .requestSession("immersive-ar", {
+            requiredFeatures: ["hit-test", "local-floor"],
+          })
+          .then((session) => {
+            gl.xr.setSession(session);
+          })
+          .catch((err) => console.error("AR session failed:", err));
+      } else {
+        console.warn("AR not supported on this device.");
+      }
+    });
+  }
+};
 
-    if (show) {
-      opacity.current = Math.min(opacity.current + 0.06, 1);
-      scale.current = Math.min(scale.current + 0.06, 1);
-    } else {
-      opacity.current = Math.max(opacity.current - 0.06, 0);
-      scale.current = 0.6;
-    }
+// Floating 3D label for the detected concept
+const ConceptARLabel = ({ concept, detail }) => {
+  const groupRef = useRef();
+  const tRef = useRef(0);
 
-    if (ref.current.material) {
-      ref.current.material.opacity = opacity.current;
-      ref.current.scale.set(scale.current, scale.current, scale.current);
-    }
+  useFrame((state, delta) => {
+    if (!groupRef.current) return;
+    tRef.current += delta;
+    // maliit na floating animation
+    const yBase = 1.5;
+    groupRef.current.position.y = yBase + Math.sin(tRef.current * 1.5) * 0.1;
+
+    // always face camera
+    const cam = state.camera;
+    groupRef.current.lookAt(cam.position);
   });
 
+  const textDetail =
+    detail ||
+    (concept === "Array"
+      ? "Array: contiguous memory, O(1) access using index."
+      : concept === "Queue (FIFO)"
+      ? "Queue: First In, First Out, enqueue at rear, dequeue at front."
+      : concept === "Stack (LIFO)"
+      ? "Stack: Last In, First Out, push/pop on top."
+      : concept === "Linked List"
+      ? "Linked List: nodes pointing to next, last node → null."
+      : "");
+
   return (
-    <Text
-      ref={ref}
-      position={position}
-      fontSize={fontSize}
-      color={color}
-      anchorX="center"
-      anchorY="middle"
-      material-transparent
-      maxWidth={3}
-      textAlign="center"
-    >
-      {text}
-    </Text>
+    <group ref={groupRef} position={[0, 1.5, -3]}>
+      {/* Title */}
+      <DreiText
+        position={[0, 0.4, 0]}
+        fontSize={0.35}
+        color="#34D399"
+        anchorX="center"
+        anchorY="middle"
+        maxWidth={4}
+      >
+        {concept}
+      </DreiText>
+
+      {/* Details */}
+      <DreiText
+        position={[0, -0.1, 0]}
+        fontSize={0.18}
+        color="#e5e7eb"
+        anchorX="center"
+        anchorY="top"
+        maxWidth={3.2}
+        textAlign="center"
+      >
+        {textDetail}
+      </DreiText>
+    </group>
   );
 };
+
+/* ========= MAIN COMPONENT ========= */
 
 const ObjectDection = ({ selectedDSA = "none" }) => {
   const videoRef = useRef(null);
@@ -306,7 +336,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
     };
 
     const analyzeScene = (predictions, stacks) => {
-      const mode = selectedDSARef.current; // "none" | "Auto" | "Array" | "Stack" | "Queue" | "Linked List"
+      const mode = selectedDSARef.current;
 
       if (!mode || mode === "none") {
         setConcept("");
@@ -323,7 +353,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         (p) => p.class === "book" && p.score > 0.4
       );
 
-      // Queue candidates: person / book / cellphone na side-view / nakatagilid
       const queueItems = predictions.filter(
         (p) =>
           (p.class === "person" ||
@@ -340,13 +369,11 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const linkedListCountLocal = linkedNodes.length;
 
       const tryQueue = () => {
-        // ⭐ Only consider queue concept if 2 or more
         if (queueCountLocal >= 2) {
           const ys = queueItems.map((p) => p.bbox[1]);
           const maxY = Math.max(...ys);
           const minY = Math.min(...ys);
 
-          // halos magkakapantay sa Y → naka-pila sa isang linya
           if (maxY - minY < 80) {
             setConcept("Queue (FIFO)");
             setConceptDetail(
@@ -396,7 +423,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       };
 
       const tryArray = () => {
-        // ⭐ Only consider array concept if 2 or more
         if (arrayLikeCount >= 2) {
           setConcept("Array");
           setConceptDetail(
@@ -468,7 +494,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const frameWidth = canvas.width;
       const frameHeight = canvas.height;
 
-      // ✅ Unified ARRAY OBJECTS (laptop, book, chair, bottle, cell phone)
+      // ARRAY OBJECTS
       const arrayObjects = getArrayObjects(predictions);
       setArrayCount(arrayObjects.length);
 
@@ -477,12 +503,10 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         arrayObjects.forEach((p, index) => {
           const [x, y, width, height] = p.bbox;
 
-          // box
           ctx.strokeStyle = "#00ff00";
           ctx.lineWidth = 4;
           ctx.strokeRect(x, y, width, height);
 
-          // label sa baba ng box → index + class
           const label = `index[${index}] ${p.class}`;
           const labelHeight = 26;
           const labelPaddingX = 8;
@@ -499,7 +523,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         });
       }
 
-      // QUEUE (side-view persons / books / cell phones)
+      // QUEUE
       const queueItems = predictions.filter(
         (p) =>
           (p.class === "person" ||
@@ -523,7 +547,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           ctx.lineWidth = 3;
           ctx.strokeRect(x, y, width, height);
 
-          // label: Q[index] + class
           const label = `Q[${index}] ${p.class}`;
           const labelHeight = 22;
 
@@ -536,7 +559,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         });
       }
 
-      // LINKED LIST (cups, train, etc.)
+      // LINKED LIST
       const linkedNodes = getLinkedListNodes(predictions);
       setLinkedListCount(linkedNodes.length);
 
@@ -585,13 +608,12 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         });
       }
 
-      // STACK (books + OpenCV spine detection)
+      // STACK
       const books = predictions.filter(
         (p) => p.class === "book" && p.score > 0.4
       );
       setBookCount(books.length);
 
-      // ⭐ Filter stacks na may at least 2 lines (para hindi 1 object lang)
       let validStacks = [];
       if (stacks && stacks.length > 0) {
         validStacks = stacks.filter((stack) => stack.length >= 2);
@@ -651,7 +673,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             );
             const linkedNodes = getLinkedListNodes(predictions);
 
-            // queue items = side-view person / book / cellphone
             const queueItems = predictions.filter(
               (p) =>
                 (p.class === "person" ||
@@ -717,7 +738,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         }}
       />
 
-      {/* CANVAS OVERLAY (2D bounding boxes) */}
+      {/* 2D CANVAS OVERLAY (bounding boxes) */}
       <canvas
         ref={canvasRef}
         style={{
@@ -740,53 +761,32 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           color: "#e5e7eb",
           fontSize: "0.7rem",
           maxWidth: "100%",
+          zIndex: 10,
         }}
       >
         DSA Concept Detection · {status}
       </div>
 
-      {/* ⭐ 3D TEXT INFO PANEL (Three.js) */}
+      {/* ⭐ AR CANVAS – 3D text nalulutang sa environment */}
       {concept && (
-        <div
+        <Canvas
           style={{
             position: "absolute",
-            bottom: 12,
-            left: 12,
-            width: 260,
-            height: 160,
-            borderRadius: 12,
-            overflow: "hidden",
-            background: "rgba(15, 23, 42, 0.9)",
-            border: "1px solid rgba(148, 163, 184, 0.9)",
-            backdropFilter: "blur(4px)",
+            inset: 0,
+            pointerEvents: "none", // AR input via XR, hindi mouse
+          }}
+          camera={{ position: [0, 0, 3], fov: 50 }}
+          onCreated={({ gl }) => {
+            gl.xr.enabled = true;
+            startAR(gl);
           }}
         >
-          <Canvas
-            camera={{
-              position: [0, 0, 3],
-              fov: 45,
-            }}
-          >
-            <ambientLight intensity={0.8} />
-            <directionalLight position={[2, 3, 4]} intensity={0.6} />
-
-            <FadeInText
-              show={true}
-              text={concept}
-              position={[0, 0.4, 0]}
-              fontSize={0.35}
-              color="#34D399"
-            />
-
-            <FadeInText
-              show={true}
-              text={conceptDetail}
-              position={[0, -0.25, 0]}
-              fontSize={0.18}
-              color="#e5e7eb"
-            />
-          </Canvas>
-        </div>
+          <ambientLight intensity={0.7} />
+          <directionalLight position={[2, 3, 4]} intensity={0.7} />
+          <ConceptARLabel concept={concept} detail={conceptDetail} />
+          {/* OrbitControls para sa non-AR fallback / debug */}
+          <OrbitControls enabled={false} />
+        </Canvas>
       )}
 
       {/* 🔥 LOADING OVERLAY */}
@@ -803,6 +803,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             gap: 8,
             color: "#e5e7eb",
             fontSize: "0.9rem",
+            zIndex: 20,
           }}
         >
           <div
