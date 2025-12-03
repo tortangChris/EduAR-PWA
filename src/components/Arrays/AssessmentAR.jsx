@@ -21,7 +21,7 @@ const AssessmentAR = ({
   spacing = 1.5,
   passingRatio = 0.75,
   onPassStatusChange,
-  onBack, // Add this prop to go back to Assessment.jsx
+  onBack,
 }) => {
   const [isARSupported, setIsARSupported] = useState(false);
   const [arStarted, setArStarted] = useState(false);
@@ -47,16 +47,6 @@ const AssessmentAR = ({
     }
   };
 
-  const exitAR = () => {
-    try {
-      xrStore.getState().session?.end();
-    } catch (e) {
-      console.error("Error ending AR session:", e);
-    }
-    setArStarted(false);
-    if (onBack) onBack();
-  };
-
   return (
     <div className="w-full h-screen relative">
       {/* AR Start Button */}
@@ -72,7 +62,6 @@ const AssessmentAR = ({
             </button>
           )}
 
-          <div className="text-6xl mb-6">📱</div>
           <h1 className="text-3xl font-bold text-yellow-400 mb-4">
             Array Assessment AR
           </h1>
@@ -83,45 +72,28 @@ const AssessmentAR = ({
           {isARSupported ? (
             <button
               onClick={startAR}
-              className="px-8 py-4 bg-green-600 hover:bg-green-500 text-white text-xl font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all"
+              className="px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white text-xl font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all"
             >
               🚀 Start AR Experience
             </button>
           ) : (
-            <div className="text-center px-4">
-              <div className="px-6 py-4 bg-red-600/20 border border-red-500 rounded-xl mb-4">
-                <p className="text-red-400 font-semibold mb-2">
-                  AR Not Supported
-                </p>
-                <p className="text-gray-400 text-sm">
-                  Your device or browser doesn't support WebXR AR
-                </p>
-              </div>
-              <p className="text-gray-500 text-sm mb-2">Try using:</p>
-              <ul className="text-gray-400 text-sm">
-                <li>• Chrome on Android with ARCore</li>
-                <li>• Safari on iOS 15+</li>
-                <li>• Make sure you're on HTTPS</li>
-              </ul>
+            <div className="text-center">
+              <p className="text-red-400 mb-4">
+                AR is not supported on this device/browser
+              </p>
+              <p className="text-gray-400 text-sm">
+                Try using Chrome on Android or Safari on iOS
+              </p>
               {onBack && (
                 <button
                   onClick={onBack}
-                  className="mt-6 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg"
+                  className="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg"
                 >
-                  ← Go Back to Normal Assessment
+                  ← Go Back
                 </button>
               )}
             </div>
           )}
-
-          {/* Instructions */}
-          <div className="mt-12 text-center px-4">
-            <p className="text-gray-500 text-sm mb-2">How to interact:</p>
-            <div className="flex gap-4 justify-center text-gray-400 text-xs">
-              <span className="px-3 py-1 bg-slate-700 rounded">Hold to grab</span>
-              <span className="px-3 py-1 bg-slate-700 rounded">Drag to answer</span>
-            </div>
-          </div>
         </div>
       )}
 
@@ -152,18 +124,14 @@ const AssessmentAR = ({
       {/* Exit AR Button */}
       {arStarted && (
         <button
-          onClick={exitAR}
-          className="absolute top-4 left-4 z-50 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg shadow-lg font-semibold"
+          onClick={() => {
+            xrStore.getState().session?.end();
+            setArStarted(false);
+          }}
+          className="absolute top-4 right-4 z-50 px-4 py-2 bg-red-500 text-white rounded-lg shadow-lg"
         >
-          ✕ Exit AR
+          Exit AR
         </button>
-      )}
-
-      {/* AR Active Badge */}
-      {arStarted && (
-        <div className="absolute top-4 right-4 z-50 px-3 py-1 bg-green-600 text-white rounded-full text-sm font-semibold">
-          AR Active
-        </div>
       )}
     </div>
   );
@@ -196,19 +164,14 @@ const ARScene = ({
   const [boxPositions, setBoxPositions] = useState([]);
   const [droppedAnswer, setDroppedAnswer] = useState(null);
   
-  // AR Placement
+  // AR Placement - 6 FEET AWAY (1.8 meters)
   const [arPlaced, setArPlaced] = useState(false);
-  // CHANGED: Position 4 feet away (1.2 meters) and slightly lower
-  const [arPosition, setArPosition] = useState([0, -0.3, -1.2]);
-
-  // CHANGED: Scale down everything to 50% so it fits in view
-  const arScale = 0.5;
-  const adjustedSpacing = spacing * arScale;
+  const [arPosition, setArPosition] = useState([0, 0, -7]);
 
   const originalPositions = useMemo(() => {
     const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * adjustedSpacing, 0, 0]);
-  }, [data, adjustedSpacing]);
+    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
+  }, [data, spacing]);
 
   // Initialize box positions
   useEffect(() => {
@@ -416,8 +379,8 @@ const ARScene = ({
         <ARHitTest onPlace={handlePlaceAR} />
       )}
 
-      {/* Main Content Group - positioned in AR space and SCALED DOWN */}
-      <group position={arPosition} scale={[arScale, arScale, arScale]}>
+      {/* Main Content Group - positioned in AR space */}
+      <group position={arPosition}>
         {/* Floating UI Panel */}
         <ARUIPanel
           position={[0, 2.5, 0]}
@@ -510,17 +473,16 @@ const ARScene = ({
         )}
       </group>
 
-      {/* Non-AR fallback camera - only when not in AR */}
+      {/* Non-AR fallback camera */}
       {!arStarted && <FallbackCamera />}
     </>
   );
 };
 
-// AR Hit Test Component for placing content
+// AR Hit Test Component for placing content - 6 FEET AWAY
 const ARHitTest = ({ onPlace }) => {
   const reticleRef = useRef();
   const [hitPosition, setHitPosition] = useState(null);
-  const { gl, camera } = useThree();
 
   useFrame(() => {
     if (reticleRef.current) {
@@ -532,17 +494,17 @@ const ARHitTest = ({ onPlace }) => {
     if (hitPosition) {
       onPlace(hitPosition);
     } else {
-      // CHANGED: Default position 4 feet (1.2m) in front, slightly below eye level
-      onPlace([0, -0.3, -1.2]);
+      // Default position 6 feet (1.8 meters) in front of camera
+      onPlace([0, 0, -1.8]);
     }
   };
 
   return (
     <group>
-      {/* Reticle indicator - MOVED to 4 feet away */}
+      {/* Reticle indicator - 6 feet away */}
       <mesh
         ref={reticleRef}
-        position={[0, -0.3, -1.2]}
+        position={[0, 0, -1.8]}
         rotation={[-Math.PI / 2, 0, 0]}
         onClick={handleTap}
       >
@@ -552,8 +514,8 @@ const ARHitTest = ({ onPlace }) => {
       
       {/* Tap instruction */}
       <Text
-        position={[0, 0.2, -1.2]}
-        fontSize={0.08}
+        position={[0, 0.5, -1.8]}
+        fontSize={0.1}
         color="#00ff00"
         anchorX="center"
       >
@@ -569,7 +531,7 @@ const ARUIPanel = ({ position, mode, modeIndex, question, score, totalAssessment
     <group position={position}>
       {/* Background panel */}
       <mesh position={[0, 0, -0.05]}>
-        <planeGeometry args={[5, 1.4]} />
+        <planeGeometry args={[4, 1.2]} />
         <meshBasicMaterial 
           color="#0f172a" 
           transparent 
@@ -580,14 +542,14 @@ const ARUIPanel = ({ position, mode, modeIndex, question, score, totalAssessment
       
       {/* Border */}
       <mesh position={[0, 0, -0.04]}>
-        <planeGeometry args={[5.1, 1.5]} />
+        <planeGeometry args={[4.1, 1.3]} />
         <meshBasicMaterial color="#3b82f6" wireframe />
       </mesh>
 
       {/* Title */}
       <Text
-        position={[0, 0.4, 0]}
-        fontSize={0.2}
+        position={[0, 0.35, 0]}
+        fontSize={0.15}
         color="#facc15"
         anchorX="center"
       >
@@ -601,10 +563,10 @@ const ARUIPanel = ({ position, mode, modeIndex, question, score, totalAssessment
       {/* Question/Instruction */}
       <Text
         position={[0, 0, 0]}
-        fontSize={0.14}
+        fontSize={0.1}
         color="white"
         anchorX="center"
-        maxWidth={4.5}
+        maxWidth={3.5}
         textAlign="center"
       >
         {mode === "intro"
@@ -617,8 +579,8 @@ const ARUIPanel = ({ position, mode, modeIndex, question, score, totalAssessment
       {/* Score */}
       {mode !== "intro" && (
         <Text
-          position={[0, -0.45, 0]}
-          fontSize={0.12}
+          position={[0, -0.35, 0]}
+          fontSize={0.08}
           color="#fde68a"
           anchorX="center"
         >
@@ -706,6 +668,7 @@ const ARDraggableBox = ({
       );
     }
 
+    // Update hold progress
     if (isHolding && holdStartTimeRef.current && !isDragging) {
       const elapsed = Date.now() - holdStartTimeRef.current;
       const progress = Math.min(elapsed / HOLD_DURATION, 1);
@@ -926,6 +889,7 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) 
 
   return (
     <group position={position}>
+      {/* Drop zone */}
       <mesh
         ref={meshRef}
         onPointerOver={() => setHovered(true)}
@@ -942,6 +906,7 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) 
         />
       </mesh>
 
+      {/* Border */}
       <mesh position={[0, 0.01, 0]}>
         <boxGeometry args={[3.1, 0.22, 1.9]} />
         <meshBasicMaterial
@@ -950,6 +915,7 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) 
         />
       </mesh>
 
+      {/* Label */}
       <Text
         position={[0, 0.25, 0]}
         fontSize={0.2}
@@ -959,6 +925,7 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) 
         {isActive ? "Drop Here!" : "Answer Zone"}
       </Text>
 
+      {/* Arrow when active */}
       {isActive && (
         <group position={[0, 0.8, 0]}>
           <mesh rotation={[0, 0, Math.PI]}>
@@ -1015,6 +982,7 @@ const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
 
   return (
     <group position={[0, 0.5, 0]}>
+      {/* Score display */}
       <Text
         position={[0, 1, 0]}
         fontSize={0.3}
@@ -1024,6 +992,7 @@ const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
         {`Score: ${score} / ${totalAssessments}`}
       </Text>
 
+      {/* Status */}
       <Text
         position={[0, 0.5, 0]}
         fontSize={0.25}
@@ -1033,6 +1002,7 @@ const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
         {isPassed ? "PASSED ✓" : "FAILED ✗"}
       </Text>
 
+      {/* Restart button */}
       <mesh
         position={[0, -0.3, 0]}
         onClick={onRestart}
@@ -1095,8 +1065,8 @@ const FallbackCamera = () => {
   const { camera } = useThree();
   
   useEffect(() => {
-    camera.position.set(0, 2, 4);
-    camera.lookAt(0, 0, -1.2);
+    camera.position.set(0, 3, 6);
+    camera.lookAt(0, 0, 0);
   }, [camera]);
 
   return null;
