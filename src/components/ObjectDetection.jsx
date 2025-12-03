@@ -1,8 +1,5 @@
 // ../components/ObjectDetection.jsx
 import React, { useRef, useEffect, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Text as DreiText } from "@react-three/drei";
-import * as THREE from "three";
 
 // ✅ CLASSES for "Array" mode
 const ARRAY_CLASSES = ["laptop", "book", "chair", "bottle", "cell phone"];
@@ -19,7 +16,7 @@ const getLinkedListNodes = (predictions) =>
  * Simple heuristic para i-approx kung front view yung object.
  */
 const isFrontView = (pred) => {
-  const [x, y, w, h] = pred.bbox;
+  const [x, , w, h] = pred.bbox;
   if (w <= 0 || h <= 0) return false;
   const aspect = w / h;
 
@@ -186,87 +183,6 @@ const drawArrow = (ctx, x1, y1, x2, y2) => {
   ctx.fill();
 };
 
-/* ========= AR HELPERS ========= */
-
-// Start WebXR AR session (same style as VisualPageAR)
-const startAR = (gl) => {
-  if (navigator.xr) {
-    navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
-      if (supported) {
-        navigator.xr
-          .requestSession("immersive-ar", {
-            requiredFeatures: ["hit-test", "local-floor"],
-          })
-          .then((session) => {
-            gl.xr.setSession(session);
-          })
-          .catch((err) => console.error("AR session failed:", err));
-      } else {
-        console.warn("AR not supported on this device.");
-      }
-    });
-  }
-};
-
-// Floating 3D label for the detected concept
-const ConceptARLabel = ({ concept, detail }) => {
-  const groupRef = useRef();
-  const tRef = useRef(0);
-
-  useFrame((state, delta) => {
-    if (!groupRef.current) return;
-    tRef.current += delta;
-    // maliit na floating animation
-    const yBase = 1.5;
-    groupRef.current.position.y = yBase + Math.sin(tRef.current * 1.5) * 0.1;
-
-    // always face camera
-    const cam = state.camera;
-    groupRef.current.lookAt(cam.position);
-  });
-
-  const textDetail =
-    detail ||
-    (concept === "Array"
-      ? "Array: a row of slots in memory. Each position has an index like 0, 1, 2, 3 for fast O(1) access by index."
-      : concept === "Queue (FIFO)"
-      ? "Queue: like a line in a store. The first object that enters is the first one that leaves (First In, First Out)."
-      : concept === "Stack (LIFO)"
-      ? "Stack: like a pile of books. The last book you put on top is the first one you take off (Last In, First Out)."
-      : concept === "Linked List"
-      ? "Linked List: a chain of nodes. Each node points to the next one, and the last node points to null."
-      : "");
-
-  return (
-    <group ref={groupRef} position={[0, 1.5, -3]}>
-      {/* Title */}
-      <DreiText
-        position={[0, 0.4, 0]}
-        fontSize={0.35}
-        color="#34D399"
-        anchorX="center"
-        anchorY="middle"
-        maxWidth={4}
-      >
-        {concept}
-      </DreiText>
-
-      {/* Details */}
-      <DreiText
-        position={[0, -0.1, 0]}
-        fontSize={0.18}
-        color="#e5e7eb"
-        anchorX="center"
-        anchorY="top"
-        maxWidth={3.2}
-        textAlign="center"
-      >
-        {textDetail}
-      </DreiText>
-    </group>
-  );
-};
-
 /* ========= GUIDE TEXT (CENTERED BEFORE DETECTION) ========= */
 
 const getGuideText = (mode) => {
@@ -369,46 +285,173 @@ const LessonOverlay = ({
   taskMessage,
   onNextStep,
 }) => {
-  if (!concept || concept !== "Array" || !lessonStep) return null;
+  if (!lessonStep || !concept) return null;
 
   let title = "";
   let bodyLines = [];
   let showNextButton = true;
   let nextLabel = "Next ▶";
 
-  if (lessonStep === "array_intro") {
-    title = "How does an Array work?";
-    bodyLines = [
-      "• Each detected object becomes one slot in the array.",
-      "• The label index[0], index[1], index[2]... is its position.",
-      "• When code says arr[k], it jumps directly to that position.",
-      "",
-      "In algorithms, this is why array access by index is O(1) time.",
-    ];
-    nextLabel = "Start AR Task";
-  } else if (lessonStep === "array_task_1") {
-    title = "AR Task: Access by Index";
-    bodyLines = [
-      `• Find the object labeled index[${targetIndex ?? 0}].`,
-      "• Physically move that object closer to the camera.",
-      "• The system will check if you really focused on the correct index.",
-      "",
-      "This simulates executing: arr[" + (targetIndex ?? 0) + "] in an array.",
-    ];
-    // Walang next button dito; auto-advance via detection.
-    showNextButton = false;
-  } else if (lessonStep === "array_task_1_done") {
-    title = "Task Result";
-    bodyLines = [
-      taskMessage ||
-        "✅ You focused on the correct index. This models how arr[k] reads data at a fixed position.",
-      "",
-      "Key idea:",
-      "• Arrays store elements in contiguous memory.",
-      "• So given an index k, the address is base + k * size.",
-      "• That is why access by index is O(1) in time complexity.",
-    ];
-    nextLabel = "Close";
+  switch (lessonStep) {
+    /* ===== ARRAY LESSON ===== */
+    case "array_intro":
+      title = "Array: How indexing works";
+      bodyLines = [
+        "• Each detected object becomes one slot in the array.",
+        "• The green label index[0], index[1], index[2]... is its position.",
+        "• When code says arr[k], it jumps directly to that index.",
+        "",
+        "In algorithms, this gives O(1) access time by index.",
+      ];
+      nextLabel = "Start AR Task";
+      break;
+
+    case "array_task_1":
+      title = "AR Task (Array): Access by index";
+      bodyLines = [
+        `• Find the object labeled index[${targetIndex ?? 0}].`,
+        "• Physically move that object closer to the camera.",
+        "• The system will check if you really focused on the correct index.",
+        "",
+        `This simulates executing: arr[${targetIndex ?? 0}] in an array.`,
+      ];
+      // auto-advance via detection; walang button
+      showNextButton = false;
+      break;
+
+    case "array_task_1_done":
+      title = "Array Task Result";
+      bodyLines = [
+        taskMessage ||
+          "✅ You focused on the correct index. This models how arr[k] reads data at a fixed position.",
+        "",
+        "Key idea:",
+        "• Arrays store elements in contiguous memory.",
+        "• Given index k, address = base + k * size.",
+        "• That is why array access by index is O(1).",
+      ];
+      nextLabel = "Close";
+      break;
+
+    /* ===== QUEUE LESSON ===== */
+    case "queue_intro":
+      title = "Queue: First In, First Out (FIFO)";
+      bodyLines = [
+        "• The detected people/books/phones in a line form a Queue.",
+        "• The leftmost item (Q[0]) is the front of the line.",
+        "• New items join at the back, old items leave from the front.",
+        "",
+        "In DSA, enqueue adds to the back, dequeue removes from the front.",
+      ];
+      nextLabel = "Start Queue Task";
+      break;
+
+    case "queue_task_1":
+      title = "AR Task (Queue): Dequeue";
+      bodyLines = [
+        "• Look at the items labeled Q[0], Q[1], Q[2]...",
+        "• Q[0] is at the front of the line.",
+        "• To simulate dequeue, remove or step away the object at Q[0].",
+        "",
+        "After the front leaves, Q[1] becomes the new front.",
+        "This demonstrates First In, First Out behavior.",
+      ];
+      nextLabel = "Mark as Done";
+      break;
+
+    case "queue_task_1_done":
+      title = "Queue Summary";
+      bodyLines = [
+        "• You simulated a dequeue operation.",
+        "• The earliest item (front) left the line first.",
+        "",
+        "In DSA:",
+        "• Enqueue → insert at back.",
+        "• Dequeue → remove at front.",
+        "• Commonly used for scheduling, printers, waiting lines, etc.",
+      ];
+      nextLabel = "Close";
+      break;
+
+    /* ===== STACK LESSON ===== */
+    case "stack_intro":
+      title = "Stack: Last In, First Out (LIFO)";
+      bodyLines = [
+        "• The vertical pile of books is modeled as a Stack.",
+        "• The top book is the last pushed and the first popped.",
+        "",
+        "In algorithms:",
+        "• push(x) places an item on top.",
+        "• pop() removes the item from the top.",
+      ];
+      nextLabel = "Start Stack Task";
+      break;
+
+    case "stack_task_1":
+      title = "AR Task (Stack): Pop from top";
+      bodyLines = [
+        "• Look at the detected stack label on your books.",
+        "• Physically remove the top book from the pile.",
+        "• This simulates a pop() operation.",
+        "",
+        "Only the top is accessible directly in a Stack.",
+      ];
+      nextLabel = "Mark as Done";
+      break;
+
+    case "stack_task_1_done":
+      title = "Stack Summary";
+      bodyLines = [
+        "• You modeled a pop() by removing the top book.",
+        "",
+        "Important properties:",
+        "• LIFO: Last pushed, first popped.",
+        "• Used in function call stacks, undo operations, backtracking, etc.",
+      ];
+      nextLabel = "Close";
+      break;
+
+    /* ===== LINKED LIST LESSON ===== */
+    case "list_intro":
+      title = "Linked List: Nodes and pointers";
+      bodyLines = [
+        "• The cups or toy trains in a row are treated as nodes.",
+        "• Each node conceptually stores a value and a pointer to the next.",
+        "",
+        "In a singly linked list:",
+        "• You start at the head node.",
+        "• You follow next pointers until you reach null (end).",
+      ];
+      nextLabel = "Start List Task";
+      break;
+
+    case "list_task_1":
+      title = "AR Task (Linked List): Traverse the list";
+      bodyLines = [
+        "• Follow the nodes from left to right: node[0] → node[1] → node[2]...",
+        "• While looking at each object, imagine reading:",
+        '  "current = current.next" until you reach null.',
+        "",
+        "This models traversal of a singly linked list.",
+      ];
+      nextLabel = "Mark as Done";
+      break;
+
+    case "list_task_1_done":
+      title = "Linked List Summary";
+      bodyLines = [
+        "• You traversed the list node by node.",
+        "",
+        "Key ideas:",
+        "• Nodes are scattered in memory but linked by pointers.",
+        "• Access by index is O(n) (you must walk the chain).",
+        "• Easy to insert/delete in the middle compared to arrays.",
+      ];
+      nextLabel = "Close";
+      break;
+
+    default:
+      return null;
   }
 
   return (
@@ -468,11 +511,8 @@ const LessonOverlay = ({
             padding: "6px 10px",
             borderRadius: 999,
             border: "none",
-            background:
-              lessonStep === "array_task_1_done"
-                ? "rgba(34,197,94,0.15)"
-                : "rgba(59,130,246,0.18)",
-            color: lessonStep === "array_task_1_done" ? "#4ade80" : "#60a5fa",
+            background: "rgba(59,130,246,0.18)",
+            color: "#60a5fa",
             fontSize: "0.72rem",
             fontWeight: 600,
             cursor: "pointer",
@@ -502,8 +542,8 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
   const [conceptDetail, setConceptDetail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  // 🔥 NEW: lesson state for educational flow
-  const [lessonStep, setLessonStep] = useState(null); // e.g. "array_intro", "array_task_1", ...
+  // 🔥 lesson state for educational flow
+  const [lessonStep, setLessonStep] = useState(null); // e.g. "array_intro", "queue_intro", ...
   const [targetIndex, setTargetIndex] = useState(null);
   const [taskMessage, setTaskMessage] = useState("");
 
@@ -613,6 +653,9 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             setConceptDetail(
               `Detected ${queueCountLocal} side-view item(s) (person/book/cell phone) in a line → behaves like a Queue (First In, First Out).`
             );
+            setLessonStep((prev) =>
+              prev && prev.startsWith("queue_") ? prev : "queue_intro"
+            );
             return true;
           }
         }
@@ -625,6 +668,9 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           setConcept("Stack (LIFO)");
           setConceptDetail(
             `Detected ${bookCountLocal} book(s) arranged into ${stackCount} stack(s) via vertical edges (spines) → behaves like a Stack (Last In, First Out).`
+          );
+          setLessonStep((prev) =>
+            prev && prev.startsWith("stack_") ? prev : "stack_intro"
           );
           return true;
         }
@@ -648,7 +694,10 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             ).join(", ");
             setConcept("Linked List");
             setConceptDetail(
-              `Detected ${nodeCount} node(s) (${usedClasses}) aligned in a row → can be modeled as a Singly Linked List (each node points to the next, last points to null).`
+              `Detected ${nodeCount} node(s) (${usedClasses}) aligned in a row → can be modeled as a Singly Linked List.`
+            );
+            setLessonStep((prev) =>
+              prev && prev.startsWith("list_") ? prev : "list_intro"
             );
             return true;
           }
@@ -662,8 +711,9 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           setConceptDetail(
             `Detected ${arrayLikeCount} front-view object(s) (laptop/book/chair/bottle/cell phone) → modeled as an Array (index-based, fixed positions).`
           );
-          // NEW: kick off lesson flow if wala pa
-          setLessonStep((prev) => prev || "array_intro");
+          setLessonStep((prev) =>
+            prev && prev.startsWith("array_") ? prev : "array_intro"
+          );
           setTargetIndex((prev) =>
             prev == null ? Math.floor(arrayLikeCount / 2) : prev
           );
@@ -1028,12 +1078,49 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
 
   // handler for lesson "Next" button
   const handleNextLessonStep = () => {
-    if (lessonStep === "array_intro") {
-      setTaskMessage("");
-      setLessonStep("array_task_1");
-    } else if (lessonStep === "array_task_1_done") {
-      setLessonStep(null);
-      setTaskMessage("");
+    switch (lessonStep) {
+      case "array_intro":
+        setTaskMessage("");
+        setLessonStep("array_task_1");
+        break;
+      case "array_task_1_done":
+        setLessonStep(null);
+        setTaskMessage("");
+        break;
+
+      case "queue_intro":
+        setLessonStep("queue_task_1");
+        break;
+      case "queue_task_1":
+        setLessonStep("queue_task_1_done");
+        break;
+      case "queue_task_1_done":
+        setLessonStep(null);
+        break;
+
+      case "stack_intro":
+        setLessonStep("stack_task_1");
+        break;
+      case "stack_task_1":
+        setLessonStep("stack_task_1_done");
+        break;
+      case "stack_task_1_done":
+        setLessonStep(null);
+        break;
+
+      case "list_intro":
+        setLessonStep("list_task_1");
+        break;
+      case "list_task_1":
+        setLessonStep("list_task_1_done");
+        break;
+      case "list_task_1_done":
+        setLessonStep(null);
+        break;
+
+      default:
+        setLessonStep(null);
+        break;
     }
   };
 
@@ -1105,28 +1192,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         <span>DSA Concept Detection · {status}</span>
       </div>
 
-      {/* ⭐ AR CANVAS – 3D text nalulutang sa environment kapag may detected concept */}
-      {concept && (
-        <Canvas
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-          }}
-          camera={{ position: [0, 0, 3], fov: 50 }}
-          onCreated={({ gl }) => {
-            gl.xr.enabled = true;
-            startAR(gl);
-          }}
-        >
-          <ambientLight intensity={0.7} />
-          <directionalLight position={[2, 3, 4]} intensity={0.7} />
-          <ConceptARLabel concept={concept} detail={conceptDetail} />
-          <OrbitControls enabled={false} />
-        </Canvas>
-      )}
-
-      {/* 🔹 MODE GUIDE – FLOATING CARD, only before any concept is detected */}
+      {/* 🔹 MODE GUIDE – only before any concept is detected */}
       {!isLoading && guide && (
         <div
           style={{
@@ -1267,13 +1333,13 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
               }}
             >
               Hold the camera steady and move slowly until the structure is
-              detected. The overlay will disappear once a concept is recognized.
+              detected. The setup guide will hide once a concept is recognized.
             </p>
           </div>
         </div>
       )}
 
-      {/* 🔥 LESSON OVERLAY – explanation + AR task for Array */}
+      {/* 🔥 LESSON OVERLAY – explanation + AR tasks per DSA */}
       <LessonOverlay
         lessonStep={lessonStep}
         concept={concept}
