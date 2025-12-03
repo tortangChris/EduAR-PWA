@@ -166,7 +166,7 @@ const ARScene = ({
   
   // AR Placement - 6 FEET AWAY (1.8 meters)
   const [arPlaced, setArPlaced] = useState(false);
-  const [arPosition, setArPosition] = useState([0, 0, -1.8]);
+  const [arPosition, setArPosition] = useState([0, 0, -7]);
 
   const originalPositions = useMemo(() => {
     const mid = (data.length - 1) / 2;
