@@ -1,8 +1,7 @@
 // ../components/ObjectDetection.jsx
 import React, { useRef, useEffect, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Text as DreiText } from "@react-three/drei";
-import * as THREE from "three";
+import { Text } from "@react-three/drei";
 
 // ✅ CLASSES for "Array" mode
 const ARRAY_CLASSES = ["laptop", "book", "chair", "bottle", "cell phone"];
@@ -47,11 +46,6 @@ const isFrontView = (pred) => {
  * Side-view / naka-pila candidate para sa Queue:
  * - person: tall & skinny (side view) at halos buong katawan (height vs frame)
  * - book / cell phone: hindi front view (so side / nakatagilid) at di sobrang liit
- *
- * NOTE:
- *  - Person → may whole-body filter (para walang face/hand boxes).
- *  - Book/phone → mas relaxed, para kahit maliit pero malinaw na side view,
- *    puwedeng isama sa queue.
  */
 const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
   const [x, y, w, h] = pred.bbox;
@@ -88,10 +82,6 @@ const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
  * - score > 0.4
  * - front view only (via isFrontView)
  * - sort left-to-right para maging index[0..n]
- *
- * So:
- *  - front-view book/phone → Array
- *  - side-view book/phone → puwedeng Queue (via isSideViewQueueItem)
  */
 const getArrayObjects = (predictions) => {
   return predictions
@@ -101,7 +91,7 @@ const getArrayObjects = (predictions) => {
     .sort((a, b) => a.bbox[0] - b.bbox[0]); // left → right
 };
 
-// --- OpenCV-based book stack detection (unchanged) ---
+// --- OpenCV-based book stack detection ---
 const detectBookStacksFromEdges = (videoEl) => {
   if (!window.cv || !videoEl.videoWidth || !videoEl.videoHeight) return [];
 
@@ -211,21 +201,15 @@ const drawArrow = (ctx, x1, y1, x2, y2) => {
   ctx.fill();
 };
 
-/* === 3D Fade-in Text (like your sample) === */
-const FadeInText = ({
-  show,
-  text,
-  position,
-  fontSize,
-  color,
-  maxWidth = 8,
-  align = "center",
-}) => {
+// === Fade-in Text (3D) ===
+const FadeInText = ({ show, text, position, fontSize, color }) => {
   const ref = useRef();
   const opacity = useRef(0);
   const scale = useRef(0.6);
 
   useFrame(() => {
+    if (!ref.current) return;
+
     if (show) {
       opacity.current = Math.min(opacity.current + 0.06, 1);
       scale.current = Math.min(scale.current + 0.06, 1);
@@ -234,14 +218,14 @@ const FadeInText = ({
       scale.current = 0.6;
     }
 
-    if (ref.current && ref.current.material) {
+    if (ref.current.material) {
       ref.current.material.opacity = opacity.current;
       ref.current.scale.set(scale.current, scale.current, scale.current);
     }
   });
 
   return (
-    <DreiText
+    <Text
       ref={ref}
       position={position}
       fontSize={fontSize}
@@ -249,44 +233,11 @@ const FadeInText = ({
       anchorX="center"
       anchorY="middle"
       material-transparent
-      maxWidth={maxWidth}
-      textAlign={align}
+      maxWidth={3}
+      textAlign="center"
     >
       {text}
-    </DreiText>
-  );
-};
-
-/* === 3D Concept Panel using FadeInText === */
-const FloatingConceptText = ({ title, detail }) => {
-  return (
-    <>
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[2, 3, 4]} intensity={0.6} />
-
-      {/* Title – bold-ish, bigger */}
-      <FadeInText
-        show={true}
-        text={title}
-        position={[0, 0.5, 0]}
-        fontSize={0.35}
-        color="#34D399"
-        maxWidth={2.6}
-      />
-
-      {/* Detail – multi-line explanation */}
-      <FadeInText
-        show={true}
-        text={detail}
-        position={[0, -0.2, 0]}
-        fontSize={0.15}
-        color="#e5e7eb"
-        maxWidth={2.6}
-        align="left"
-      />
-
-      <OrbitControls enableZoom={false} />
-    </>
+    </Text>
   );
 };
 
@@ -372,7 +323,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         (p) => p.class === "book" && p.score > 0.4
       );
 
-      // 🔥 Queue candidates: person / book / cellphone na side-view / nakatagilid
+      // Queue candidates: person / book / cellphone na side-view / nakatagilid
       const queueItems = predictions.filter(
         (p) =>
           (p.class === "person" ||
@@ -572,7 +523,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           ctx.lineWidth = 3;
           ctx.strokeRect(x, y, width, height);
 
-          // label: Q[index] + class (para kita kung tao / book / phone)
+          // label: Q[index] + class
           const label = `Q[${index}] ${p.class}`;
           const labelHeight = 22;
 
@@ -766,7 +717,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         }}
       />
 
-      {/* CANVAS OVERLAY */}
+      {/* CANVAS OVERLAY (2D bounding boxes) */}
       <canvas
         ref={canvasRef}
         style={{
@@ -794,7 +745,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         DSA Concept Detection · {status}
       </div>
 
-      {/* ⭐ THREE.JS DSA TEXT OVERLAY – only when may concept */}
+      {/* ⭐ 3D TEXT INFO PANEL (Three.js) */}
       {concept && (
         <div
           style={{
@@ -816,7 +767,24 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
               fov: 45,
             }}
           >
-            <FloatingConceptText title={concept} detail={conceptDetail} />
+            <ambientLight intensity={0.8} />
+            <directionalLight position={[2, 3, 4]} intensity={0.6} />
+
+            <FadeInText
+              show={true}
+              text={concept}
+              position={[0, 0.4, 0]}
+              fontSize={0.35}
+              color="#34D399"
+            />
+
+            <FadeInText
+              show={true}
+              text={conceptDetail}
+              position={[0, -0.25, 0]}
+              fontSize={0.18}
+              color="#e5e7eb"
+            />
           </Canvas>
         </div>
       )}
