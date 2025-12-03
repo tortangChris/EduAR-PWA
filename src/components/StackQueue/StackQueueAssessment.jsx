@@ -283,7 +283,6 @@ const StackQueueAssessment = ({
           <>
             {/* RIGHT SIDE PANEL - Questions & Info */}
             <group position={[5, 3, 0]}>
-              {/* Header */}
               <FadeText
                 text={`Assessment ${modeIndex}: ${mode.toUpperCase()}`}
                 position={[0, 2.5, 0]}
@@ -291,13 +290,11 @@ const StackQueueAssessment = ({
                 color="#facc15"
               />
 
-              {/* Question Box Background */}
               <mesh position={[0, 0.8, -0.1]}>
                 <planeGeometry args={[7, 3.5]} />
                 <meshBasicMaterial color="#1e293b" transparent opacity={0.85} />
               </mesh>
 
-              {/* Question text */}
               <FadeText
                 text={question ? question.prompt : ""}
                 position={[0, 1, 0]}
@@ -305,7 +302,6 @@ const StackQueueAssessment = ({
                 color="white"
               />
 
-              {/* Progress indicator */}
               <FadeText
                 text={`Progress: ${modeIndex} / ${totalAssessments} | Score: ${score}`}
                 position={[0, -0.5, 0]}
@@ -313,7 +309,6 @@ const StackQueueAssessment = ({
                 color="#fde68a"
               />
 
-              {/* Instructions */}
               <FadeText
                 text={"Hold 0.5s to drag → Drop in Answer Zone"}
                 position={[0, -1, 0]}
@@ -322,13 +317,11 @@ const StackQueueAssessment = ({
               />
             </group>
 
-            {/* Stack Background - Left Side */}
             <StackBackground 
               height={stack.length * spacing + 2} 
               position={[-4, 0, 0]}
             />
 
-            {/* Answer Drop Zone - Center */}
             <AnswerDropZone
               position={[0, 1, 3]}
               isActive={draggedBox !== null}
@@ -336,7 +329,6 @@ const StackQueueAssessment = ({
               onDrop={handleDropOnAnswer}
             />
 
-            {/* LIFO Indicator - Far Left */}
             <group position={[-7.5, 2, 0]}>
               <Text
                 fontSize={0.35}
@@ -374,7 +366,6 @@ const StackQueueAssessment = ({
               </mesh>
             </group>
 
-            {/* Stack Elements - Left Side */}
             {stack.map((value, i) => {
               let extraOpacity = 1;
               if (animState[i] === "fade") extraOpacity = 0.25;
@@ -410,7 +401,6 @@ const StackQueueAssessment = ({
               );
             })}
 
-            {/* Base platform */}
             <mesh position={[-4, -0.8, 0]}>
               <boxGeometry args={[3, 0.3, 1.5]} />
               <meshStandardMaterial color="#475569" />
@@ -469,7 +459,6 @@ const StackQueueAssessment = ({
           </group>
         )}
 
-        {/* Feedback - Top Center */}
         {feedback && (
           <FloatingFeedback
             text={feedback.text}
@@ -488,29 +477,29 @@ const StackQueueAssessment = ({
   );
 };
 
-// === Simplified Intro Screen ===
+// === Simplified Intro Screen - Stack close to Start Button ===
 const IntroScreen = ({ onStart }) => {
   const [hovered, setHovered] = useState(false);
 
   return (
-    <group position={[0, 1, 0]}>
-      {/* Title */}
+    <group position={[0, 0, 0]}>
+      {/* Title - Top */}
       <FadeText
         text="Stack — Assessment"
-        position={[0, 5, 0]}
+        position={[0, 5.5, 0]}
         fontSize={0.6}
         color="#facc15"
       />
 
-      {/* Description Panel */}
-      <group position={[0, 3.8, 0]}>
+      {/* Description Panel - Below Title */}
+      <group position={[0, 4.2, 0]}>
         <mesh position={[0, 0, -0.1]}>
-          <planeGeometry args={[9, 1.8]} />
+          <planeGeometry args={[9, 1.5]} />
           <meshBasicMaterial color="#1e293b" transparent opacity={0.85} />
         </mesh>
         <Text
-          position={[0, 0.3, 0]}
-          fontSize={0.26}
+          position={[0, 0.25, 0]}
+          fontSize={0.24}
           color="#fde68a"
           anchorX="center"
           anchorY="middle"
@@ -521,7 +510,7 @@ const IntroScreen = ({ onStart }) => {
         </Text>
         <Text
           position={[0, -0.2, 0]}
-          fontSize={0.22}
+          fontSize={0.2}
           color="white"
           anchorX="center"
           anchorY="middle"
@@ -532,45 +521,45 @@ const IntroScreen = ({ onStart }) => {
         </Text>
       </group>
 
-      {/* 3D Stack Visualization */}
-      <group position={[0, 1.2, 0]}>
-        {/* Stack boxes */}
+      {/* 3D Stack - Moved DOWN, close to Start Button */}
+      <group position={[0, 0.8, 0]}>
+        {/* Stack boxes - smaller spacing */}
         <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[2.5, 0.7, 1]} />
+          <boxGeometry args={[2.2, 0.55, 0.9]} />
           <meshStandardMaterial color="#34d399" />
         </mesh>
-        <Text position={[0, 0, 0.51]} fontSize={0.3} color="white" anchorX="center" anchorY="middle">
+        <Text position={[0, 0, 0.46]} fontSize={0.25} color="white" anchorX="center" anchorY="middle">
           10
         </Text>
 
-        <mesh position={[0, 0.8, 0]}>
-          <boxGeometry args={[2.5, 0.7, 1]} />
+        <mesh position={[0, 0.65, 0]}>
+          <boxGeometry args={[2.2, 0.55, 0.9]} />
           <meshStandardMaterial color="#34d399" />
         </mesh>
-        <Text position={[0, 0.8, 0.51]} fontSize={0.3} color="white" anchorX="center" anchorY="middle">
+        <Text position={[0, 0.65, 0.46]} fontSize={0.25} color="white" anchorX="center" anchorY="middle">
           20
         </Text>
 
-        <mesh position={[0, 1.6, 0]}>
-          <boxGeometry args={[2.5, 0.7, 1]} />
+        <mesh position={[0, 1.3, 0]}>
+          <boxGeometry args={[2.2, 0.55, 0.9]} />
           <meshStandardMaterial color="#34d399" />
         </mesh>
-        <Text position={[0, 1.6, 0.51]} fontSize={0.3} color="white" anchorX="center" anchorY="middle">
+        <Text position={[0, 1.3, 0.46]} fontSize={0.25} color="white" anchorX="center" anchorY="middle">
           30
         </Text>
 
-        <mesh position={[0, 2.4, 0]}>
-          <boxGeometry args={[2.5, 0.7, 1]} />
+        <mesh position={[0, 1.95, 0]}>
+          <boxGeometry args={[2.2, 0.55, 0.9]} />
           <meshStandardMaterial color="#60a5fa" />
         </mesh>
-        <Text position={[0, 2.4, 0.51]} fontSize={0.3} color="white" anchorX="center" anchorY="middle">
+        <Text position={[0, 1.95, 0.46]} fontSize={0.25} color="white" anchorX="center" anchorY="middle">
           40
         </Text>
 
         {/* TOP indicator */}
         <Text
-          position={[1.8, 2.4, 0]}
-          fontSize={0.25}
+          position={[1.5, 1.95, 0]}
+          fontSize={0.22}
           color="#fde68a"
           anchorX="left"
           anchorY="middle"
@@ -579,13 +568,13 @@ const IntroScreen = ({ onStart }) => {
         </Text>
 
         {/* Base */}
-        <mesh position={[0, -0.5, 0]}>
-          <boxGeometry args={[3, 0.2, 1.3]} />
+        <mesh position={[0, -0.4, 0]}>
+          <boxGeometry args={[2.6, 0.15, 1.1]} />
           <meshStandardMaterial color="#475569" />
         </mesh>
       </group>
 
-      {/* Start Button - Positioned in front and clearly visible */}
+      {/* Start Button - Right below the stack */}
       <group position={[0, -1.5, 2]}>
         <mesh
           position={[0, 0, 0]}
@@ -634,7 +623,7 @@ const StackBackground = ({ height, position = [0, 0, 0] }) => {
   );
 };
 
-// === Answer Drop Zone (Clean) ===
+// === Answer Drop Zone ===
 const AnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
   const [hovered, setHovered] = useState(false);
   const meshRef = useRef();
