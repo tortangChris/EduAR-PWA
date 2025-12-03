@@ -32,7 +32,6 @@ const StackQueueAssessment = ({
 
   const controlsRef = useRef();
 
-  // Stack positioned on the left side
   const originalPositions = useMemo(() => {
     return stack.map((_, i) => [-4, i * spacing, 0]);
   }, [stack, spacing]);
@@ -489,63 +488,52 @@ const StackQueueAssessment = ({
   );
 };
 
-// === Intro Screen with Description on Top ===
+// === Simplified Intro Screen ===
 const IntroScreen = ({ onStart }) => {
   const [hovered, setHovered] = useState(false);
 
   return (
-    <group position={[0, 0, 0]}>
+    <group position={[0, 1, 0]}>
       {/* Title */}
       <FadeText
         text="Stack — Assessment"
-        position={[0, 5.5, 0]}
+        position={[0, 5, 0]}
         fontSize={0.6}
         color="#facc15"
       />
 
-      {/* Description Panel - On Top */}
+      {/* Description Panel */}
       <group position={[0, 3.8, 0]}>
         <mesh position={[0, 0, -0.1]}>
-          <planeGeometry args={[10, 2]} />
+          <planeGeometry args={[9, 1.8]} />
           <meshBasicMaterial color="#1e293b" transparent opacity={0.85} />
         </mesh>
         <Text
-          position={[0, 0.4, 0]}
-          fontSize={0.28}
+          position={[0, 0.3, 0]}
+          fontSize={0.26}
           color="#fde68a"
           anchorX="center"
           anchorY="middle"
-          maxWidth={9}
+          maxWidth={8}
           textAlign="center"
         >
           A Stack follows the LIFO principle:
         </Text>
         <Text
-          position={[0, -0.05, 0]}
-          fontSize={0.24}
+          position={[0, -0.2, 0]}
+          fontSize={0.22}
           color="white"
           anchorX="center"
           anchorY="middle"
-          maxWidth={9}
+          maxWidth={8}
           textAlign="center"
         >
-          Last In, First Out — the last element added
-        </Text>
-        <Text
-          position={[0, -0.4, 0]}
-          fontSize={0.24}
-          color="white"
-          anchorX="center"
-          anchorY="middle"
-          maxWidth={9}
-          textAlign="center"
-        >
-          is the first to be removed.
+          Last In, First Out — the last element added is the first to be removed.
         </Text>
       </group>
 
-      {/* 3D Stack Visualization - Center */}
-      <group position={[0, 0.5, 0]}>
+      {/* 3D Stack Visualization */}
+      <group position={[0, 1.2, 0]}>
         {/* Stack boxes */}
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[2.5, 0.7, 1]} />
@@ -597,72 +585,23 @@ const IntroScreen = ({ onStart }) => {
         </mesh>
       </group>
 
-      {/* Operations Info - Left Side */}
-      <group position={[-5, 1.5, 0]}>
-        <mesh position={[0, 0, -0.1]}>
-          <planeGeometry args={[3.5, 3]} />
-          <meshBasicMaterial color="#1e293b" transparent opacity={0.7} />
-        </mesh>
-        <Text position={[0, 1, 0]} fontSize={0.25} color="#facc15" anchorX="center" anchorY="middle">
-          Operations:
-        </Text>
-        <Text position={[0, 0.5, 0]} fontSize={0.2} color="#34d399" anchorX="center" anchorY="middle">
-          Push — O(1)
-        </Text>
-        <Text position={[0, 0.1, 0]} fontSize={0.2} color="#f87171" anchorX="center" anchorY="middle">
-          Pop — O(1)
-        </Text>
-        <Text position={[0, -0.3, 0]} fontSize={0.2} color="#60a5fa" anchorX="center" anchorY="middle">
-          Peek — O(1)
-        </Text>
-        <Text position={[0, -0.8, 0]} fontSize={0.18} color="#94a3b8" anchorX="center" anchorY="middle">
-          All operations are
-        </Text>
-        <Text position={[0, -1.1, 0]} fontSize={0.18} color="#94a3b8" anchorX="center" anchorY="middle">
-          constant time!
-        </Text>
-      </group>
-
-      {/* Real-life Analogy - Right Side */}
-      <group position={[5, 1.5, 0]}>
-        <mesh position={[0, 0, -0.1]}>
-          <planeGeometry args={[3.5, 3]} />
-          <meshBasicMaterial color="#1e293b" transparent opacity={0.7} />
-        </mesh>
-        <Text position={[0, 1, 0]} fontSize={0.25} color="#facc15" anchorX="center" anchorY="middle">
-          Real-life Example:
-        </Text>
-        <Text position={[0, 0.4, 0]} fontSize={0.2} color="white" anchorX="center" anchorY="middle" maxWidth={3} textAlign="center">
-          A stack of plates —
-        </Text>
-        <Text position={[0, -0.1, 0]} fontSize={0.2} color="white" anchorX="center" anchorY="middle" maxWidth={3} textAlign="center">
-          the last plate placed
-        </Text>
-        <Text position={[0, -0.5, 0]} fontSize={0.2} color="white" anchorX="center" anchorY="middle" maxWidth={3} textAlign="center">
-          is the first one
-        </Text>
-        <Text position={[0, -0.9, 0]} fontSize={0.2} color="white" anchorX="center" anchorY="middle" maxWidth={3} textAlign="center">
-          you take off.
-        </Text>
-      </group>
-
-      {/* Start Button - Bottom */}
-      <group position={[0, -1.8, 0]}>
+      {/* Start Button - Positioned in front and clearly visible */}
+      <group position={[0, -1.5, 2]}>
         <mesh
           position={[0, 0, 0]}
           onClick={onStart}
           onPointerOver={() => setHovered(true)}
           onPointerOut={() => setHovered(false)}
         >
-          <boxGeometry args={[5, 1.2, 0.8]} />
+          <boxGeometry args={[4.5, 1.2, 0.5]} />
           <meshStandardMaterial
             color={hovered ? "#ea580c" : "#f97316"}
             emissive={hovered ? "#ea580c" : "#000000"}
-            emissiveIntensity={hovered ? 0.4 : 0}
+            emissiveIntensity={hovered ? 0.5 : 0}
           />
         </mesh>
         <Text
-          position={[0, 0, 0.41]}
+          position={[0, 0, 0.26]}
           fontSize={0.35}
           color="white"
           anchorX="center"
@@ -671,17 +610,6 @@ const IntroScreen = ({ onStart }) => {
           Start Assessment
         </Text>
       </group>
-
-      {/* Tap instruction */}
-      <Text
-        position={[0, -2.8, 0]}
-        fontSize={0.2}
-        color="#94a3b8"
-        anchorX="center"
-        anchorY="middle"
-      >
-        Tap the button above to begin
-      </Text>
     </group>
   );
 };
@@ -706,7 +634,7 @@ const StackBackground = ({ height, position = [0, 0, 0] }) => {
   );
 };
 
-// === Answer Drop Zone (Clean - No boxes inside) ===
+// === Answer Drop Zone (Clean) ===
 const AnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
   const [hovered, setHovered] = useState(false);
   const meshRef = useRef();
@@ -738,7 +666,6 @@ const AnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
 
   return (
     <group position={position}>
-      {/* Drop zone base */}
       <mesh
         ref={meshRef}
         onPointerOver={() => setHovered(true)}
@@ -755,7 +682,6 @@ const AnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
         />
       </mesh>
 
-      {/* Border */}
       <mesh position={[0, 0, 0.01]}>
         <boxGeometry args={[3.1, 2.3, 0.32]} />
         <meshBasicMaterial
@@ -764,7 +690,6 @@ const AnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
         />
       </mesh>
 
-      {/* Label */}
       <Text
         position={[0, 0, 0.2]}
         fontSize={0.28}
@@ -775,7 +700,6 @@ const AnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
         {isActive ? "Drop Here!" : "Answer Zone"}
       </Text>
 
-      {/* Arrow indicator when dragging */}
       {isActive && (
         <group position={[0, 1.5, 0]}>
           <mesh rotation={[0, 0, Math.PI]}>
@@ -1014,7 +938,6 @@ const DraggableStackBox = ({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
-      {/* Hold Progress Ring */}
       {isHolding && !isDragging && (
         <group position={[0, boxHeight + 0.8, 0]}>
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
@@ -1030,7 +953,6 @@ const DraggableStackBox = ({
         </group>
       )}
 
-      {/* Shadow when dragging */}
       {isDragging && (
         <mesh position={[0, -position[1] - 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[1, 32]} />
@@ -1038,7 +960,6 @@ const DraggableStackBox = ({
         </mesh>
       )}
 
-      {/* Main Box */}
       <mesh castShadow receiveShadow position={[0, boxHeight / 2, 0]}>
         <boxGeometry args={[boxWidth, boxHeight, boxDepth]} />
         <meshStandardMaterial
@@ -1064,7 +985,6 @@ const DraggableStackBox = ({
         />
       </mesh>
 
-      {/* Wireframe when dragging */}
       {isDragging && (
         <mesh position={[0, boxHeight / 2, 0]}>
           <boxGeometry args={[boxWidth + 0.1, boxHeight + 0.1, boxDepth + 0.1]} />
@@ -1072,7 +992,6 @@ const DraggableStackBox = ({
         </mesh>
       )}
 
-      {/* Wireframe when holding */}
       {isHolding && !isDragging && (
         <mesh position={[0, boxHeight / 2, 0]}>
           <boxGeometry args={[boxWidth + 0.08, boxHeight + 0.08, boxDepth + 0.08]} />
@@ -1080,7 +999,6 @@ const DraggableStackBox = ({
         </mesh>
       )}
 
-      {/* Value label */}
       <Text
         position={[0, boxHeight / 2, boxDepth / 2 + 0.01]}
         fontSize={0.4}
@@ -1091,7 +1009,6 @@ const DraggableStackBox = ({
         {String(value)}
       </Text>
 
-      {/* Index label */}
       <Text
         position={[-boxWidth / 2 - 0.3, boxHeight / 2, 0]}
         fontSize={0.22}
@@ -1102,7 +1019,6 @@ const DraggableStackBox = ({
         [{index}]
       </Text>
 
-      {/* Top indicator */}
       {isTop && !isDragging && (
         <group position={[boxWidth / 2 + 0.6, boxHeight / 2, 0]}>
           <Text
@@ -1116,7 +1032,6 @@ const DraggableStackBox = ({
         </group>
       )}
 
-      {/* Status label */}
       {(selected || isDragging) && !isHolding && (
         <Text
           position={[0, boxHeight + 0.5, 0]}
@@ -1135,7 +1050,7 @@ const DraggableStackBox = ({
 // === Restart Button ===
 const RestartButton = ({ position = [0, 0, 0], onClick }) => {
   const [hovered, setHovered] = useState(false);
-  const size = [4.0, 1.2, 0.8];
+  const size = [4.0, 1.2, 0.5];
 
   return (
     <group position={position}>
