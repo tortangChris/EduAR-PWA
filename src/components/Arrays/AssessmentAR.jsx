@@ -1,10 +1,9 @@
 import React, { useMemo, useState, useEffect, useRef, Suspense } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
+import { Text, OrbitControls } from "@react-three/drei";
 import { 
   XR, 
   createXRStore,
-  useXRInputSourceState,
   XROrigin
 } from "@react-three/xr";
 import * as THREE from "three";
@@ -24,14 +23,19 @@ const AssessmentAR = ({
   onPassStatusChange,
 }) => {
   const [isARSupported, setIsARSupported] = useState(false);
+  const [selectedMode, setSelectedMode] = useState(null); // null, 'ar', '3d'
   const [arStarted, setArStarted] = useState(false);
 
   // Check AR support
   useEffect(() => {
     const checkAR = async () => {
       if (navigator.xr) {
-        const supported = await navigator.xr.isSessionSupported('immersive-ar');
-        setIsARSupported(supported);
+        try {
+          const supported = await navigator.xr.isSessionSupported('immersive-ar');
+          setIsARSupported(supported);
+        } catch (e) {
+          setIsARSupported(false);
+        }
       }
     };
     checkAR();
@@ -47,43 +51,175 @@ const AssessmentAR = ({
     }
   };
 
+  const handleModeSelect = (mode) => {
+    setSelectedMode(mode);
+    if (mode === 'ar') {
+      startAR();
+    }
+  };
+
+  const handleBack = () => {
+    if (arStarted) {
+      xrStore.getState().session?.end();
+      setArStarted(false);
+    }
+    setSelectedMode(null);
+  };
+
+  // Mode Selection Screen
+  if (selectedMode === null) {
+    return (
+      <div className="w-full h-screen flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold text-yellow-400 mb-4">
+            🎯 Array Assessment
+          </h1>
+          <p className="text-gray-300 text-lg max-w-md mx-auto px-4">
+            Learn array operations through interactive exercises
+          </p>
+        </div>
+
+        {/* Mode Selection Cards */}
+        <div className="flex flex-col md:flex-row gap-6 px-4">
+          {/* 3D Mode Card */}
+          <div 
+            onClick={() => handleModeSelect('3d')}
+            className="cursor-pointer bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-8 w-72 transform hover:scale-105 transition-all duration-300 shadow-2xl border border-blue-400/30"
+          >
+            <div className="text-center">
+              <div className="text-6xl mb-4">🖥️</div>
+              <h2 className="text-2xl font-bold text-white mb-2">3D Mode</h2>
+              <p className="text-blue-200 text-sm mb-4">
+                Interactive 3D visualization with mouse/touch controls
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                <span className="px-3 py-1 bg-blue-500/30 rounded-full text-xs text-blue-200">
+                  All Devices
+                </span>
+                <span className="px-3 py-1 bg-blue-500/30 rounded-full text-xs text-blue-200">
+                  Rotate & Zoom
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* AR Mode Card */}
+          <div 
+            onClick={() => isARSupported && handleModeSelect('ar')}
+            className={`cursor-pointer bg-gradient-to-br rounded-2xl p-8 w-72 transform transition-all duration-300 shadow-2xl border ${
+              isARSupported 
+                ? 'from-green-600 to-green-800 hover:scale-105 border-green-400/30' 
+                : 'from-gray-600 to-gray-800 opacity-60 border-gray-500/30 cursor-not-allowed'
+            }`}
+          >
+            <div className="text-center">
+              <div className="text-6xl mb-4">📱</div>
+              <h2 className="text-2xl font-bold text-white mb-2">AR Mode</h2>
+              <p className={`text-sm mb-4 ${isARSupported ? 'text-green-200' : 'text-gray-400'}`}>
+                {isARSupported 
+                  ? 'Experience arrays in your real environment'
+                  : 'AR not supported on this device'
+                }
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {isARSupported ? (
+                  <>
+                    <span className="px-3 py-1 bg-green-500/30 rounded-full text-xs text-green-200">
+                      Camera View
+                    </span>
+                    <span className="px-3 py-1 bg-green-500/30 rounded-full text-xs text-green-200">
+                      Walk Around
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="px-3 py-1 bg-gray-500/30 rounded-full text-xs text-gray-400">
+                      Requires ARCore/ARKit
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Device Info */}
+        <div className="mt-12 text-center">
+          <p className="text-gray-500 text-sm">
+            {isARSupported 
+              ? '✅ Your device supports AR' 
+              : '💡 Use Chrome on Android or Safari on iOS for AR'
+            }
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 3D Mode (Non-AR)
+  if (selectedMode === '3d') {
+    return (
+      <div className="w-full h-screen relative">
+        {/* Back Button */}
+        <button
+          onClick={handleBack}
+          className="absolute top-4 left-4 z-50 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg shadow-lg flex items-center gap-2"
+        >
+          ← Back
+        </button>
+
+        {/* Mode Indicator */}
+        <div className="absolute top-4 right-4 z-50 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-lg">
+          🖥️ 3D Mode
+        </div>
+
+        <Canvas
+          camera={{ position: [0, 5, 12], fov: 50 }}
+          style={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            touchAction: 'none',
+            background: 'linear-gradient(to bottom, #0f172a, #1e293b)'
+          }}
+        >
+          <Suspense fallback={null}>
+            <AssessmentScene
+              initialData={initialData}
+              spacing={spacing}
+              passingRatio={passingRatio}
+              onPassStatusChange={onPassStatusChange}
+              isAR={false}
+            />
+          </Suspense>
+          <OrbitControls 
+            makeDefault
+            minDistance={5}
+            maxDistance={20}
+          />
+        </Canvas>
+      </div>
+    );
+  }
+
+  // AR Mode
   return (
     <div className="w-full h-screen relative">
-      {/* AR Start Button */}
-      {!arStarted && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 to-slate-800 z-10">
-          <h1 className="text-3xl font-bold text-yellow-400 mb-4">
-            Array Assessment AR
-          </h1>
-          <p className="text-white mb-8 text-center px-4">
-            Experience interactive array operations in Augmented Reality!
-          </p>
-          
-          {isARSupported ? (
-            <button
-              onClick={startAR}
-              className="px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white text-xl font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all"
-            >
-              🚀 Start AR Experience
-            </button>
-          ) : (
-            <div className="text-center">
-              <p className="text-red-400 mb-4">
-                AR is not supported on this device/browser
-              </p>
-              <p className="text-gray-400 text-sm">
-                Try using Chrome on Android or Safari on iOS
-              </p>
-              <button
-                onClick={() => setArStarted(true)}
-                className="mt-4 px-6 py-3 bg-gray-600 hover:bg-gray-500 text-white rounded-lg"
-              >
-                Continue without AR (3D Mode)
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Back Button */}
+      <button
+        onClick={handleBack}
+        className="absolute top-4 left-4 z-50 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg shadow-lg flex items-center gap-2"
+      >
+        ✕ Exit AR
+      </button>
+
+      {/* Mode Indicator */}
+      <div className="absolute top-4 right-4 z-50 px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg">
+        📱 AR Mode
+      </div>
 
       {/* AR Canvas */}
       <Canvas
@@ -98,40 +234,50 @@ const AssessmentAR = ({
       >
         <XR store={xrStore}>
           <Suspense fallback={null}>
-            <ARScene
+            <ARSceneWrapper
               initialData={initialData}
               spacing={spacing}
               passingRatio={passingRatio}
               onPassStatusChange={onPassStatusChange}
-              arStarted={arStarted}
             />
           </Suspense>
         </XR>
       </Canvas>
-
-      {/* Exit AR Button */}
-      {arStarted && (
-        <button
-          onClick={() => {
-            xrStore.getState().session?.end();
-            setArStarted(false);
-          }}
-          className="absolute top-4 right-4 z-50 px-4 py-2 bg-red-500 text-white rounded-lg shadow-lg"
-        >
-          Exit AR
-        </button>
-      )}
     </div>
   );
 };
 
-// Main AR Scene Component
-const ARScene = ({
+// AR Scene Wrapper - positions content 4 feet away
+const ARSceneWrapper = ({ initialData, spacing, passingRatio, onPassStatusChange }) => {
+  // 4 feet = ~1.22 meters
+  const AR_DISTANCE = -1.5; // Negative Z means in front of camera
+  const AR_HEIGHT = -0.3;   // Slightly below eye level
+
+  return (
+    <>
+      <XROrigin position={[0, 0, 0]} />
+      
+      {/* Position the entire scene 4 feet away */}
+      <group position={[0, AR_HEIGHT, AR_DISTANCE]}>
+        <AssessmentScene
+          initialData={initialData}
+          spacing={spacing}
+          passingRatio={passingRatio}
+          onPassStatusChange={onPassStatusChange}
+          isAR={true}
+        />
+      </group>
+    </>
+  );
+};
+
+// Main Assessment Scene (works for both AR and 3D)
+const AssessmentScene = ({
   initialData,
   spacing,
   passingRatio,
   onPassStatusChange,
-  arStarted
+  isAR = false
 }) => {
   const modes = ["intro", "access", "search", "insert", "delete", "done"];
   const [modeIndex, setModeIndex] = useState(0);
@@ -151,15 +297,15 @@ const ARScene = ({
   const [holdingBox, setHoldingBox] = useState(null);
   const [boxPositions, setBoxPositions] = useState([]);
   const [droppedAnswer, setDroppedAnswer] = useState(null);
-  
-  // AR Placement
-  const [arPlaced, setArPlaced] = useState(false);
-  const [arPosition, setArPosition] = useState([0, 0, -2]);
+
+  // Scale down for AR to fit in view
+  const scaleMultiplier = isAR ? 0.6 : 1;
+  const adjustedSpacing = spacing * scaleMultiplier;
 
   const originalPositions = useMemo(() => {
     const mid = (data.length - 1) / 2;
-    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
-  }, [data, spacing]);
+    return data.map((_, i) => [(i - mid) * adjustedSpacing, 0, 0]);
+  }, [data, adjustedSpacing]);
 
   // Initialize box positions
   useEffect(() => {
@@ -347,204 +493,182 @@ const ARScene = ({
     setSelectedIndex((prev) => (prev === i ? null : i));
   };
 
-  const handlePlaceAR = (position) => {
-    setArPosition(position);
-    setArPlaced(true);
-  };
+  // Adjust sizes based on AR or 3D mode
+  const uiScale = isAR ? 0.7 : 1;
 
   return (
-    <>
+    <group scale={[scaleMultiplier, scaleMultiplier, scaleMultiplier]}>
       {/* Lighting */}
       <ambientLight intensity={0.8} />
       <directionalLight position={[5, 10, 5]} intensity={1} />
       <pointLight position={[-5, 5, 5]} intensity={0.5} />
 
-      {/* AR Origin & Placement */}
-      <XROrigin position={[0, 0, 0]} />
+      {/* UI Panel */}
+      <UIPanel
+        position={[0, 3.5 * uiScale, 0]}
+        mode={mode}
+        modeIndex={modeIndex}
+        question={question}
+        score={score}
+        totalAssessments={totalAssessments}
+        isPassed={isPassed}
+        scale={uiScale}
+        isAR={isAR}
+      />
 
-      {/* Hit Test for placing content */}
-      {!arPlaced && arStarted && (
-        <ARHitTest onPlace={handlePlaceAR} />
+      {/* Ground Indicator */}
+      {!isAR && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
+          <planeGeometry args={[15, 8]} />
+          <meshStandardMaterial 
+            color="#1e293b" 
+            transparent 
+            opacity={0.5}
+          />
+        </mesh>
       )}
 
-      {/* Main Content Group - positioned in AR space */}
-      <group position={arPosition}>
-        {/* Floating UI Panel */}
-        <ARUIPanel
-          position={[0, 2.5, 0]}
-          mode={mode}
-          modeIndex={modeIndex}
-          question={question}
-          score={score}
-          totalAssessments={totalAssessments}
-          isPassed={isPassed}
-        />
-
-        {/* Ground Indicator */}
+      {/* AR Ground Circle */}
+      {isAR && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
-          <circleGeometry args={[4, 32]} />
+          <circleGeometry args={[3, 32]} />
           <meshStandardMaterial 
             color="#1e293b" 
             transparent 
             opacity={0.3}
           />
         </mesh>
+      )}
 
-        {/* Answer Drop Zone */}
-        {mode !== "intro" && mode !== "done" && (
-          <ARAnswerDropZone
-            position={[0, 0, 2]}
-            isActive={draggedBox !== null}
-            draggedBox={draggedBox}
-            onDrop={handleDropOnAnswer}
-            feedback={feedback}
-          />
-        )}
+      {/* Answer Drop Zone */}
+      {mode !== "intro" && mode !== "done" && (
+        <AnswerDropZone
+          position={[0, 0, 2.5]}
+          isActive={draggedBox !== null}
+          draggedBox={draggedBox}
+          onDrop={handleDropOnAnswer}
+          feedback={feedback}
+          scale={uiScale}
+        />
+      )}
 
-        {/* Interactive Boxes */}
-        {mode === "intro" ? (
-          <ARStartBox 
-            position={[0, 0.5, 0]} 
-            onClick={() => handleBoxClick(0)} 
-          />
-        ) : mode === "done" ? (
-          <ARResultPanel
-            score={score}
-            totalAssessments={totalAssessments}
-            isPassed={isPassed}
-            onRestart={() => {
-              setModeIndex(0);
-              setData([...initialData]);
-              setScore(0);
-              setIsPassed(false);
-            }}
-          />
-        ) : (
-          data.map((value, i) => {
-            let extraOpacity = 1;
-            if (animState[i] === "fade") extraOpacity = 0.25;
-            const isSelected = selectedIndex === i;
+      {/* Interactive Boxes */}
+      {mode === "intro" ? (
+        <StartBox 
+          position={[0, 0.5, 0]} 
+          onClick={() => handleBoxClick(0)}
+          scale={uiScale}
+        />
+      ) : mode === "done" ? (
+        <ResultPanel
+          position={[0, 0.5, 0]}
+          score={score}
+          totalAssessments={totalAssessments}
+          isPassed={isPassed}
+          onRestart={() => {
+            setModeIndex(0);
+            setData([...initialData]);
+            setScore(0);
+            setIsPassed(false);
+          }}
+          scale={uiScale}
+        />
+      ) : (
+        data.map((value, i) => {
+          let extraOpacity = 1;
+          if (animState[i] === "fade") extraOpacity = 0.25;
+          const isSelected = selectedIndex === i;
 
-            return (
-              <ARDraggableBox
-                key={i}
-                index={i}
-                value={value}
-                position={boxPositions[i] || originalPositions[i]}
-                originalPosition={originalPositions[i]}
-                selected={isSelected}
-                isDragging={draggedBox === i}
-                isHolding={holdingBox === i}
-                anyDragging={draggedBox !== null}
-                opacity={extraOpacity}
-                onBoxClick={() => handleBoxClick(i)}
-                onHoldStart={() => handleHoldStart(i)}
-                onHoldComplete={() => handleHoldComplete(i)}
-                onHoldCancel={handleHoldCancel}
-                onDragEnd={() => {
-                  handleDragEnd();
-                  resetBoxPosition(i);
-                }}
-                onPositionChange={(pos) => updateBoxPosition(i, pos)}
-              />
-            );
-          })
-        )}
+          return (
+            <DraggableBox
+              key={i}
+              index={i}
+              value={value}
+              position={boxPositions[i] || originalPositions[i]}
+              originalPosition={originalPositions[i]}
+              selected={isSelected}
+              isDragging={draggedBox === i}
+              isHolding={holdingBox === i}
+              anyDragging={draggedBox !== null}
+              opacity={extraOpacity}
+              onBoxClick={() => handleBoxClick(i)}
+              onHoldStart={() => handleHoldStart(i)}
+              onHoldComplete={() => handleHoldComplete(i)}
+              onHoldCancel={handleHoldCancel}
+              onDragEnd={() => {
+                handleDragEnd();
+                resetBoxPosition(i);
+              }}
+              onPositionChange={(pos) => updateBoxPosition(i, pos)}
+              scale={uiScale}
+            />
+          );
+        })
+      )}
 
-        {/* Feedback Display */}
-        {feedback && (
-          <ARFeedback
-            text={feedback.text}
-            correct={feedback.correct}
-            position={[0, 1.5, 2]}
-          />
-        )}
-      </group>
-
-      {/* Non-AR fallback camera */}
-      {!arStarted && <FallbackCamera />}
-    </>
-  );
-};
-
-// AR Hit Test Component for placing content
-const ARHitTest = ({ onPlace }) => {
-  const reticleRef = useRef();
-  const [hitPosition, setHitPosition] = useState(null);
-  const { gl, camera } = useThree();
-
-  useFrame(() => {
-    // Simple placement - in real AR this would use hit-test API
-    if (reticleRef.current) {
-      reticleRef.current.rotation.x = -Math.PI / 2;
-    }
-  });
-
-  const handleTap = () => {
-    if (hitPosition) {
-      onPlace(hitPosition);
-    } else {
-      // Default position in front of camera
-      onPlace([0, 0, -2]);
-    }
-  };
-
-  return (
-    <group>
-      {/* Reticle indicator */}
-      <mesh
-        ref={reticleRef}
-        position={[0, 0, -2]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        onClick={handleTap}
-      >
-        <ringGeometry args={[0.15, 0.2, 32]} />
-        <meshBasicMaterial color="#00ff00" side={THREE.DoubleSide} />
-      </mesh>
-      
-      {/* Tap instruction */}
-      <Text
-        position={[0, 0.5, -2]}
-        fontSize={0.1}
-        color="#00ff00"
-        anchorX="center"
-      >
-        Tap to place assessment
-      </Text>
+      {/* Feedback Display */}
+      {feedback && (
+        <FeedbackDisplay
+          text={feedback.text}
+          correct={feedback.correct}
+          position={[0, 2, 2.5]}
+          scale={uiScale}
+        />
+      )}
     </group>
   );
 };
 
-// AR UI Panel
-const ARUIPanel = ({ position, mode, modeIndex, question, score, totalAssessments, isPassed }) => {
+// UI Panel Component
+const UIPanel = ({ position, mode, modeIndex, question, score, totalAssessments, isPassed, scale = 1, isAR }) => {
   return (
-    <group position={position}>
+    <group position={position} scale={[scale, scale, scale]}>
       {/* Background panel */}
       <mesh position={[0, 0, -0.05]}>
-        <planeGeometry args={[4, 1.2]} />
+        <planeGeometry args={[6, 1.8]} />
         <meshBasicMaterial 
           color="#0f172a" 
           transparent 
-          opacity={0.85}
+          opacity={0.9}
           side={THREE.DoubleSide}
         />
       </mesh>
       
       {/* Border */}
       <mesh position={[0, 0, -0.04]}>
-        <planeGeometry args={[4.1, 1.3]} />
+        <planeGeometry args={[6.1, 1.9]} />
         <meshBasicMaterial color="#3b82f6" wireframe />
       </mesh>
 
+      {/* Mode badge */}
+      <group position={[2.2, 0.65, 0]}>
+        <mesh>
+          <planeGeometry args={[1, 0.35]} />
+          <meshBasicMaterial 
+            color={isAR ? "#22c55e" : "#3b82f6"} 
+            transparent 
+            opacity={0.8}
+          />
+        </mesh>
+        <Text
+          position={[0, 0, 0.01]}
+          fontSize={0.15}
+          color="white"
+          anchorX="center"
+        >
+          {isAR ? "AR" : "3D"}
+        </Text>
+      </group>
+
       {/* Title */}
       <Text
-        position={[0, 0.35, 0]}
-        fontSize={0.15}
+        position={[0, 0.5, 0]}
+        fontSize={0.3}
         color="#facc15"
         anchorX="center"
       >
         {mode === "intro"
-          ? "Arrays — AR Assessment"
+          ? "Arrays — Assessment"
           : mode === "done"
           ? "Assessment Complete!"
           : `Step ${modeIndex}: ${mode.toUpperCase()}`}
@@ -553,24 +677,24 @@ const ARUIPanel = ({ position, mode, modeIndex, question, score, totalAssessment
       {/* Question/Instruction */}
       <Text
         position={[0, 0, 0]}
-        fontSize={0.1}
+        fontSize={0.18}
         color="white"
         anchorX="center"
-        maxWidth={3.5}
+        maxWidth={5.5}
         textAlign="center"
       >
         {mode === "intro"
-          ? "Tap START to begin"
+          ? "Tap START to begin the assessment"
           : mode === "done"
-          ? isPassed ? "You passed!" : "Try again!"
+          ? isPassed ? "Congratulations! You passed!" : "Try again to improve your score"
           : question?.prompt || ""}
       </Text>
 
       {/* Score */}
       {mode !== "intro" && (
         <Text
-          position={[0, -0.35, 0]}
-          fontSize={0.08}
+          position={[0, -0.55, 0]}
+          fontSize={0.16}
           color="#fde68a"
           anchorX="center"
         >
@@ -581,8 +705,8 @@ const ARUIPanel = ({ position, mode, modeIndex, question, score, totalAssessment
   );
 };
 
-// AR Draggable Box
-const ARDraggableBox = ({
+// Draggable Box Component
+const DraggableBox = ({
   index,
   value,
   position,
@@ -598,6 +722,7 @@ const ARDraggableBox = ({
   onHoldCancel,
   onDragEnd,
   onPositionChange,
+  scale = 1,
 }) => {
   const groupRef = useRef();
   const { camera, raycaster, pointer } = useThree();
@@ -610,8 +735,8 @@ const ARDraggableBox = ({
   const offset = useRef(new THREE.Vector3());
   const intersection = useRef(new THREE.Vector3());
 
-  const HOLD_DURATION = 400; // Faster for mobile
-  const size = [1.2, 0.9, 0.8];
+  const HOLD_DURATION = 400;
+  const size = [1.2 * scale, 0.9 * scale, 0.8 * scale];
 
   const getColor = () => {
     if (isDragging) return "#f97316";
@@ -623,7 +748,7 @@ const ARDraggableBox = ({
 
   useFrame(() => {
     if (groupRef.current) {
-      const targetY = isDragging ? 1.5 : isHolding ? 0.3 : 0;
+      const targetY = isDragging ? 1.5 * scale : isHolding ? 0.3 * scale : 0;
 
       if (isDragging) {
         groupRef.current.position.x = position[0];
@@ -658,7 +783,6 @@ const ARDraggableBox = ({
       );
     }
 
-    // Update hold progress
     if (isHolding && holdStartTimeRef.current && !isDragging) {
       const elapsed = Date.now() - holdStartTimeRef.current;
       const progress = Math.min(elapsed / HOLD_DURATION, 1);
@@ -799,7 +923,7 @@ const ARDraggableBox = ({
         />
       </mesh>
 
-      {/* Glow outline when dragging */}
+      {/* Glow outline */}
       {(isDragging || isHolding) && (
         <mesh position={[0, size[1] / 2, 0]}>
           <boxGeometry args={[size[0] + 0.08, size[1] + 0.08, size[2] + 0.08]} />
@@ -813,7 +937,7 @@ const ARDraggableBox = ({
       {/* Value label */}
       <Text
         position={[0, size[1] / 2 + 0.1, size[2] / 2 + 0.01]}
-        fontSize={0.3}
+        fontSize={0.3 * scale}
         color="white"
         anchorX="center"
         anchorY="middle"
@@ -824,7 +948,7 @@ const ARDraggableBox = ({
       {/* Index label */}
       <Text
         position={[0, -0.15, size[2] / 2 + 0.01]}
-        fontSize={0.18}
+        fontSize={0.18 * scale}
         color="yellow"
         anchorX="center"
         anchorY="middle"
@@ -847,8 +971,8 @@ const ARDraggableBox = ({
   );
 };
 
-// AR Answer Drop Zone
-const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) => {
+// Answer Drop Zone
+const AnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback, scale = 1 }) => {
   const [hovered, setHovered] = useState(false);
   const meshRef = useRef();
   const glowRef = useRef(0);
@@ -878,7 +1002,7 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) 
   };
 
   return (
-    <group position={position}>
+    <group position={position} scale={[scale, scale, scale]}>
       {/* Drop zone */}
       <mesh
         ref={meshRef}
@@ -886,7 +1010,7 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) 
         onPointerOut={() => setHovered(false)}
         onPointerUp={handlePointerUp}
       >
-        <boxGeometry args={[3, 0.2, 1.8]} />
+        <boxGeometry args={[4, 0.25, 2]} />
         <meshStandardMaterial
           color={hovered && isActive ? "#22c55e" : isActive ? "#3b82f6" : "#475569"}
           transparent
@@ -898,7 +1022,7 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) 
 
       {/* Border */}
       <mesh position={[0, 0.01, 0]}>
-        <boxGeometry args={[3.1, 0.22, 1.9]} />
+        <boxGeometry args={[4.1, 0.27, 2.1]} />
         <meshBasicMaterial
           color={hovered && isActive ? "#22c55e" : "#60a5fa"}
           wireframe
@@ -907,8 +1031,8 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) 
 
       {/* Label */}
       <Text
-        position={[0, 0.25, 0]}
-        fontSize={0.2}
+        position={[0, 0.3, 0]}
+        fontSize={0.25}
         color={isActive ? "#22c55e" : "#94a3b8"}
         anchorX="center"
       >
@@ -917,7 +1041,7 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) 
 
       {/* Arrow when active */}
       {isActive && (
-        <group position={[0, 0.8, 0]}>
+        <group position={[0, 1, 0]}>
           <mesh rotation={[0, 0, Math.PI]}>
             <coneGeometry args={[0.2, 0.4, 8]} />
             <meshBasicMaterial color="#22c55e" />
@@ -928,8 +1052,8 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) 
   );
 };
 
-// AR Start Box
-const ARStartBox = ({ position, onClick }) => {
+// Start Box
+const StartBox = ({ position, onClick, scale = 1 }) => {
   const [hovered, setHovered] = useState(false);
   const meshRef = useRef();
 
@@ -940,14 +1064,14 @@ const ARStartBox = ({ position, onClick }) => {
   });
 
   return (
-    <group position={position}>
+    <group position={position} scale={[scale, scale, scale]}>
       <mesh
         ref={meshRef}
         onClick={onClick}
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
       >
-        <boxGeometry args={[2.5, 1, 0.8]} />
+        <boxGeometry args={[3, 1.2, 0.8]} />
         <meshStandardMaterial
           color={hovered ? "#3b82f6" : "#60a5fa"}
           emissive={hovered ? "#3b82f6" : "#1e40af"}
@@ -956,7 +1080,7 @@ const ARStartBox = ({ position, onClick }) => {
       </mesh>
       <Text
         position={[0, 0.5, 0.45]}
-        fontSize={0.25}
+        fontSize={0.35}
         color="white"
         anchorX="center"
       >
@@ -966,16 +1090,16 @@ const ARStartBox = ({ position, onClick }) => {
   );
 };
 
-// AR Result Panel
-const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
+// Result Panel
+const ResultPanel = ({ position, score, totalAssessments, isPassed, onRestart, scale = 1 }) => {
   const [hovered, setHovered] = useState(false);
 
   return (
-    <group position={[0, 0.5, 0]}>
+    <group position={position} scale={[scale, scale, scale]}>
       {/* Score display */}
       <Text
-        position={[0, 1, 0]}
-        fontSize={0.3}
+        position={[0, 1.2, 0]}
+        fontSize={0.4}
         color="#60a5fa"
         anchorX="center"
       >
@@ -984,8 +1108,8 @@ const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
 
       {/* Status */}
       <Text
-        position={[0, 0.5, 0]}
-        fontSize={0.25}
+        position={[0, 0.6, 0]}
+        fontSize={0.35}
         color={isPassed ? "#22c55e" : "#ef4444"}
         anchorX="center"
       >
@@ -994,12 +1118,12 @@ const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
 
       {/* Restart button */}
       <mesh
-        position={[0, -0.3, 0]}
+        position={[0, -0.2, 0]}
         onClick={onRestart}
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
       >
-        <boxGeometry args={[2, 0.6, 0.5]} />
+        <boxGeometry args={[2.5, 0.8, 0.5]} />
         <meshStandardMaterial
           color={hovered ? "#f97316" : "#fb923c"}
           emissive={hovered ? "#f97316" : "#000000"}
@@ -1007,8 +1131,8 @@ const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
         />
       </mesh>
       <Text
-        position={[0, -0.3, 0.3]}
-        fontSize={0.18}
+        position={[0, -0.2, 0.3]}
+        fontSize={0.25}
         color="white"
         anchorX="center"
       >
@@ -1018,8 +1142,8 @@ const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
   );
 };
 
-// AR Feedback Display
-const ARFeedback = ({ text, correct, position }) => {
+// Feedback Display
+const FeedbackDisplay = ({ text, correct, position, scale = 1 }) => {
   const groupRef = useRef();
 
   useFrame(() => {
@@ -1031,7 +1155,7 @@ const ARFeedback = ({ text, correct, position }) => {
   return (
     <group ref={groupRef} position={position} scale={[0, 0, 0]}>
       <mesh position={[0, 0, -0.05]}>
-        <planeGeometry args={[2, 0.5]} />
+        <planeGeometry args={[2.5 * scale, 0.6 * scale]} />
         <meshBasicMaterial
           color={correct ? "#065f46" : "#7f1d1d"}
           transparent
@@ -1040,7 +1164,7 @@ const ARFeedback = ({ text, correct, position }) => {
         />
       </mesh>
       <Text
-        fontSize={0.18}
+        fontSize={0.25 * scale}
         color={correct ? "#34d399" : "#f87171"}
         anchorX="center"
       >
@@ -1048,18 +1172,6 @@ const ARFeedback = ({ text, correct, position }) => {
       </Text>
     </group>
   );
-};
-
-// Fallback camera for non-AR mode
-const FallbackCamera = () => {
-  const { camera } = useThree();
-  
-  useEffect(() => {
-    camera.position.set(0, 3, 6);
-    camera.lookAt(0, 0, 0);
-  }, [camera]);
-
-  return null;
 };
 
 export default AssessmentAR;
