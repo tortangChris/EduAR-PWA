@@ -477,13 +477,13 @@ const StackQueueAssessment = ({
   );
 };
 
-// === Simplified Intro Screen - Stack close to Start Button ===
+// === Intro Screen ===
 const IntroScreen = ({ onStart }) => {
   const [hovered, setHovered] = useState(false);
 
   return (
     <group position={[0, 0, 0]}>
-      {/* Title - Top */}
+      {/* Title */}
       <FadeText
         text="Stack — Assessment"
         position={[0, 5.5, 0]}
@@ -491,7 +491,7 @@ const IntroScreen = ({ onStart }) => {
         color="#facc15"
       />
 
-      {/* Description Panel - Below Title */}
+      {/* Description Panel */}
       <group position={[0, 4.2, 0]}>
         <mesh position={[0, 0, -0.1]}>
           <planeGeometry args={[9, 1.5]} />
@@ -521,9 +521,8 @@ const IntroScreen = ({ onStart }) => {
         </Text>
       </group>
 
-      {/* 3D Stack - Moved DOWN, close to Start Button */}
+      {/* 3D Stack */}
       <group position={[0, 0.8, 0]}>
-        {/* Stack boxes - smaller spacing */}
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[2.2, 0.55, 0.9]} />
           <meshStandardMaterial color="#34d399" />
@@ -556,7 +555,6 @@ const IntroScreen = ({ onStart }) => {
           40
         </Text>
 
-        {/* TOP indicator */}
         <Text
           position={[1.5, 1.95, 0]}
           fontSize={0.22}
@@ -567,15 +565,14 @@ const IntroScreen = ({ onStart }) => {
           ← TOP
         </Text>
 
-        {/* Base */}
         <mesh position={[0, -0.4, 0]}>
           <boxGeometry args={[2.6, 0.15, 1.1]} />
           <meshStandardMaterial color="#475569" />
         </mesh>
       </group>
 
-      {/* Start Button - Right below the stack */}
-      <group position={[0, -1.5, 2]}>
+      {/* Start Button - Close to stack */}
+      <group position={[0, -0.3, 2]}>
         <mesh
           position={[0, 0, 0]}
           onClick={onStart}
