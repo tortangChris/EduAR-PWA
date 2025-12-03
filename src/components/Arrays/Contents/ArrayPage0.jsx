@@ -18,7 +18,7 @@ const ArrayPage0 = () => {
         </li>
         <li>
           <strong>Unlock next module:</strong> Passed the Assessment → module
-          marked complete → then <strong>Module 2 (Sorting Algorithms)</strong>{" "}
+          marked complete → then <strong>Module 2 (LinkedList Variation)</strong>{" "}
           unlocks.
         </li>
       </ul>

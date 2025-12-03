@@ -3,7 +3,7 @@ import React from "react";
 const StackQueuePage0 = () => {
   return (
     <div className="bg-base-200 rounded-xl shadow-md p-6 space-y-4 text-left">
-      <h1 className="text-2xl font-bold">Stacks</h1>
+      <h1 className="text-2xl font-bold">Queue</h1>
       <hr className="my-2" />
 
       <h2 className="text-xl font-semibold">🔹 Progression Flow</h2>
@@ -16,8 +16,7 @@ const StackQueuePage0 = () => {
         </li>
         <li>
           <strong>Unlock next module:</strong> Passed the Assessment → module
-          marked complete → then <strong>Module 4 (Queue)</strong>{" "}
-          unlocks.
+          marked complete → then <strong>Finish Module</strong>{" "}
         </li>
       </ul>
     </div>

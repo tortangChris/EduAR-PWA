@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { CheckCircle } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import ModuleHeader from "../components/ModuleHeader";
@@ -14,18 +14,28 @@ import { useModuleProgress } from "../services/useModuleProgress";
 
 import { logActivity } from "../services/activityService";
 import Page6 from "../components/StackQueue/Page6";
+import PageInteractive from "../components/StackQueue/PageInteractive";
 
 const StackAndQueue = () => {
   const navigate = useNavigate();
   const { page } = useParams();
 
+  // 🔹 Track kung pasado na yung Stack & Queue assessment
+  const [stackQueueAssessmentPassed, setStackQueueAssessmentPassed] =
+    useState(false);
+
   const pages = [
     <Page0 />,
     <Page1 />,
     <Page2 />,
-    <Page3 />,
-    <Page4 />,
-    <Page5 />,
+    <PageInteractive
+      onAssessmentPassStatusChange={(passed) =>
+        setStackQueueAssessmentPassed(passed)
+      }
+    />,
+    // <Page3 />,
+    // <Page4 />,
+    // <Page5 />,
   ];
 
   const totalPages = pages.length;
@@ -34,6 +44,18 @@ const StackAndQueue = () => {
 
   const { currentPage, setCurrentPage, isFinished, finishModule, progress } =
     useModuleProgress("stack-and-queue", totalPages);
+
+  // 🔹 On mount: basahin kung previously passed na yung Stack & Queue assessment
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("stackQueueAssessmentPassed");
+      if (stored === "true") {
+        setStackQueueAssessmentPassed(true);
+      }
+    } catch (e) {
+      console.warn("Unable to read localStorage", e);
+    }
+  }, []);
 
   useEffect(() => {
     setCurrentPage(pageIndex);
@@ -52,6 +74,7 @@ const StackAndQueue = () => {
     if (currentPage < totalPages - 1) {
       navigate(`/modules/stack-and-queue/${currentPage + 2}`);
     } else {
+      // last page; real gating nasa Finish button
       finishModule();
       navigate("/modules", { state: { route: "stack-and-queue" } });
     }
@@ -62,6 +85,14 @@ const StackAndQueue = () => {
       navigate(`/modules/stack-and-queue/${currentPage}`);
     }
   };
+
+  const onFinishClick = () => {
+    if (!stackQueueAssessmentPassed) return; // safety guard
+    finishModule();
+    navigate("/modules", { state: { route: "stack-and-queue" } });
+  };
+
+  const isLastPage = currentPage === totalPages - 1;
 
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
@@ -88,16 +119,21 @@ const StackAndQueue = () => {
             Next
           </button>
         ) : (
-          <button
-            onClick={() => {
-              finishModule();
-              navigate("/modules", { state: { route: "stack-and-queue" } });
-            }}
-            className="btn btn-success flex items-center gap-2"
-          >
-            <CheckCircle className="w-5 h-5" />
-            Finish Module
-          </button>
+          <div className="flex flex-col items-end">
+            <button
+              onClick={onFinishClick}
+              disabled={!stackQueueAssessmentPassed}
+              className="btn btn-success flex items-center gap-2 disabled:btn-disabled"
+            >
+              <CheckCircle className="w-5 h-5" />
+              {stackQueueAssessmentPassed ? "Finish Module" : "Finish Locked"}
+            </button>
+            {!stackQueueAssessmentPassed && (
+              <span className="text-xs text-error mt-1">
+                Pass the assessment.
+              </span>
+            )}
+          </div>
         )}
       </div>
     </div>

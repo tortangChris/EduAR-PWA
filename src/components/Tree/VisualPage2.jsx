@@ -1,72 +1,118 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 
 const VisualPage2 = () => {
-  const [selectedNode, setSelectedNode] = useState(null);
+  const [queue, setQueue] = useState([15, 25, 35]);
+  const [highlighted, setHighlighted] = useState(null);
+  const [operationInfo, setOperationInfo] = useState(null);
 
-  // Node structure with relationships
-  const nodes = [
-    { id: "A", pos: [0, 3, 0], type: "Root" },
-    { id: "B", pos: [-2, 1.5, 0], type: "Parent" },
-    { id: "C", pos: [2, 1.5, 0], type: "Parent" },
-    { id: "D", pos: [-3, 0, 0], type: "Leaf" },
-    { id: "E", pos: [-1, 0, 0], type: "Leaf" },
-    { id: "F", pos: [1, 0, 0], type: "Leaf" },
-    { id: "G", pos: [3, 0, 0], type: "Leaf" },
-  ];
+  const spacing = 2;
 
-  const edges = [
-    ["A", "B"],
-    ["A", "C"],
-    ["B", "D"],
-    ["B", "E"],
-    ["C", "F"],
-    ["C", "G"],
-  ];
+  const positions = useMemo(() => {
+    return queue.map((_, i) => [i * spacing, 0, 0]);
+  }, [queue]);
 
-  const handleNodeClick = (node) => {
-    setSelectedNode(node);
+  const showOperationInfo = (title, complexity, description) => {
+    setOperationInfo({ title, complexity, description });
+  };
+
+  // === Queue Operations ===
+  const handleEnqueue = () => {
+    const newVal = Math.floor(Math.random() * 90) + 10;
+    setQueue((prev) => [...prev, newVal]);
+    showOperationInfo(
+      "Enqueue()",
+      "O(1)",
+      "Adds an element to the rear of the queue."
+    );
+  };
+
+  const handleDequeue = () => {
+    if (queue.length === 0) return;
+    setHighlighted(0);
+    setTimeout(() => {
+      setQueue((prev) => prev.slice(1));
+      setHighlighted(null);
+    }, 600);
+    showOperationInfo(
+      "Dequeue()",
+      "O(1)",
+      "Removes the element from the front of the queue."
+    );
+  };
+
+  const handlePeek = () => {
+    if (queue.length === 0) return;
+    setHighlighted(0);
+    showOperationInfo(
+      "Peek()",
+      "O(1)",
+      "Views the element at the front without removing it."
+    );
+    setTimeout(() => setHighlighted(null), 600);
   };
 
   return (
     <div className="w-full h-[300px]">
       <Canvas camera={{ position: [0, 4, 10], fov: 50 }}>
-        <ambientLight intensity={0.6} />
+        <ambientLight intensity={0.5} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
 
-        {/* Title */}
+        {/* Header */}
         <FadeInText
           show={true}
-          text={"Basic Terminology of Trees"}
-          position={[0, 5, 0]}
-          fontSize={0.7}
+          text={"Queue Operations & Complexity"}
+          position={[0, 4.5, 0]}
+          fontSize={0.55}
           color="white"
         />
 
         <FadeInText
           show={true}
-          text={
-            "Understanding Root, Parent, Child, Sibling, Leaf, Height, and Depth"
-          }
-          position={[0, 4.3, 0]}
+          text={"Each operation has constant time complexity — O(1)"}
+          position={[0, 3.8, 0]}
           fontSize={0.35}
           color="#fde68a"
         />
 
-        {/* Tree Visualization */}
-        <TreeVisualization
-          nodes={nodes}
-          edges={edges}
-          onNodeClick={handleNodeClick}
-          selectedNode={selectedNode}
+        {/* Queue Base */}
+        <QueueBase width={queue.length * spacing + 2} />
+
+        {/* Boxes */}
+        {queue.map((value, i) => (
+          <QueueBox
+            key={i}
+            value={value}
+            position={positions[i]}
+            isFront={i === 0}
+            isRear={i === queue.length - 1}
+            highlight={highlighted === i}
+          />
+        ))}
+
+        {/* Operation Info Panel */}
+        {operationInfo && (
+          <OperationInfoPanel info={operationInfo} position={[-6, 1.5, 0]} />
+        )}
+
+        {/* Operations Panel */}
+        <OperationsPanel
+          position={[6, 1.5, 0]}
+          onEnqueue={handleEnqueue}
+          onDequeue={handleDequeue}
+          onPeek={handlePeek}
         />
 
-        {/* Info Panel (Right Side) */}
-        {selectedNode && (
-          <NodeInfoPanel node={selectedNode} position={[7, 2, 0]} />
-        )}
+        {/* Footer */}
+        <FadeInText
+          show={true}
+          text={"Queues process elements in the order they arrive (FIFO)."}
+          position={[0, -2.5, 0]}
+          fontSize={0.35}
+          color="#a5f3fc"
+        />
 
         <OrbitControls makeDefault />
       </Canvas>
@@ -74,115 +120,14 @@ const VisualPage2 = () => {
   );
 };
 
-// === Tree Visualization ===
-const TreeVisualization = ({ nodes, edges, onNodeClick, selectedNode }) => {
+// === Queue Base ===
+const QueueBase = ({ width }) => {
+  const geometry = useMemo(() => new THREE.BoxGeometry(width, 0.2, 2), [width]);
   return (
-    <group>
-      {edges.map(([a, b], i) => {
-        const start = nodes.find((n) => n.id === a).pos;
-        const end = nodes.find((n) => n.id === b).pos;
-        return <Connection key={i} start={start} end={end} />;
-      })}
-
-      {nodes.map((node) => (
-        <TreeNode
-          key={node.id}
-          position={node.pos}
-          label={node.id}
-          type={node.type}
-          onClick={() => onNodeClick(node)}
-          isSelected={selectedNode?.id === node.id}
-        />
-      ))}
-    </group>
-  );
-};
-
-// === Node (Sphere + Label) ===
-const TreeNode = ({ position, label, type, onClick, isSelected }) => {
-  const baseColor =
-    type === "Root" ? "#60a5fa" : type === "Parent" ? "#34d399" : "#fbbf24";
-
-  const color = isSelected ? "#f87171" : baseColor;
-
-  return (
-    <group position={position} onClick={onClick}>
-      <mesh>
-        <sphereGeometry args={[0.35, 32, 32]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <Text
-        position={[0, 0.8, 0]}
-        fontSize={0.35}
-        color="#ffffff"
-        anchorX="center"
-        anchorY="middle"
-      >
-        {label}
-      </Text>
-    </group>
-  );
-};
-
-// === Edge (Line between nodes) ===
-const Connection = ({ start, end }) => {
-  const points = [new THREE.Vector3(...start), new THREE.Vector3(...end)];
-  const geometry = new THREE.BufferGeometry().setFromPoints(points);
-  return (
-    <line>
+    <mesh position={[width / 2 - 2, -0.1, 0]}>
       <primitive object={geometry} />
-      <lineBasicMaterial color="#94a3b8" linewidth={2} />
-    </line>
-  );
-};
-
-// === Node Info Panel (Right Side) ===
-const NodeInfoPanel = ({ node, position }) => {
-  let description = "";
-
-  switch (node.type) {
-    case "Root":
-      description = "The first or topmost node of the tree. It has no parent.";
-      break;
-    case "Parent":
-      description = "A node that has child nodes connected below it.";
-      break;
-    case "Leaf":
-      description =
-        "A node with no children. It represents the end of a branch.";
-      break;
-    default:
-      description = "Tree node.";
-  }
-
-  // Extra info for terminology
-  const extraInfo = `
-🧾 Terminology:
-• Root – top node
-• Parent & Child – relationship between connected nodes
-• Siblings – children with the same parent
-• Leaf – node with no children
-• Height – longest path from root to a leaf
-• Depth – distance from root to the node
-`;
-
-  const content = [
-    `🔹 Node: ${node.id}`,
-    `Type: ${node.type}`,
-    "",
-    description,
-    "",
-    extraInfo,
-  ].join("\n");
-
-  return (
-    <FadeInText
-      show={true}
-      text={content}
-      position={position}
-      fontSize={0.33}
-      color="#a5f3fc"
-    />
+      <meshBasicMaterial color="#1e293b" opacity={0.3} transparent />
+    </mesh>
   );
 };
 
@@ -200,6 +145,7 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
       opacity.current = Math.max(opacity.current - 0.05, 0);
       scale.current = 0.6;
     }
+
     if (ref.current && ref.current.material) {
       ref.current.material.opacity = opacity.current;
       ref.current.scale.set(scale.current, scale.current, scale.current);
@@ -216,10 +162,145 @@ const FadeInText = ({ show, text, position, fontSize, color }) => {
       anchorY="middle"
       material-transparent
       maxWidth={10}
-      textAlign="left"
+      textAlign="center"
     >
       {text}
     </Text>
+  );
+};
+
+// === Queue Box ===
+const QueueBox = ({ value, position, isFront, isRear, highlight }) => {
+  const color = highlight ? "#facc15" : "#34d399";
+  const meshRef = useRef();
+
+  useFrame(() => {
+    if (meshRef.current && meshRef.current.scale.y < 1) {
+      meshRef.current.scale.y += 0.1;
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh ref={meshRef} position={[0, 0.5, 0]}>
+        <boxGeometry args={[1.5, 1, 1]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+
+      <FadeInText
+        show={true}
+        text={String(value)}
+        position={[0, 0.5, 0.6]}
+        fontSize={0.4}
+        color="white"
+      />
+
+      {isFront && (
+        <Text
+          position={[-1.6, 0.5, 0]}
+          fontSize={0.3}
+          color="#60a5fa"
+          anchorX="center"
+          anchorY="middle"
+        >
+          Front 🔵
+        </Text>
+      )}
+      {isRear && (
+        <Text
+          position={[1.6, 0.5, 0]}
+          fontSize={0.3}
+          color="#f472b6"
+          anchorX="center"
+          anchorY="middle"
+        >
+          🟣 Rear
+        </Text>
+      )}
+    </group>
+  );
+};
+
+// === Operations Panel (Visual Buttons + Peek) ===
+const OperationsPanel = ({ position, onEnqueue, onDequeue, onPeek }) => {
+  const [activeButton, setActiveButton] = useState(null);
+
+  const handleClick = (e, action, callback) => {
+    e.stopPropagation();
+    setActiveButton(action);
+    callback();
+    setTimeout(() => setActiveButton(null), 250);
+  };
+
+  const renderButton = (label, action, y, callback) => {
+    const isActive = activeButton === action;
+    const color = isActive ? "#22c55e" : "#38bdf8";
+
+    return (
+      <group position={[0, y, 0]}>
+        <mesh onClick={(e) => handleClick(e, action, callback)} castShadow receiveShadow>
+          <boxGeometry args={[2.8, 0.6, 0.1]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+
+        <Text
+          fontSize={0.35}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+          position={[0, 0, 0.06]}
+          onClick={(e) => handleClick(e, action, callback)}
+        >
+          {label}
+        </Text>
+      </group>
+    );
+  };
+
+  return (
+    <group position={position}>
+      <FadeInText
+        show={true}
+        text={"Queue Functions:"}
+        position={[0, 3, 0]}
+        fontSize={0.35}
+        color="#fde68a"
+      />
+
+      {renderButton("➕ Enqueue", "enqueue", 2.2, onEnqueue)}
+      {renderButton("➖ Dequeue", "dequeue", 1.4, onDequeue)}
+      {renderButton("👁 Peek", "peek", 0.6, onPeek)}
+
+      <FadeInText
+        show={true}
+        text={"Each → O(1)"}
+        position={[0, -2, 0]}
+        fontSize={0.3}
+        color="#fef9c3"
+      />
+    </group>
+  );
+};
+
+// === Operation Info Panel ===
+const OperationInfoPanel = ({ info, position }) => {
+  const content = [
+    `🔹 ${info.title}`,
+    `Complexity: ${info.complexity}`,
+    "",
+    info.description,
+  ].join("\n");
+
+  return (
+    <group>
+      <FadeInText
+        show={true}
+        text={content}
+        position={position}
+        fontSize={0.32}
+        color="#a5f3fc"
+      />
+    </group>
   );
 };
 

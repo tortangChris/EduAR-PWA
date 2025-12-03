@@ -1,11 +1,12 @@
-// ProgressCard.jsx
 import React, { useEffect, useState } from "react";
 import { CircleCheck, PlaySquare } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import modulesConfig from "../config/modulesConfig";
 
 const ProgressCard = () => {
   const [progress, setProgress] = useState(0);
   const [completedModules, setCompletedModules] = useState(0);
+  const navigate = useNavigate();
 
   const totalModules = modulesConfig.length;
 
@@ -51,7 +52,12 @@ const ProgressCard = () => {
       <div className="h-px bg-gradient-to-r from-primary/40 to-transparent my-5"></div>
 
       <div className="grid grid-cols-2 gap-6 text-center text-sm font-medium">
-        <div className="flex flex-col items-center hover:scale-105 transition-transform">
+
+        {/* CLICKABLE MODULES */}
+        <div
+          className="flex flex-col items-center hover:scale-105 transition-transform cursor-pointer"
+          onClick={() => navigate("/modules")}
+        >
           <PlaySquare className="w-7 h-7 text-primary mb-1" />
           <span>Modules</span>
           <span className="text-xs text-gray-500">
@@ -62,7 +68,9 @@ const ProgressCard = () => {
         <div className="flex flex-col items-center hover:scale-105 transition-transform">
           <CircleCheck className="w-7 h-7 text-primary mb-1" />
           <span>Assessment</span>
-          <span className="text-xs text-gray-500">- / -</span>
+          <span className="text-xs text-gray-500">
+            {completedModules} / {totalModules}
+          </span>
         </div>
       </div>
     </div>

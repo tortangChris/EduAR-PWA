@@ -4,6 +4,7 @@ import LogIn from "../auth/LogIn";
 import SignUp from "../auth/SignUp";
 
 import ModuleWrapper from "../modules/ModuleWrapper";
+import ARDetection from "../pages/ARDetectetion";
 
 const Home = React.lazy(() => import("../pages/Home"));
 const Modules = React.lazy(() => import("../pages/Modules"));
@@ -19,6 +20,7 @@ const EduarRoutes = {
     { path: "auth/signup", element: <SignUp /> },
     { path: "home", element: <Home /> },
     { path: "modules", element: <Modules /> },
+    { path: "arDetection", element: <ARDetection /> },
     { path: "ar-assessment", element: <AR /> },
     { path: "personal", element: <Personal /> },
     { path: "settings", element: <Settings /> },

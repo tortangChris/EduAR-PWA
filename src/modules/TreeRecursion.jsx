@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { CheckCircle } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import ModuleHeader from "../components/ModuleHeader";
@@ -15,17 +15,27 @@ import { useModuleProgress } from "../services/useModuleProgress";
 
 import { logActivity } from "../services/activityService";
 import Page6 from "../components/Tree/Page6";
+import PageInteractive from "../components/Tree/PageInteractive";
 
 const TreeRecursion = () => {
   const navigate = useNavigate();
   const { page } = useParams();
 
+  // 🔹 Track kung pasado na yung Tree/Recursion assessment
+  const [treeRecursionAssessmentPassed, setTreeRecursionAssessmentPassed] =
+    useState(false);
+
   const pages = [
     <Page0 />,
     <Page1 />,
     <Page2 />,
-    <Page3 />,
-    <Page4 />,
+    <PageInteractive
+      onAssessmentPassStatusChange={(passed) =>
+        setTreeRecursionAssessmentPassed(passed)
+      }
+    />,
+    // <Page3 />,
+    // <Page4 />,
     // <Page5 />,
     // <Page6 />,
   ];
@@ -36,6 +46,18 @@ const TreeRecursion = () => {
 
   const { currentPage, setCurrentPage, isFinished, finishModule, progress } =
     useModuleProgress("tree-data-structure-recursion", totalPages);
+
+  // 🔹 On mount: check localStorage kung previously passed na
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("treeRecursionAssessmentPassed");
+      if (stored === "true") {
+        setTreeRecursionAssessmentPassed(true);
+      }
+    } catch (e) {
+      console.warn("Unable to read localStorage", e);
+    }
+  }, []);
 
   useEffect(() => {
     setCurrentPage(pageIndex);
@@ -54,6 +76,7 @@ const TreeRecursion = () => {
     if (currentPage < totalPages - 1) {
       navigate(`/modules/tree-data-structure-recursion/${currentPage + 2}`);
     } else {
+      // last page; gating nasa Finish button
       finishModule();
       navigate("/modules", {
         state: { route: "tree-data-structure-recursion" },
@@ -66,6 +89,16 @@ const TreeRecursion = () => {
       navigate(`/modules/tree-data-structure-recursion/${currentPage}`);
     }
   };
+
+  const onFinishClick = () => {
+    if (!treeRecursionAssessmentPassed) return; // safety guard
+    finishModule();
+    navigate("/modules", {
+      state: { route: "tree-data-structure-recursion" },
+    });
+  };
+
+  const isLastPage = currentPage === totalPages - 1;
 
   return (
     <div className="h-[calc(100vh)] overflow-y-auto p-4 bg-base-100 space-y-4">
@@ -93,18 +126,21 @@ const TreeRecursion = () => {
             Next
           </button>
         ) : (
-          <button
-            onClick={() => {
-              finishModule();
-              navigate("/modules", {
-                state: { route: "tree-data-structure-recursion" },
-              });
-            }}
-            className="btn btn-success flex items-center gap-2"
-          >
-            <CheckCircle className="w-5 h-5" />
-            Finish Module
-          </button>
+          <div className="flex flex-col items-end">
+            <button
+              onClick={onFinishClick}
+              disabled={!treeRecursionAssessmentPassed}
+              className="btn btn-success flex items-center gap-2 disabled:btn-disabled"
+            >
+              <CheckCircle className="w-5 h-5" />
+              {treeRecursionAssessmentPassed ? "Finish Module" : "Finish Locked"}
+            </button>
+            {!treeRecursionAssessmentPassed && (
+              <span className="text-xs text-error mt-1">
+                Pass the assessment to finish this module.
+              </span>
+            )}
+          </div>
         )}
       </div>
     </div>
