@@ -26,7 +26,6 @@ const LinkedListAssessmentAR = ({
   const [isARSupported, setIsARSupported] = useState(false);
   const [arStarted, setArStarted] = useState(false);
 
-  // Check AR support
   useEffect(() => {
     const checkAR = async () => {
       if (navigator.xr) {
@@ -49,10 +48,8 @@ const LinkedListAssessmentAR = ({
 
   return (
     <div className="w-full h-screen relative">
-      {/* AR Start Button */}
       {!arStarted && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 to-slate-800 z-10">
-          {/* Back Button */}
           {onBack && (
             <button
               onClick={onBack}
@@ -97,7 +94,6 @@ const LinkedListAssessmentAR = ({
         </div>
       )}
 
-      {/* AR Canvas */}
       <Canvas
         style={{ 
           position: 'absolute',
@@ -121,7 +117,6 @@ const LinkedListAssessmentAR = ({
         </XR>
       </Canvas>
 
-      {/* Exit AR Button */}
       {arStarted && (
         <button
           onClick={() => {
@@ -137,7 +132,6 @@ const LinkedListAssessmentAR = ({
   );
 };
 
-// Main AR Scene Component
 const ARScene = ({
   initialData,
   spacing,
@@ -159,12 +153,11 @@ const ARScene = ({
   const totalAssessments = 4;
 
   const [isPassed, setIsPassed] = useState(false);
-  const [draggedNode, setDraggedNode] = useState(null);
-  const [holdingNode, setHoldingNode] = useState(null);
-  const [nodePositions, setNodePositions] = useState([]);
+  const [draggedBox, setDraggedBox] = useState(null);
+  const [holdingBox, setHoldingBox] = useState(null);
+  const [boxPositions, setBoxPositions] = useState([]);
   const [droppedAnswer, setDroppedAnswer] = useState(null);
   
-  // AR Placement - 8 units away (far distance)
   const [arPlaced, setArPlaced] = useState(false);
   const [arPosition, setArPosition] = useState([0, 0, -8]);
 
@@ -173,19 +166,18 @@ const ARScene = ({
     return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
   }, [data, spacing]);
 
-  // Initialize node positions
   useEffect(() => {
-    setNodePositions(originalPositions.map(pos => [...pos]));
+    setBoxPositions(originalPositions.map(pos => [...pos]));
   }, [originalPositions]);
 
   useEffect(() => {
     setSelectedIndex(null);
     setFeedback(null);
     setAnimState({});
-    setDraggedNode(null);
-    setHoldingNode(null);
+    setDraggedBox(null);
+    setHoldingBox(null);
     setDroppedAnswer(null);
-    setNodePositions(originalPositions.map(pos => [...pos]));
+    setBoxPositions(originalPositions.map(pos => [...pos]));
 
     if (mode === "access") prepareAccessQuestion();
     if (mode === "search") prepareSearchQuestion();
@@ -234,7 +226,7 @@ const ARScene = ({
     const k = Math.floor(Math.random() * data.length);
     const answerIndex = k;
     setQuestion({
-      prompt: `Insert ${insertValue} after position ${k}. Which node's "next" pointer changes?`,
+      prompt: `Insert ${insertValue} after position ${k}. Which node's pointer changes?`,
       insertValue,
       k,
       answerIndex,
@@ -243,11 +235,11 @@ const ARScene = ({
   };
 
   const prepareDeleteQuestion = () => {
-    let k = Math.floor(Math.random() * (data.length - 1)) + 1; // Not head
+    let k = Math.floor(Math.random() * (data.length - 1)) + 1;
     if (k >= data.length) k = data.length - 1;
-    const answerIndex = k - 1; // Previous node's pointer changes
+    const answerIndex = k - 1;
     setQuestion({
-      prompt: `Delete node at position ${k}. Which node's "next" pointer must update?`,
+      prompt: `Delete node at position ${k}. Which node's pointer must update?`,
       k,
       answerIndex,
       type: "delete",
@@ -255,34 +247,34 @@ const ARScene = ({
   };
 
   const handleHoldStart = (index) => {
-    setHoldingNode(index);
+    setHoldingBox(index);
   };
 
   const handleHoldComplete = (index) => {
-    setDraggedNode(index);
+    setDraggedBox(index);
     setSelectedIndex(index);
-    setHoldingNode(null);
+    setHoldingBox(null);
   };
 
   const handleHoldCancel = () => {
-    setHoldingNode(null);
+    setHoldingBox(null);
   };
 
   const handleDragEnd = () => {
-    setDraggedNode(null);
-    setHoldingNode(null);
+    setDraggedBox(null);
+    setHoldingBox(null);
   };
 
-  const updateNodePosition = (index, newPosition) => {
-    setNodePositions((prev) => {
+  const updateBoxPosition = (index, newPosition) => {
+    setBoxPositions((prev) => {
       const updated = [...prev];
       updated[index] = newPosition;
       return updated;
     });
   };
 
-  const resetNodePosition = (index) => {
-    setNodePositions((prev) => {
+  const resetBoxPosition = (index) => {
+    setBoxPositions((prev) => {
       const updated = [...prev];
       updated[index] = [...originalPositions[index]];
       return updated;
@@ -303,14 +295,14 @@ const ARScene = ({
       correct = droppedIndex === question.answerIndex;
       markScore(correct);
       showFeedback(correct, `Node ${data[droppedIndex]}`, () => {
-        resetNodePosition(droppedIndex);
+        resetBoxPosition(droppedIndex);
         nextMode();
       });
     } else if (question.type === "search") {
       correct = data[droppedIndex] === question.answerValue;
       markScore(correct);
       showFeedback(correct, `Found ${data[droppedIndex]}`, () => {
-        resetNodePosition(droppedIndex);
+        resetBoxPosition(droppedIndex);
         nextMode();
       });
     } else if (question.type === "insert") {
@@ -333,7 +325,7 @@ const ARScene = ({
       });
     }
 
-    setDraggedNode(null);
+    setDraggedBox(null);
   };
 
   const showFeedback = (correct, label, callback) => {
@@ -347,7 +339,7 @@ const ARScene = ({
     }, 1200);
   };
 
-  const handleNodeClick = (i) => {
+  const handleBoxClick = (i) => {
     if (mode === "intro") {
       setModeIndex(1);
       return;
@@ -362,22 +354,17 @@ const ARScene = ({
 
   return (
     <>
-      {/* Lighting */}
       <ambientLight intensity={0.8} />
       <directionalLight position={[5, 10, 5]} intensity={1} />
       <pointLight position={[-5, 5, 5]} intensity={0.5} />
 
-      {/* AR Origin & Placement */}
       <XROrigin position={[0, 0, 0]} />
 
-      {/* Hit Test for placing content */}
       {!arPlaced && arStarted && (
         <ARHitTest onPlace={handlePlaceAR} />
       )}
 
-      {/* Main Content Group - positioned in AR space */}
       <group position={arPosition}>
-        {/* Floating UI Panel */}
         <ARUIPanel
           position={[0, 2.5, 0]}
           mode={mode}
@@ -388,7 +375,6 @@ const ARScene = ({
           isPassed={isPassed}
         />
 
-        {/* Ground Indicator */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
           <circleGeometry args={[5, 32]} />
           <meshStandardMaterial 
@@ -400,33 +386,31 @@ const ARScene = ({
 
         {/* HEAD Label */}
         {mode !== "intro" && mode !== "done" && data.length > 0 && (
-          <group position={[originalPositions[0][0] - 1.5, 0.5, 0]}>
-            <Text fontSize={0.25} color="#22c55e" anchorX="center">
+          <group position={[originalPositions[0][0] - 1.8, 0.6, 0]}>
+            <Text fontSize={0.3} color="#22c55e" anchorX="center">
               HEAD
             </Text>
-            <mesh position={[0.6, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
-              <coneGeometry args={[0.1, 0.3, 8]} />
+            <mesh position={[0.8, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+              <coneGeometry args={[0.12, 0.35, 8]} />
               <meshBasicMaterial color="#22c55e" />
             </mesh>
           </group>
         )}
 
-        {/* Answer Drop Zone */}
         {mode !== "intro" && mode !== "done" && (
           <ARAnswerDropZone
             position={[0, 0, 2.5]}
-            isActive={draggedNode !== null}
-            draggedNode={draggedNode}
+            isActive={draggedBox !== null}
+            draggedBox={draggedBox}
             onDrop={handleDropOnAnswer}
             feedback={feedback}
           />
         )}
 
-        {/* Interactive Nodes */}
         {mode === "intro" ? (
-          <ARStartNode 
+          <ARStartBox 
             position={[0, 0.5, 0]} 
-            onClick={() => handleNodeClick(0)} 
+            onClick={() => handleBoxClick(0)} 
           />
         ) : mode === "done" ? (
           <ARResultPanel
@@ -449,33 +433,32 @@ const ARScene = ({
 
               return (
                 <React.Fragment key={i}>
-                  <ARDraggableNode
+                  <ARDraggableBox
                     index={i}
                     value={value}
-                    position={nodePositions[i] || originalPositions[i]}
+                    position={boxPositions[i] || originalPositions[i]}
                     originalPosition={originalPositions[i]}
                     selected={isSelected}
-                    isDragging={draggedNode === i}
-                    isHolding={holdingNode === i}
-                    anyDragging={draggedNode !== null}
+                    isDragging={draggedBox === i}
+                    isHolding={holdingBox === i}
+                    anyDragging={draggedBox !== null}
                     opacity={extraOpacity}
                     isHead={i === 0}
-                    isTail={i === data.length - 1}
-                    onNodeClick={() => handleNodeClick(i)}
+                    onBoxClick={() => handleBoxClick(i)}
                     onHoldStart={() => handleHoldStart(i)}
                     onHoldComplete={() => handleHoldComplete(i)}
                     onHoldCancel={handleHoldCancel}
                     onDragEnd={() => {
                       handleDragEnd();
-                      resetNodePosition(i);
+                      resetBoxPosition(i);
                     }}
-                    onPositionChange={(pos) => updateNodePosition(i, pos)}
+                    onPositionChange={(pos) => updateBoxPosition(i, pos)}
                   />
                   {/* Arrow to next node */}
-                  {i < data.length - 1 && draggedNode !== i && (
+                  {i < data.length - 1 && draggedBox !== i && (
                     <ARPointerArrow
-                      from={nodePositions[i] || originalPositions[i]}
-                      to={nodePositions[i + 1] || originalPositions[i + 1]}
+                      from={boxPositions[i] || originalPositions[i]}
+                      to={boxPositions[i + 1] || originalPositions[i + 1]}
                       spacing={spacing}
                     />
                   )}
@@ -483,15 +466,18 @@ const ARScene = ({
               );
             })}
             {/* NULL at end */}
-            <group position={[originalPositions[data.length - 1][0] + spacing, 0.5, 0]}>
-              <Text fontSize={0.25} color="#ef4444" anchorX="center">
+            <group position={[originalPositions[data.length - 1][0] + spacing, 0.6, 0]}>
+              <mesh>
+                <boxGeometry args={[1, 0.6, 0.6]} />
+                <meshStandardMaterial color="#ef4444" />
+              </mesh>
+              <Text position={[0, 0, 0.35]} fontSize={0.25} color="white" anchorX="center">
                 NULL
               </Text>
             </group>
           </>
         )}
 
-        {/* Feedback Display */}
         {feedback && (
           <ARFeedback
             text={feedback.text}
@@ -501,13 +487,11 @@ const ARScene = ({
         )}
       </group>
 
-      {/* Non-AR fallback camera */}
       {!arStarted && <FallbackCamera />}
     </>
   );
 };
 
-// AR Hit Test Component - 8 units away
 const ARHitTest = ({ onPlace }) => {
   const reticleRef = useRef();
   const [hitPosition, setHitPosition] = useState(null);
@@ -535,13 +519,13 @@ const ARHitTest = ({ onPlace }) => {
         onClick={handleTap}
       >
         <ringGeometry args={[0.15, 0.2, 32]} />
-        <meshBasicMaterial color="#00ff00" side={THREE.DoubleSide} />
+        <meshBasicMaterial color="#22c55e" side={THREE.DoubleSide} />
       </mesh>
       
       <Text
         position={[0, 0.5, -8]}
         fontSize={0.1}
-        color="#00ff00"
+        color="#22c55e"
         anchorX="center"
       >
         Tap to place linked list
@@ -550,7 +534,6 @@ const ARHitTest = ({ onPlace }) => {
   );
 };
 
-// AR UI Panel
 const ARUIPanel = ({ position, mode, modeIndex, question, score, totalAssessments, isPassed }) => {
   return (
     <group position={position}>
@@ -611,29 +594,29 @@ const ARUIPanel = ({ position, mode, modeIndex, question, score, totalAssessment
   );
 };
 
-// Pointer Arrow between nodes
+// Pointer Arrow between boxes (same style as Array but with arrow)
 const ARPointerArrow = ({ from, to, spacing }) => {
-  const arrowLength = spacing * 0.4;
+  const arrowLength = spacing * 0.35;
   const midX = (from[0] + to[0]) / 2;
   
   return (
-    <group position={[midX, 0.5, 0]}>
+    <group position={[midX, 0.6, 0]}>
       {/* Arrow line */}
       <mesh>
-        <boxGeometry args={[arrowLength, 0.08, 0.08]} />
+        <boxGeometry args={[arrowLength, 0.1, 0.1]} />
         <meshBasicMaterial color="#f97316" />
       </mesh>
       {/* Arrow head */}
-      <mesh position={[arrowLength / 2 + 0.1, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
-        <coneGeometry args={[0.12, 0.25, 8]} />
+      <mesh position={[arrowLength / 2 + 0.12, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+        <coneGeometry args={[0.15, 0.3, 8]} />
         <meshBasicMaterial color="#f97316" />
       </mesh>
     </group>
   );
 };
 
-// AR Draggable Node (Circle shape for linked list)
-const ARDraggableNode = ({
+// Same Box as ArrayAssessmentAR
+const ARDraggableBox = ({
   index,
   value,
   position,
@@ -644,8 +627,7 @@ const ARDraggableNode = ({
   anyDragging,
   opacity = 1,
   isHead,
-  isTail,
-  onNodeClick,
+  onBoxClick,
   onHoldStart,
   onHoldComplete,
   onHoldCancel,
@@ -664,15 +646,15 @@ const ARDraggableNode = ({
   const intersection = useRef(new THREE.Vector3());
 
   const HOLD_DURATION = 400;
-  const nodeRadius = 0.6;
+  const size = [1.2, 0.9, 0.8]; // Same size as Array boxes
 
   const getColor = () => {
     if (isDragging) return "#f97316";
     if (isHolding) return "#fb923c";
     if (selected) return "#facc15";
-    if (isHovered) return "#a78bfa";
-    if (isHead) return "#22c55e";
-    return "#60a5fa";
+    if (isHovered) return "#818cf8";
+    if (isHead) return "#22c55e"; // Head node is green
+    return index % 2 === 0 ? "#60a5fa" : "#34d399";
   };
 
   useFrame(() => {
@@ -788,7 +770,7 @@ const ARDraggableNode = ({
     e.stopPropagation();
 
     if (!hasDraggedRef.current) {
-      onNodeClick();
+      onBoxClick();
     }
 
     if (isDragging) {
@@ -816,7 +798,7 @@ const ARDraggableNode = ({
     >
       {/* Hold Progress Ring */}
       {isHolding && !isDragging && (
-        <group position={[0, nodeRadius + 1, 0]}>
+        <group position={[0, size[1] + 0.8, 0]}>
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.25, 0.35, 32]} />
             <meshBasicMaterial color="#374151" transparent opacity={0.5} />
@@ -838,9 +820,9 @@ const ARDraggableNode = ({
         </mesh>
       )}
 
-      {/* Node Circle */}
-      <mesh castShadow receiveShadow position={[0, nodeRadius, 0]}>
-        <cylinderGeometry args={[nodeRadius, nodeRadius, 0.3, 32]} />
+      {/* Main Box - Same as Array */}
+      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
+        <boxGeometry args={size} />
         <meshStandardMaterial
           color={getColor()}
           emissive={isDragging ? "#f97316" : isHolding ? "#fb923c" : selected ? "#fbbf24" : "#000000"}
@@ -852,20 +834,21 @@ const ARDraggableNode = ({
         />
       </mesh>
 
-      {/* Outer ring when selected/dragging */}
-      {(isDragging || isHolding || selected) && (
-        <mesh position={[0, nodeRadius, 0]}>
-          <torusGeometry args={[nodeRadius + 0.1, 0.05, 16, 32]} />
+      {/* Glow outline when dragging */}
+      {(isDragging || isHolding) && (
+        <mesh position={[0, size[1] / 2, 0]}>
+          <boxGeometry args={[size[0] + 0.08, size[1] + 0.08, size[2] + 0.08]} />
           <meshBasicMaterial 
             color={isDragging ? "#ffffff" : "#f97316"} 
+            wireframe 
           />
         </mesh>
       )}
 
       {/* Value label */}
       <Text
-        position={[0, nodeRadius + 0.01, 0.2]}
-        fontSize={0.35}
+        position={[0, size[1] / 2 + 0.1, size[2] / 2 + 0.01]}
+        fontSize={0.3}
         color="white"
         anchorX="center"
         anchorY="middle"
@@ -873,21 +856,21 @@ const ARDraggableNode = ({
         {String(value)}
       </Text>
 
-      {/* Position label */}
+      {/* Position label (instead of index for linked list) */}
       <Text
-        position={[0, 0, 0]}
+        position={[0, -0.15, size[2] / 2 + 0.01]}
         fontSize={0.18}
-        color="#fde68a"
+        color="yellow"
         anchorX="center"
         anchorY="middle"
       >
-        pos: {index}
+        pos:{index}
       </Text>
 
       {/* Drag instruction */}
       {isDragging && (
         <Text
-          position={[0, nodeRadius + 1, 0]}
+          position={[0, size[1] + 0.5, 0]}
           fontSize={0.12}
           color="#fb923c"
           anchorX="center"
@@ -899,8 +882,7 @@ const ARDraggableNode = ({
   );
 };
 
-// AR Answer Drop Zone
-const ARAnswerDropZone = ({ position, isActive, draggedNode, onDrop, feedback }) => {
+const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) => {
   const [hovered, setHovered] = useState(false);
   const meshRef = useRef();
   const glowRef = useRef(0);
@@ -924,8 +906,8 @@ const ARAnswerDropZone = ({ position, isActive, draggedNode, onDrop, feedback })
   });
 
   const handlePointerUp = () => {
-    if (isActive && draggedNode !== null) {
-      onDrop(draggedNode);
+    if (isActive && draggedBox !== null) {
+      onDrop(draggedBox);
     }
   };
 
@@ -937,7 +919,7 @@ const ARAnswerDropZone = ({ position, isActive, draggedNode, onDrop, feedback })
         onPointerOut={() => setHovered(false)}
         onPointerUp={handlePointerUp}
       >
-        <boxGeometry args={[3.5, 0.2, 2]} />
+        <boxGeometry args={[3, 0.2, 1.8]} />
         <meshStandardMaterial
           color={hovered && isActive ? "#22c55e" : isActive ? "#22c55e" : "#475569"}
           transparent
@@ -948,7 +930,7 @@ const ARAnswerDropZone = ({ position, isActive, draggedNode, onDrop, feedback })
       </mesh>
 
       <mesh position={[0, 0.01, 0]}>
-        <boxGeometry args={[3.6, 0.22, 2.1]} />
+        <boxGeometry args={[3.1, 0.22, 1.9]} />
         <meshBasicMaterial
           color={hovered && isActive ? "#4ade80" : "#22c55e"}
           wireframe
@@ -976,14 +958,13 @@ const ARAnswerDropZone = ({ position, isActive, draggedNode, onDrop, feedback })
   );
 };
 
-// AR Start Node
-const ARStartNode = ({ position, onClick }) => {
+const ARStartBox = ({ position, onClick }) => {
   const [hovered, setHovered] = useState(false);
   const meshRef = useRef();
 
   useFrame((state) => {
     if (meshRef.current) {
-      meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 2) * 0.1 + 0.6;
+      meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 2) * 0.1 + 0.5;
     }
   });
 
@@ -995,7 +976,7 @@ const ARStartNode = ({ position, onClick }) => {
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
       >
-        <cylinderGeometry args={[1.2, 1.2, 0.4, 32]} />
+        <boxGeometry args={[2.5, 1, 0.8]} />
         <meshStandardMaterial
           color={hovered ? "#16a34a" : "#22c55e"}
           emissive={hovered ? "#22c55e" : "#14532d"}
@@ -1003,8 +984,8 @@ const ARStartNode = ({ position, onClick }) => {
         />
       </mesh>
       <Text
-        position={[0, 0.6, 0.25]}
-        fontSize={0.3}
+        position={[0, 0.5, 0.45]}
+        fontSize={0.25}
         color="white"
         anchorX="center"
       >
@@ -1014,7 +995,6 @@ const ARStartNode = ({ position, onClick }) => {
   );
 };
 
-// AR Result Panel
 const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
   const [hovered, setHovered] = useState(false);
 
@@ -1044,7 +1024,7 @@ const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
       >
-        <cylinderGeometry args={[0.8, 0.8, 0.3, 32]} />
+        <boxGeometry args={[2, 0.6, 0.5]} />
         <meshStandardMaterial
           color={hovered ? "#16a34a" : "#22c55e"}
           emissive={hovered ? "#22c55e" : "#000000"}
@@ -1052,7 +1032,7 @@ const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
         />
       </mesh>
       <Text
-        position={[0, -0.25, 0.15]}
+        position={[0, -0.3, 0.3]}
         fontSize={0.18}
         color="white"
         anchorX="center"
@@ -1063,7 +1043,6 @@ const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
   );
 };
 
-// AR Feedback Display
 const ARFeedback = ({ text, correct, position }) => {
   const groupRef = useRef();
 
@@ -1095,7 +1074,6 @@ const ARFeedback = ({ text, correct, position }) => {
   );
 };
 
-// Fallback camera for non-AR mode
 const FallbackCamera = () => {
   const { camera } = useThree();
   
