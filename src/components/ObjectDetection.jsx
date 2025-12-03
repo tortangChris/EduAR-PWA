@@ -1,9 +1,7 @@
 // ../components/ObjectDetection.jsx
 import React, { useRef, useEffect, useState } from "react";
-
-// 🔥 NEW: Three.js / React-Three-Fiber imports for 3D text overlay
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, Text as DreiText } from "@react-three/drei";
 import * as THREE from "three";
 
 // ✅ CLASSES for "Array" mode
@@ -213,64 +211,35 @@ const drawArrow = (ctx, x1, y1, x2, y2) => {
   ctx.fill();
 };
 
-/* -------------------------------------------------------------------------- */
-/* 🔥 NEW 3D TEXT COMPONENTS (React-Three-Fiber + drei Text)                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * FloatingLabel
- * - tumatanggap ng normalized (0..1) positions galing sa detection
- * - kino-convert sa 3D world coords gamit viewport
- * - may konting bounce sa Z para mukhang 3D sa ibabaw ng real object
- */
-const FloatingLabel = ({ normX, normY, label, index }) => {
-  const ref = useRef();
-  const { viewport } = useThree();
-
-  // convert from [0..1] (screen) → world coords
-  const x = normX * viewport.width - viewport.width / 2;
-  const y = viewport.height / 2 - normY * viewport.height;
-
-  useFrame((state) => {
-    if (!ref.current) return;
-    const t = state.clock.getElapsedTime();
-    // maliit na animation sa Z para buhay yung text
-    ref.current.position.z = 0.6 + Math.sin(t + index) * 0.1;
-  });
-
-  return (
-    <Text
-      ref={ref}
-      position={[x, y, 0]}
-      fontSize={0.35}
-      color="#ffffff"
-      outlineWidth={0.045}
-      outlineColor="#000000"
-      anchorX="center"
-      anchorY="middle"
-      maxWidth={4}
-    >
-      {label}
-    </Text>
-  );
-};
-
-/**
- * ArrayLabels3D
- * - nagre-render ng lahat ng 3D labels para sa Array items
- */
-const ArrayLabels3D = ({ items }) => {
+// ⭐ THREE.JS TEXT OVERLAY COMPONENT
+const FloatingConceptText = ({ title, detail }) => {
   return (
     <>
-      {items.map((item, idx) => (
-        <FloatingLabel
-          key={item.id}
-          normX={item.normX}
-          normY={item.normY}
-          label={item.label}
-          index={idx}
-        />
-      ))}
+      <ambientLight intensity={0.7} />
+      <directionalLight position={[2, 3, 4]} intensity={0.6} />
+
+      <DreiText
+        position={[0, 0.35, 0]}
+        fontSize={0.28}
+        color="#34D399"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {title}
+      </DreiText>
+
+      <DreiText
+        position={[0, -0.1, 0]}
+        fontSize={0.12}
+        maxWidth={2.4}
+        color="#e5e7eb"
+        anchorX="center"
+        anchorY="top"
+      >
+        {detail}
+      </DreiText>
+
+      <OrbitControls enableZoom={false} />
     </>
   );
 };
@@ -288,9 +257,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
   const [concept, setConcept] = useState("");
   const [conceptDetail, setConceptDetail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-
-  // 🔥 NEW: data na ipapasa sa 3D Canvas overlay
-  const [array3DItems, setArray3DItems] = useState([]);
 
   // 🔥 ref para sa kasalukuyang DSA mode (galing sa parent)
   const selectedDSARef = useRef(selectedDSA);
@@ -377,6 +343,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const linkedListCountLocal = linkedNodes.length;
 
       const tryQueue = () => {
+        // ⭐ Only consider queue concept if 2 or more
         if (queueCountLocal >= 2) {
           const ys = queueItems.map((p) => p.bbox[1]);
           const maxY = Math.max(...ys);
@@ -432,6 +399,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       };
 
       const tryArray = () => {
+        // ⭐ Only consider array concept if 2 or more
         if (arrayLikeCount >= 2) {
           setConcept("Array");
           setConceptDetail(
@@ -503,18 +471,16 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const frameWidth = canvas.width;
       const frameHeight = canvas.height;
 
-      // 🔥 3D label data to send to React-Three-Fiber Canvas
-      const nextArray3DItems = [];
-
       // ✅ Unified ARRAY OBJECTS (laptop, book, chair, bottle, cell phone)
       const arrayObjects = getArrayObjects(predictions);
       setArrayCount(arrayObjects.length);
 
-      if (arrayObjects.length > 0 && (mode === "Auto" || mode === "Array")) {
+      // ⭐ Do NOT draw boxes if only 1 array object
+      if (arrayObjects.length > 1 && (mode === "Auto" || mode === "Array")) {
         arrayObjects.forEach((p, index) => {
           const [x, y, width, height] = p.bbox;
 
-          // --- 2D BOX (same as before) ---
+          // box
           ctx.strokeStyle = "#00ff00";
           ctx.lineWidth = 4;
           ctx.strokeRect(x, y, width, height);
@@ -533,24 +499,8 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           ctx.fillStyle = "#00ff00";
           ctx.font = "16px Arial";
           ctx.fillText(label, x + labelPaddingX, y + height + 18);
-
-          // --- 🔥 NEW: push 3D label data (normalized coords) ---
-          if (frameWidth > 0 && frameHeight > 0) {
-            const cx = x + width / 2;
-            const cy = y + height / 2;
-
-            nextArray3DItems.push({
-              id: `${p.class}-${index}`,
-              label, // same label as 2D
-              normX: cx / frameWidth,
-              normY: cy / frameHeight,
-            });
-          }
         });
       }
-
-      // update state for 3D overlay (kahit empty)
-      setArray3DItems(nextArray3DItems);
 
       // QUEUE (side-view persons / books / cell phones)
       const queueItems = predictions.filter(
@@ -563,7 +513,8 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       );
       setQueueCount(queueItems.length);
 
-      if (queueItems.length > 0 && (mode === "Auto" || mode === "Queue")) {
+      // ⭐ Do NOT draw queue boxes if only 1
+      if (queueItems.length > 1 && (mode === "Auto" || mode === "Queue")) {
         const queueSorted = [...queueItems].sort(
           (a, b) => a.bbox[0] - b.bbox[0]
         );
@@ -592,8 +543,9 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const linkedNodes = getLinkedListNodes(predictions);
       setLinkedListCount(linkedNodes.length);
 
+      // ⭐ Do NOT draw linked list boxes if only 1 node
       if (
-        linkedNodes.length >= 1 &&
+        linkedNodes.length > 1 &&
         (mode === "Auto" || mode === "Linked List")
       ) {
         const nodesSorted = [...linkedNodes].sort(
@@ -642,14 +594,16 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       );
       setBookCount(books.length);
 
-      if (
-        stacks &&
-        stacks.length > 0 &&
-        (mode === "Auto" || mode === "Stack")
-      ) {
+      // ⭐ Filter stacks na may at least 2 lines (para hindi 1 object lang)
+      let validStacks = [];
+      if (stacks && stacks.length > 0) {
+        validStacks = stacks.filter((stack) => stack.length >= 2);
+      }
+
+      if (validStacks.length > 0 && (mode === "Auto" || mode === "Stack")) {
         const stackColors = ["#f97316", "#3b82f6", "#ec4899", "#22c55e"];
 
-        stacks.forEach((stack, sIdx) => {
+        validStacks.forEach((stack, sIdx) => {
           const color = stackColors[sIdx % stackColors.length];
 
           stack.forEach((line) => {
@@ -766,7 +720,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         }}
       />
 
-      {/* CANVAS OVERLAY (2D drawing) */}
+      {/* CANVAS OVERLAY */}
       <canvas
         ref={canvasRef}
         style={{
@@ -776,27 +730,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           height: "100%",
         }}
       />
-
-      {/* 🔥 3D AR TEXT OVERLAY (React-Three-Fiber) */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          pointerEvents: "none", // para hindi makaharang sa UI/clicks
-        }}
-      >
-        <Canvas
-          orthographic
-          camera={{ position: [0, 0, 10], zoom: 100 }}
-          gl={{ alpha: true }}
-          onCreated={({ gl }) => {
-            // transparent WebGL background para kita pa rin video
-            gl.setClearColor(new THREE.Color(0x000000), 0);
-          }}
-        >
-          <ArrayLabels3D items={array3DItems} />
-        </Canvas>
-      </div>
 
       {/* STATUS PILL */}
       <div
@@ -815,43 +748,30 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         DSA Concept Detection · {status}
       </div>
 
-      {/* DATA STRUCTURE OVERLAY – only when may concept */}
+      {/* ⭐ THREE.JS DSA TEXT OVERLAY – only when may concept */}
       {concept && (
         <div
           style={{
             position: "absolute",
             bottom: 12,
             left: 12,
-            transform: "none",
-            maxWidth: "65%",
-            padding: "8px 10px",
-            borderRadius: 8,
-            background: "rgba(15, 23, 42, 0.85)",
+            width: 260,
+            height: 160,
+            borderRadius: 12,
+            overflow: "hidden",
+            background: "rgba(15, 23, 42, 0.9)",
             border: "1px solid rgba(148, 163, 184, 0.9)",
-            color: "#f9fafb",
-            fontSize: "0.75rem",
-            lineHeight: 1.3,
             backdropFilter: "blur(4px)",
-            maxHeight: "35%",
-            overflowY: "auto",
           }}
         >
-          <div
-            style={{
-              fontSize: "0.85rem",
-              marginBottom: 2,
-              fontWeight: 600,
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
+          <Canvas
+            camera={{
+              position: [0, 0, 3],
+              fov: 45,
             }}
           >
-            <span>🧠</span>
-            <span>
-              Detected: <span style={{ color: "#34D399" }}>{concept}</span>
-            </span>
-          </div>
-          <div>{conceptDetail}</div>
+            <FloatingConceptText title={concept} detail={conceptDetail} />
+          </Canvas>
         </div>
       )}
 
