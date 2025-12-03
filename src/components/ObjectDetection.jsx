@@ -16,7 +16,7 @@ const getLinkedListNodes = (predictions) =>
   );
 
 /**
- * Simple heuristic to approximate front view using aspect ratio.
+ * Simple heuristic para i-approx kung front view yung object.
  */
 const isFrontView = (pred) => {
   const [x, y, w, h] = pred.bbox;
@@ -39,7 +39,7 @@ const isFrontView = (pred) => {
 };
 
 /**
- * Side-view / queue candidate.
+ * Side-view / naka-pila candidate para sa Queue
  */
 const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
   const [x, y, w, h] = pred.bbox;
@@ -66,11 +66,7 @@ const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
 };
 
 /**
- * Unified array detection:
- * - ARRAY_CLASSES
- * - score > 0.4
- * - front view only
- * - sorted left→right
+ * Unified array detection
  */
 const getArrayObjects = (predictions) => {
   return predictions
@@ -220,7 +216,7 @@ const ConceptARLabel = ({ concept, detail }) => {
   useFrame((state, delta) => {
     if (!groupRef.current) return;
     tRef.current += delta;
-    // small floating animation
+    // maliit na floating animation
     const yBase = 1.5;
     groupRef.current.position.y = yBase + Math.sin(tRef.current * 1.5) * 0.1;
 
@@ -232,13 +228,13 @@ const ConceptARLabel = ({ concept, detail }) => {
   const textDetail =
     detail ||
     (concept === "Array"
-      ? "Array: items stored side by side in memory. Fast access with index (O(1))."
+      ? "Array: a row of slots in memory. Each object has a fixed index like 0, 1, 2, 3 for fast O(1) access."
       : concept === "Queue (FIFO)"
-      ? "Queue: First In, First Out. Imagine a line of people waiting (O(1) front/back)."
+      ? "Queue: like a line in a store. The first object that enters is the first one that leaves (First In, First Out)."
       : concept === "Stack (LIFO)"
-      ? "Stack: Last In, First Out. Like a pile of books, you push and pop on top (O(1))."
+      ? "Stack: like a pile of books. The last book you put on top is the first one you take off (Last In, First Out)."
       : concept === "Linked List"
-      ? "Linked List: each node points to the next node. Good for inserts/removals (O(1) at node)."
+      ? "Linked List: a chain of nodes. Each node points to the next one, and the last node points to null."
       : "");
 
   return (
@@ -271,70 +267,79 @@ const ConceptARLabel = ({ concept, detail }) => {
   );
 };
 
-/* ========= MODE GUIDE (BEGINNER + LIGHT TECH) ========= */
+/* ========= GUIDE TEXT (CENTERED BEFORE DETECTION) ========= */
 
 const getGuideText = (mode) => {
   switch (mode) {
     case "Array":
-      return [
-        "📚 Array mode",
-        "",
-        "• Point the camera at 2 or more front-view objects.",
-        "• Valid objects: laptop, book, chair, bottle, cell phone.",
-        "• Place them in a row from left to right on a table.",
-        "• We treat each object as an element with an index: a[0], a[1], a[2]...",
-        "• Access by index is very fast: O(1) time.",
-      ].join("\n");
-
+      return {
+        title: "Array mode",
+        lines: [
+          "Imagine a row of boxes on a table.",
+          "",
+          "• Place 2 or more front-view objects in a line.",
+          "• Valid objects: laptop, book, chair, bottle, cell phone.",
+          "• Try to line them up from left to right.",
+          "",
+          "When the camera detects them, it will map each position to an index: 0, 1, 2, 3...",
+        ],
+      };
     case "Stack":
-      return [
-        "📘 Stack mode",
-        "",
-        "• Point the camera at a vertical pile of 2 or more books.",
-        "• The app looks for book spines forming a tall column.",
-        "• Think of plates or books stacked on top of each other.",
-        "• You only use the top: push() to add, pop() to remove.",
-        "• Last In, First Out (LIFO).",
-      ].join("\n");
-
+      return {
+        title: "Stack mode",
+        lines: [
+          "Think of a pile of books.",
+          "",
+          "• Stack 2 or more books vertically (spines visible).",
+          "• Place them like a column on a shelf or table.",
+          "• The top book is the last pushed and the first popped.",
+          "",
+          "The camera will detect this pile as a Stack (Last In, First Out).",
+        ],
+      };
     case "Queue":
-      return [
-        "👥 Queue mode",
-        "",
-        "• Point the camera at 2 or more side-view people, books, or phones.",
-        "• They should form a horizontal line, like people lining up in a store.",
-        "• The first item in front will be the first one to leave the queue.",
-        "• Enqueue at the back, dequeue at the front.",
-        "• First In, First Out (FIFO).",
-      ].join("\n");
-
+      return {
+        title: "Queue mode",
+        lines: [
+          "Think of people waiting in line.",
+          "",
+          "• Use 2 or more people, books, or phones in side view.",
+          "• Arrange them in a horizontal line (left to right).",
+          "• The first in the line should be at the front.",
+          "",
+          "The camera will detect this as a Queue (First In, First Out).",
+        ],
+      };
     case "Linked List":
-      return [
-        "☕ Linked List mode",
-        "",
-        "• Point the camera at 3 or more cups or toy trains in a row.",
-        "• Place them side by side on a table with small gaps.",
-        "• Each object represents a node that points to the next node.",
-        "• You can insert or remove nodes without shifting the others.",
-        "• Great for dynamic sequences: insert/delete near O(1) when you have the node.",
-      ].join("\n");
-
+      return {
+        title: "Linked List mode",
+        lines: [
+          "Imagine a chain of small objects.",
+          "",
+          "• Use 3 or more cups or toy trains.",
+          "• Place them side by side in one row on a table.",
+          "• Leave a little space between each object.",
+          "",
+          "Each object will act like a node that points to the next one.",
+        ],
+      };
     case "Auto":
-      return [
-        "✨ Auto mode",
-        "",
-        "The camera will try to recognize the structure for you:",
-        "",
-        "• Array → 2+ front-view laptops/books/chairs/bottles/phones in a row.",
-        "• Stack → vertical stack of 2+ books (book spines on top of each other).",
-        "• Queue → 2+ side-view people/books/phones lined up horizontally.",
-        "• Linked List → 3+ cups or trains arranged like a chain.",
-        "",
-        "Move real objects and see how they map to data structures.",
-      ].join("\n");
-
+      return {
+        title: "Auto mode",
+        lines: [
+          "Point the camera at real-world objects and let the app decide.",
+          "",
+          "It can detect:",
+          "• Array → 2+ front-view laptops/books/chairs/bottles/phones in a row.",
+          "• Stack → 2+ books stacked vertically.",
+          "• Queue → 2+ side-view people/books/phones in a line.",
+          "• Linked List → 3+ cups or trains in a row.",
+          "",
+          "Move around slowly so the camera can clearly see the shapes.",
+        ],
+      };
     default:
-      return "";
+      return null;
   }
 };
 
@@ -354,7 +359,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
   const [conceptDetail, setConceptDetail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  // 🔥 ref for current DSA mode
+  // 🔥 ref para sa kasalukuyang DSA mode (galing sa parent)
   const selectedDSARef = useRef(selectedDSA);
   useEffect(() => {
     selectedDSARef.current = selectedDSA;
@@ -567,7 +572,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const arrayObjects = getArrayObjects(predictions);
       setArrayCount(arrayObjects.length);
 
-      // No boxes if only 1 array object
+      // ⭐ Do NOT draw boxes if only 1 array object
       if (arrayObjects.length > 1 && (mode === "Auto" || mode === "Array")) {
         arrayObjects.forEach((p, index) => {
           const [x, y, width, height] = p.bbox;
@@ -603,7 +608,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       );
       setQueueCount(queueItems.length);
 
-      // No boxes if only 1 queue item
+      // ⭐ Do NOT draw queue boxes if only 1
       if (queueItems.length > 1 && (mode === "Auto" || mode === "Queue")) {
         const queueSorted = [...queueItems].sort(
           (a, b) => a.bbox[0] - b.bbox[0]
@@ -632,7 +637,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const linkedNodes = getLinkedListNodes(predictions);
       setLinkedListCount(linkedNodes.length);
 
-      // No boxes if only 1 node
+      // ⭐ Do NOT draw linked list boxes if only 1 node
       if (
         linkedNodes.length > 1 &&
         (mode === "Auto" || mode === "Linked List")
@@ -783,7 +788,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
     };
   }, []);
 
-  const guideText = !concept ? getGuideText(selectedDSA) : "";
+  const guide = !concept ? getGuideText(selectedDSA) : null;
 
   return (
     <div
@@ -838,7 +843,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         DSA Concept Detection · {status}
       </div>
 
-      {/* ⭐ AR CANVAS – 3D text floating in the environment when concept is detected */}
+      {/* ⭐ AR CANVAS – 3D text nalulutang sa environment kapag may detected concept */}
       {concept && (
         <Canvas
           style={{
@@ -855,41 +860,70 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           <ambientLight intensity={0.7} />
           <directionalLight position={[2, 3, 4]} intensity={0.7} />
           <ConceptARLabel concept={concept} detail={conceptDetail} />
-          {/* disabled controls; only for debug in non-AR */}
           <OrbitControls enabled={false} />
         </Canvas>
       )}
 
-      {/* 🔹 MODE GUIDE – Only when NO concept yet */}
-      {guideText && (
+      {/* 🔹 MODE GUIDE – CENTERED, only before any concept is detected */}
+      {!isLoading && guide && (
         <div
           style={{
             position: "absolute",
-            bottom: 16,
-            right: 16,
-            maxWidth: "55%",
-            padding: "8px 10px",
-            borderRadius: 10,
-            background: "rgba(15, 23, 42, 0.85)",
-            border: "1px solid rgba(148, 163, 184, 0.9)",
-            color: "#e5e7eb",
-            fontSize: "0.75rem",
-            lineHeight: 1.3,
-            whiteSpace: "pre-wrap",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
             zIndex: 12,
           }}
         >
           <div
             style={{
-              fontWeight: 600,
-              fontSize: "0.78rem",
-              marginBottom: 4,
-              color: "#facc15",
+              pointerEvents: "auto",
+              maxWidth: "70%",
+              padding: "14px 16px",
+              borderRadius: 14,
+              background: "rgba(15, 23, 42, 0.88)",
+              border: "1px solid rgba(148, 163, 184, 0.9)",
+              color: "#e5e7eb",
+              fontSize: "0.8rem",
+              lineHeight: 1.35,
+              boxShadow: "0 18px 45px rgba(0,0,0,0.6)",
             }}
           >
-            How to use this mode
+            <div
+              style={{
+                fontWeight: 700,
+                fontSize: "0.9rem",
+                marginBottom: 6,
+                color: "#facc15",
+              }}
+            >
+              {guide.title}
+            </div>
+            {guide.lines.map((line, idx) => (
+              <p
+                key={idx}
+                style={{
+                  margin: 0,
+                  marginBottom: 2,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {line}
+              </p>
+            ))}
+            <p
+              style={{
+                marginTop: 8,
+                fontSize: "0.7rem",
+                opacity: 0.8,
+              }}
+            >
+              Hold the camera steady and move slowly until the structure is
+              detected.
+            </p>
           </div>
-          {guideText}
         </div>
       )}
 
