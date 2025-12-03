@@ -1,6 +1,6 @@
 // ../components/ObjectDetection.jsx
 import React, { useRef, useEffect, useState } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text as DreiText } from "@react-three/drei";
 import * as THREE from "three";
 
@@ -275,69 +275,86 @@ const getGuideText = (mode) => {
       return {
         title: "Array mode",
         lines: [
-          "Imagine a row of boxes on a table.",
+          "Visual: A row of boxes on a table.",
           "",
-          "• Place 2 or more front-view objects in a line.",
-          "• Valid objects: laptop, book, chair, bottle, cell phone.",
-          "• Try to line them up from left to right.",
+          "Setup:",
+          "• Place at least 2 front-facing objects in a straight line.",
+          "• Supported objects: laptop, book, chair, bottle, phone.",
           "",
-          "When the camera detects them, it will map each position to an index: 0, 1, 2, 3...",
+          "How it works:",
+          "• The camera scans from left to right.",
+          "• Each position is mapped to an index: 0, 1, 2, 3...",
         ],
       };
+
     case "Stack":
       return {
         title: "Stack mode",
         lines: [
-          "Think of a pile of books.",
+          "Visual: A pile of books on top of each other.",
           "",
-          "• Stack 2 or more books vertically (spines visible).",
+          "Setup:",
+          "• Stack at least 2 books vertically (spines visible).",
           "• Place them like a column on a shelf or table.",
-          "• The top book is the last pushed and the first popped.",
           "",
-          "The camera will detect this pile as a Stack (Last In, First Out).",
+          "How it works:",
+          "• The top book is the last pushed and the first popped.",
+          "• The camera detects this pile as a Stack (Last In, First Out).",
         ],
       };
+
     case "Queue":
       return {
         title: "Queue mode",
         lines: [
-          "Think of people waiting in line.",
+          "Visual: People waiting in a line.",
           "",
-          "• Use 2 or more people, books, or phones in side view.",
+          "Setup:",
+          "• Use at least 2 side-view people, books, or phones.",
           "• Arrange them in a horizontal line (left to right).",
           "• The first in the line should be at the front.",
           "",
-          "The camera will detect this as a Queue (First In, First Out).",
+          "How it works:",
+          "• The first object in the line is the first one out.",
+          "• The camera detects this as a Queue (First In, First Out).",
         ],
       };
+
     case "Linked List":
       return {
         title: "Linked List mode",
         lines: [
-          "Imagine a chain of small objects.",
+          "Visual: A chain of small objects.",
           "",
-          "• Use 3 or more cups or toy trains.",
+          "Setup:",
+          "• Use at least 3 cups or toy trains.",
           "• Place them side by side in one row on a table.",
-          "• Leave a little space between each object.",
+          "• Leave a small gap between each object.",
           "",
-          "Each object will act like a node that points to the next one.",
+          "How it works:",
+          "• Each object acts like a node that points to the next one.",
+          "• The camera reads them as a Linked List in order.",
         ],
       };
+
     case "Auto":
       return {
         title: "Auto mode",
         lines: [
-          "Point the camera at real-world objects and let the app decide.",
+          "Let the app decide the best data structure.",
           "",
-          "It can detect:",
+          "What it can detect:",
           "• Array → 2+ front-view laptops/books/chairs/bottles/phones in a row.",
           "• Stack → 2+ books stacked vertically.",
           "• Queue → 2+ side-view people/books/phones in a line.",
-          "• Linked List → 3+ cups or trains in a row.",
+          "• Linked List → 3+ cups or toy trains in a row.",
           "",
-          "Move around slowly so the camera can clearly see the shapes.",
+          "Tips:",
+          "• Move the camera slowly.",
+          "• Make sure the objects are clearly visible and not blocked.",
         ],
       };
+
     default:
       return null;
   }
@@ -585,6 +602,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           const labelHeight = 26;
           const labelPaddingX = 8;
 
+          ctx.font = "16px Arial";
           const textWidth = ctx.measureText(label).width;
           const bgWidth = Math.max(textWidth + labelPaddingX * 2, width);
 
@@ -592,7 +610,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           ctx.fillRect(x, y + height, bgWidth, labelHeight);
 
           ctx.fillStyle = "#00ff00";
-          ctx.font = "16px Arial";
           ctx.fillText(label, x + labelPaddingX, y + height + 18);
         });
       }
@@ -790,6 +807,46 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
 
   const guide = !concept ? getGuideText(selectedDSA) : null;
 
+  // small badge config for guide overlay
+  const getGuideBadge = () => {
+    switch (selectedDSA) {
+      case "Stack":
+        return {
+          label: "LIFO",
+          bg: "rgba(251, 146, 60, 0.18)",
+          color: "#fb923c",
+        };
+      case "Queue":
+        return {
+          label: "FIFO",
+          bg: "rgba(34, 197, 94, 0.18)",
+          color: "#22c55e",
+        };
+      case "Auto":
+        return {
+          label: "Auto-detect",
+          bg: "rgba(168, 85, 247, 0.18)",
+          color: "#a855f7",
+        };
+      case "Linked List":
+        return {
+          label: "Nodes + Pointers",
+          bg: "rgba(250, 204, 21, 0.18)",
+          color: "#facc15",
+        };
+      case "Array":
+        return {
+          label: "Index-based",
+          bg: "rgba(59, 130, 246, 0.18)",
+          color: "#60a5fa",
+        };
+      default:
+        return null;
+    }
+  };
+
+  const guideBadge = getGuideBadge();
+
   return (
     <div
       style={{
@@ -838,9 +895,24 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           fontSize: "0.7rem",
           maxWidth: "100%",
           zIndex: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
         }}
       >
-        DSA Concept Detection · {status}
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 8,
+            height: 8,
+            borderRadius: 999,
+            background:
+              status && status.startsWith("❌") ? "#ef4444" : "#22c55e",
+          }}
+        />
+        <span>DSA Concept Detection · {status}</span>
       </div>
 
       {/* ⭐ AR CANVAS – 3D text nalulutang sa environment kapag may detected concept */}
@@ -864,15 +936,16 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         </Canvas>
       )}
 
-      {/* 🔹 MODE GUIDE – CENTERED, only before any concept is detected */}
+      {/* 🔹 MODE GUIDE – FLOATING CARD, only before any concept is detected */}
       {!isLoading && guide && (
         <div
           style={{
             position: "absolute",
             inset: 0,
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-end",
             justifyContent: "center",
+            padding: "0 16px 18px",
             pointerEvents: "none",
             zIndex: 12,
           }}
@@ -880,48 +953,131 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           <div
             style={{
               pointerEvents: "auto",
-              maxWidth: "70%",
-              padding: "14px 16px",
+              width: "100%",
+              maxWidth: 420,
+              padding: "12px 14px 10px",
               borderRadius: 14,
-              background: "rgba(15, 23, 42, 0.88)",
+              background: "rgba(15, 23, 42, 0.9)",
               border: "1px solid rgba(148, 163, 184, 0.9)",
               color: "#e5e7eb",
               fontSize: "0.8rem",
               lineHeight: 1.35,
-              boxShadow: "0 18px 45px rgba(0,0,0,0.6)",
+              boxShadow: "0 18px 45px rgba(0,0,0,0.7)",
+              backdropFilter: "blur(4px)",
             }}
           >
+            {/* Header row: title + badge */}
             <div
               style={{
-                fontWeight: 700,
-                fontSize: "0.9rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
                 marginBottom: 6,
-                color: "#facc15",
+                gap: 8,
               }}
             >
-              {guide.title}
+              <div>
+                <div
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "0.9rem",
+                    color: "#facc15",
+                    marginBottom: 2,
+                  }}
+                >
+                  {guide.title}
+                </div>
+                <div
+                  style={{
+                    fontSize: "0.68rem",
+                    opacity: 0.8,
+                    color: "#cbd5f5",
+                  }}
+                >
+                  Quick setup guide for this mode.
+                </div>
+              </div>
+
+              {guideBadge && (
+                <span
+                  style={{
+                    padding: "3px 8px",
+                    borderRadius: 999,
+                    fontSize: "0.65rem",
+                    fontWeight: 600,
+                    background: guideBadge.bg,
+                    color: guideBadge.color,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {guideBadge.label}
+                </span>
+              )}
             </div>
-            {guide.lines.map((line, idx) => (
-              <p
-                key={idx}
-                style={{
-                  margin: 0,
-                  marginBottom: 2,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {line}
-              </p>
-            ))}
+
+            {/* Body lines */}
+            <div
+              style={{
+                maxHeight: 140,
+                overflowY: "auto",
+                paddingRight: 4,
+              }}
+            >
+              {guide.lines.map((line, idx) => {
+                if (line === "") {
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        height: 6,
+                      }}
+                    />
+                  );
+                }
+
+                const isSectionTitle = line.endsWith(":");
+
+                if (isSectionTitle) {
+                  return (
+                    <p
+                      key={idx}
+                      style={{
+                        margin: "6px 0 2px",
+                        fontSize: "0.65rem",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        color: "#9ca3af",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {line.replace(":", "")}
+                    </p>
+                  );
+                }
+
+                return (
+                  <p
+                    key={idx}
+                    style={{
+                      margin: "0 0 2px",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {line}
+                  </p>
+                );
+              })}
+            </div>
+
             <p
               style={{
                 marginTop: 8,
                 fontSize: "0.7rem",
-                opacity: 0.8,
+                opacity: 0.75,
               }}
             >
               Hold the camera steady and move slowly until the structure is
-              detected.
+              detected. The overlay will disappear once a concept is recognized.
             </p>
           </div>
         </div>
