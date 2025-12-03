@@ -543,9 +543,12 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   // 🔥 lesson state for educational flow
-  const [lessonStep, setLessonStep] = useState(null); // e.g. "array_intro", "queue_intro", ...
+  const [lessonStep, setLessonStep] = useState(null);
   const [targetIndex, setTargetIndex] = useState(null);
   const [taskMessage, setTaskMessage] = useState("");
+
+  // ✅ NEW: control kung dapat pa bang ipakita ang guide para sa current mode
+  const [showGuide, setShowGuide] = useState(true);
 
   // Refs to avoid stale state inside detection loop
   const lessonStepRef = useRef(lessonStep);
@@ -561,8 +564,20 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
 
   // 🔥 ref para sa kasalukuyang DSA mode (galing sa parent)
   const selectedDSARef = useRef(selectedDSA);
+
+  // ❗ PALITAN mo yung dating useEffect na nagse-set lang ng selectedDSARef
   useEffect(() => {
     selectedDSARef.current = selectedDSA;
+
+    // ✅ Kapag nagpalit ng mode:
+    // - I-reset ang concept at lesson
+    // - Ibalik ulit ang guide para sa bagong DSA
+    setConcept("");
+    setConceptDetail("");
+    setLessonStep(null);
+    setTargetIndex(null);
+    setTaskMessage("");
+    setShowGuide(true);
   }, [selectedDSA]);
 
   useEffect(() => {
