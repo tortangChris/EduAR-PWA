@@ -668,6 +668,10 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             setConceptDetail(
               `Detected ${queueCountLocal} side-view item(s) (person/book/cell phone) in a line → behaves like a Queue (First In, First Out).`
             );
+
+            // ✅ hide guide after first valid queue detection
+            setShowGuide(false);
+
             setLessonStep((prev) =>
               prev && prev.startsWith("queue_") ? prev : "queue_intro"
             );
@@ -684,6 +688,10 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           setConceptDetail(
             `Detected ${bookCountLocal} book(s) arranged into ${stackCount} stack(s) via vertical edges (spines) → behaves like a Stack (Last In, First Out).`
           );
+
+          // ✅ hide guide after first stack detection
+          setShowGuide(false);
+
           setLessonStep((prev) =>
             prev && prev.startsWith("stack_") ? prev : "stack_intro"
           );
@@ -711,6 +719,10 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             setConceptDetail(
               `Detected ${nodeCount} node(s) (${usedClasses}) aligned in a row → can be modeled as a Singly Linked List.`
             );
+
+            // ✅ hide guide after first list detection
+            setShowGuide(false);
+
             setLessonStep((prev) =>
               prev && prev.startsWith("list_") ? prev : "list_intro"
             );
@@ -726,6 +738,10 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           setConceptDetail(
             `Detected ${arrayLikeCount} front-view object(s) (laptop/book/chair/bottle/cell phone) → modeled as an Array (index-based, fixed positions).`
           );
+
+          // ✅ once may valid detection na for this mode, huwag na ibalik yung guide
+          setShowGuide(false);
+
           setLessonStep((prev) =>
             prev && prev.startsWith("array_") ? prev : "array_intro"
           );
