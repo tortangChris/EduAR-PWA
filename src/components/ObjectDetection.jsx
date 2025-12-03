@@ -1,38 +1,8 @@
-// ARTextPrototype.jsx
-import React, { useRef, useState } from "react";
+// CameraARTextPrototype.jsx
+import React, { useRef, useEffect, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Text, OrbitControls } from "@react-three/drei";
-import * as THREE from "three";
 
-// Start WebXR AR session (camera + tracking)
-const startARSession = async (gl, setArStatus) => {
-  try {
-    if (!navigator.xr) {
-      setArStatus("WebXR not available on this device/browser.");
-      console.warn("WebXR not available.");
-      return;
-    }
-
-    const supported = await navigator.xr.isSessionSupported("immersive-ar");
-    if (!supported) {
-      setArStatus("Immersive AR not supported on this device.");
-      console.warn("Immersive AR not supported.");
-      return;
-    }
-
-    const session = await navigator.xr.requestSession("immersive-ar", {
-      requiredFeatures: ["local-floor"],
-    });
-
-    gl.xr.setSession(session);
-    setArStatus("AR session started – camera should be visible.");
-  } catch (err) {
-    console.error("AR session failed:", err);
-    setArStatus("Failed to start AR session. Check permissions or support.");
-  }
-};
-
-// World-space 3D label – stays at one position, floats a bit, always faces camera
 const WorldSpaceLabel = ({ text, detail, position = [0, 1.5, -3] }) => {
   const groupRef = useRef();
   const tRef = useRef(0);
@@ -41,12 +11,12 @@ const WorldSpaceLabel = ({ text, detail, position = [0, 1.5, -3] }) => {
     if (!groupRef.current) return;
     tRef.current += delta;
 
-    // Small up-down floating animation
+    // maliit na floating animation pero naka-stay sa isang world position
     const yBase = position[1];
     const floatY = yBase + Math.sin(tRef.current * 1.5) * 0.1;
     groupRef.current.position.set(position[0], floatY, position[2]);
 
-    // Always face the camera (billboard)
+    // always face camera (billboard effect)
     const cam = state.camera;
     groupRef.current.lookAt(cam.position);
   });
@@ -81,11 +51,50 @@ const WorldSpaceLabel = ({ text, detail, position = [0, 1.5, -3] }) => {
   );
 };
 
-const ARTextPrototype = () => {
-  const glRef = useRef(null);
-  const [arStatus, setArStatus] = useState(
-    "Tap 'Start AR' and allow camera permission."
-  );
+const CameraARTextPrototype = () => {
+  const videoRef = useRef(null);
+  const [status, setStatus] = useState("Requesting camera access…");
+
+  useEffect(() => {
+    let stream;
+
+    const startCamera = async () => {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setStatus("getUserMedia not supported in this browser.");
+          return;
+        }
+
+        setStatus("Requesting camera permission…");
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+          audio: false,
+        });
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current.play();
+            setStatus("Camera running.");
+          };
+        }
+      } catch (err) {
+        console.error("Camera error:", err);
+        setStatus(
+          "Failed to access camera. Check permission settings or device."
+        );
+      }
+    };
+
+    startCamera();
+
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, []);
 
   return (
     <div
@@ -97,31 +106,49 @@ const ARTextPrototype = () => {
         overflow: "hidden",
       }}
     >
-      {/* AR Canvas */}
-      <Canvas
-        camera={{ position: [0, 1.6, 3], fov: 60 }}
-        onCreated={({ gl }) => {
-          glRef.current = gl;
-          gl.xr.enabled = true; // enable XR, session will be attached after button click
+      {/* CAMERA VIDEO BACKGROUND */}
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          zIndex: 0,
         }}
+      />
+
+      {/* THREE.JS CANVAS (3D text sa ibabaw ng camera) */}
+      <Canvas
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 1,
+          pointerEvents: "none", // para hindi ma-block ng canvas ang taps/scroll
+        }}
+        camera={{ position: [0, 1.6, 3], fov: 60 }}
       >
         <ambientLight intensity={0.6} />
         <directionalLight position={[2, 4, 3]} intensity={0.8} />
 
-        {/* World-space text – fixed in front of the user */}
+        {/* FIXED WORLD-SPACE 3D TEXT (naka-stay sa isang location) */}
         <WorldSpaceLabel
           text="Array Data Structure"
           detail={
-            "This is a world-space 3D label.\nIt stays at one position in the AR world,\neven as you move your device around."
+            "World-space 3D label over camera.\nIt stays in front of you at a fixed position\nwhile the camera shows the real world."
           }
-          position={[0, 1.5, -3]} // 🔒 fixed world position
+          position={[0, 1.5, -3]} // 🔒 naka-stay sa world position na 'to
         />
 
-        {/* Optional: allow orbit controls when NOT in AR (desktop debugging) */}
+        {/* Optional: OrbitControls for desktop testing */}
         <OrbitControls enabled />
       </Canvas>
 
-      {/* Top status text */}
+      {/* STATUS PILL */}
       <div
         style={{
           position: "absolute",
@@ -137,6 +164,7 @@ const ARTextPrototype = () => {
           alignItems: "center",
           justifyContent: "space-between",
           gap: 8,
+          zIndex: 2,
         }}
       >
         <span
@@ -151,41 +179,14 @@ const ARTextPrototype = () => {
               width: 8,
               height: 8,
               borderRadius: 999,
-              background: "#22c55e",
+              background: status === "Camera running." ? "#22c55e" : "#f97316",
             }}
           />
-          <span>{arStatus}</span>
+          <span>{status}</span>
         </span>
       </div>
-
-      {/* Start AR button – required user gesture for camera/AR permission */}
-      <button
-        onClick={() => {
-          if (!glRef.current) {
-            setArStatus("GL not ready yet.");
-            return;
-          }
-          startARSession(glRef.current, setArStatus);
-        }}
-        style={{
-          position: "absolute",
-          bottom: 20,
-          left: "50%",
-          transform: "translateX(-50%)",
-          padding: "10px 18px",
-          borderRadius: 999,
-          border: "1px solid rgba(148, 163, 184, 0.9)",
-          background: "rgba(15, 23, 42, 0.95)",
-          color: "#e5e7eb",
-          fontSize: "0.85rem",
-          fontWeight: 600,
-          cursor: "pointer",
-        }}
-      >
-        Start AR
-      </button>
     </div>
   );
 };
 
-export default ARTextPrototype;
+export default CameraARTextPrototype;
