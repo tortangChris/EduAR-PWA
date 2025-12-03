@@ -17,6 +17,8 @@ const getLinkedListNodes = (predictions) =>
  * Ginagamit lang yung aspect ratio ng bounding box.
  * (di perfect pero enough na pang demo / filtering ng sobrang side view)
  */
+
+// HEllo world
 const isFrontView = (pred) => {
   const [x, y, w, h] = pred.bbox;
   if (w <= 0 || h <= 0) return false;
