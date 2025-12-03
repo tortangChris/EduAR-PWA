@@ -1065,7 +1065,8 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
     };
   }, []);
 
-  const guide = !concept ? getGuideText(selectedDSA) : null;
+  // ✅ Guide is shown only if showGuide === true
+  const guide = showGuide ? getGuideText(selectedDSA) : null;
 
   // small badge config for guide overlay
   const getGuideBadge = () => {
