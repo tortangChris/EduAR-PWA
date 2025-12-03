@@ -1,6 +1,6 @@
 // ../components/ObjectDetection.jsx
 import React, { useRef, useEffect, useState } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text as DreiText } from "@react-three/drei";
 import * as THREE from "three";
 
@@ -18,7 +18,6 @@ const getLinkedListNodes = (predictions) =>
 /**
  * Simple heuristic para i-approx kung front view yung object.
  * Ginagamit lang yung aspect ratio ng bounding box.
- * (di perfect pero enough na pang demo / filtering ng sobrang side view)
  */
 const isFrontView = (pred) => {
   const [x, y, w, h] = pred.bbox;
@@ -210,7 +209,7 @@ const startAR = (gl) => {
   }
 };
 
-// Floating 3D label for the detected concept
+// Floating 3D label for the detected concept (3D text + 3D panel)
 const ConceptARLabel = ({ concept, detail }) => {
   const groupRef = useRef();
   const tRef = useRef(0);
@@ -218,49 +217,74 @@ const ConceptARLabel = ({ concept, detail }) => {
   useFrame((state, delta) => {
     if (!groupRef.current) return;
     tRef.current += delta;
-    // maliit na floating animation
-    const yBase = 1.5;
-    groupRef.current.position.y = yBase + Math.sin(tRef.current * 1.5) * 0.1;
 
-    // always face camera
     const cam = state.camera;
+    const baseY = 1.4;
+    groupRef.current.position.y = baseY + Math.sin(tRef.current * 1.5) * 0.08;
+
+    // laging naka-face sa camera
     groupRef.current.lookAt(cam.position);
   });
 
   const textDetail =
     detail ||
     (concept === "Array"
-      ? "Array: contiguous memory, O(1) access using index."
+      ? "Array: contiguous memory, O(1) access by index."
       : concept === "Queue (FIFO)"
-      ? "Queue: First In, First Out, enqueue at rear, dequeue at front."
+      ? "Queue: First In, First Out – enqueue rear, dequeue front."
       : concept === "Stack (LIFO)"
-      ? "Stack: Last In, First Out, push/pop on top."
+      ? "Stack: Last In, First Out – push/pop sa top."
       : concept === "Linked List"
-      ? "Linked List: nodes pointing to next, last node → null."
+      ? "Linked List: nodes pointing to next, last → null."
       : "");
 
+  const panelWidth = 3.2;
+  const panelHeight = 1.4;
+
   return (
-    <group ref={groupRef} position={[0, 1.5, -3]}>
-      {/* Title */}
+    <group ref={groupRef} position={[0, 1.4, -3]}>
+      {/* Background 3D panel */}
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[panelWidth, panelHeight, 0.08]} />
+        <meshStandardMaterial
+          color="#020617"
+          transparent
+          opacity={0.82}
+          roughness={0.4}
+          metalness={0.1}
+        />
+      </mesh>
+
+      {/* Inner glowing frame */}
+      <mesh position={[0, 0, 0.042]}>
+        <boxGeometry args={[panelWidth * 0.97, panelHeight * 0.93, 0.01]} />
+        <meshStandardMaterial
+          color="#0f172a"
+          emissive="#1f2937"
+          emissiveIntensity={0.3}
+        />
+      </mesh>
+
+      {/* Title (concept) */}
       <DreiText
-        position={[0, 0.4, 0]}
-        fontSize={0.35}
-        color="#34D399"
+        position={[0, panelHeight * 0.25, 0.06]}
+        fontSize={0.28}
+        color="#60a5fa"
         anchorX="center"
         anchorY="middle"
-        maxWidth={4}
+        maxWidth={panelWidth * 0.9}
       >
         {concept}
       </DreiText>
 
-      {/* Details */}
+      {/* Detail body */}
       <DreiText
-        position={[0, -0.1, 0]}
+        position={[0, -panelHeight * 0.1, 0.06]}
         fontSize={0.18}
         color="#e5e7eb"
         anchorX="center"
         anchorY="top"
-        maxWidth={3.2}
+        maxWidth={panelWidth * 0.9}
         textAlign="center"
       >
         {textDetail}
@@ -773,7 +797,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           style={{
             position: "absolute",
             inset: 0,
-            pointerEvents: "none", // AR input via XR, hindi mouse
+            pointerEvents: "none", // AR input via XR / device, hindi mouse
           }}
           camera={{ position: [0, 0, 3], fov: 50 }}
           onCreated={({ gl }) => {
@@ -784,7 +808,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           <ambientLight intensity={0.7} />
           <directionalLight position={[2, 3, 4]} intensity={0.7} />
           <ConceptARLabel concept={concept} detail={conceptDetail} />
-          {/* OrbitControls para sa non-AR fallback / debug */}
           <OrbitControls enabled={false} />
         </Canvas>
       )}
