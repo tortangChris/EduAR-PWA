@@ -1,8 +1,5 @@
 // ../components/ObjectDetection.jsx
 import React, { useRef, useEffect, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Text as DreiText } from "@react-three/drei";
-import * as THREE from "three";
 
 // ✅ CLASSES for "Array" mode
 const ARRAY_CLASSES = ["laptop", "book", "chair", "bottle", "cell phone"];
@@ -19,7 +16,7 @@ const getLinkedListNodes = (predictions) =>
  * Simple heuristic para i-approx kung front view yung object.
  */
 const isFrontView = (pred) => {
-  const [x, y, w, h] = pred.bbox;
+  const [x, , w, h] = pred.bbox;
   if (w <= 0 || h <= 0) return false;
   const aspect = w / h;
 
@@ -186,87 +183,6 @@ const drawArrow = (ctx, x1, y1, x2, y2) => {
   ctx.fill();
 };
 
-/* ========= AR HELPERS ========= */
-
-// Start WebXR AR session (same style as VisualPageAR)
-const startAR = (gl) => {
-  if (navigator.xr) {
-    navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
-      if (supported) {
-        navigator.xr
-          .requestSession("immersive-ar", {
-            requiredFeatures: ["hit-test", "local-floor"],
-          })
-          .then((session) => {
-            gl.xr.setSession(session);
-          })
-          .catch((err) => console.error("AR session failed:", err));
-      } else {
-        console.warn("AR not supported on this device.");
-      }
-    });
-  }
-};
-
-// Floating 3D label for the detected concept
-const ConceptARLabel = ({ concept, detail }) => {
-  const groupRef = useRef();
-  const tRef = useRef(0);
-
-  useFrame((state, delta) => {
-    if (!groupRef.current) return;
-    tRef.current += delta;
-    // maliit na floating animation
-    const yBase = 1.5;
-    groupRef.current.position.y = yBase + Math.sin(tRef.current * 1.5) * 0.1;
-
-    // always face camera
-    const cam = state.camera;
-    groupRef.current.lookAt(cam.position);
-  });
-
-  const textDetail =
-    detail ||
-    (concept === "Array"
-      ? "Array: a row of slots in memory. Each position has an index like 0, 1, 2, 3 for fast O(1) access by index."
-      : concept === "Queue (FIFO)"
-      ? "Queue: like a line in a store. The first object that enters is the first one that leaves (First In, First Out)."
-      : concept === "Stack (LIFO)"
-      ? "Stack: like a pile of books. The last book you put on top is the first one you take off (Last In, First Out)."
-      : concept === "Linked List"
-      ? "Linked List: a chain of nodes. Each node points to the next one, and the last node points to null."
-      : "");
-
-  return (
-    <group ref={groupRef} position={[0, 1.5, -3]}>
-      {/* Title */}
-      <DreiText
-        position={[0, 0.4, 0]}
-        fontSize={0.35}
-        color="#34D399"
-        anchorX="center"
-        anchorY="middle"
-        maxWidth={4}
-      >
-        {concept}
-      </DreiText>
-
-      {/* Details */}
-      <DreiText
-        position={[0, -0.1, 0]}
-        fontSize={0.18}
-        color="#e5e7eb"
-        anchorX="center"
-        anchorY="top"
-        maxWidth={3.2}
-        textAlign="center"
-      >
-        {textDetail}
-      </DreiText>
-    </group>
-  );
-};
-
 /* ========= GUIDE TEXT (CENTERED BEFORE DETECTION) ========= */
 
 const getGuideText = (mode) => {
@@ -362,6 +278,15 @@ const getGuideText = (mode) => {
 
 /* ========= LESSON OVERLAY (EXPLANATION + TASKS) ========= */
 
+const normalizeConcept = (concept) => {
+  if (!concept) return null;
+  if (concept.startsWith("Array")) return "Array";
+  if (concept.startsWith("Queue")) return "Queue";
+  if (concept.startsWith("Stack")) return "Stack";
+  if (concept.startsWith("Linked")) return "Linked List";
+  return concept;
+};
+
 const LessonOverlay = ({
   lessonStep,
   concept,
@@ -369,47 +294,163 @@ const LessonOverlay = ({
   taskMessage,
   onNextStep,
 }) => {
-  if (!concept || concept !== "Array" || !lessonStep) return null;
+  if (!lessonStep || !concept) return null;
+
+  const mode = normalizeConcept(concept);
 
   let title = "";
   let bodyLines = [];
   let showNextButton = true;
   let nextLabel = "Next ▶";
 
-  if (lessonStep === "array_intro") {
-    title = "How does an Array work?";
-    bodyLines = [
-      "• Each detected object becomes one slot in the array.",
-      "• The label index[0], index[1], index[2]... is its position.",
-      "• When code says arr[k], it jumps directly to that position.",
-      "",
-      "In algorithms, this is why array access by index is O(1) time.",
-    ];
-    nextLabel = "Start AR Task";
-  } else if (lessonStep === "array_task_1") {
-    title = "AR Task: Access by Index";
-    bodyLines = [
-      `• Find the object labeled index[${targetIndex ?? 0}].`,
-      "• Physically move that object closer to the camera.",
-      "• The system will check if you really focused on the correct index.",
-      "",
-      "This simulates executing: arr[" + (targetIndex ?? 0) + "] in an array.",
-    ];
-    // Walang next button dito; auto-advance via detection.
-    showNextButton = false;
-  } else if (lessonStep === "array_task_1_done") {
-    title = "Task Result";
-    bodyLines = [
-      taskMessage ||
-        "✅ You focused on the correct index. This models how arr[k] reads data at a fixed position.",
-      "",
-      "Key idea:",
-      "• Arrays store elements in contiguous memory.",
-      "• So given an index k, the address is base + k * size.",
-      "• That is why access by index is O(1) in time complexity.",
-    ];
-    nextLabel = "Close";
+  // ==== ARRAY LESSONS ====
+  if (mode === "Array") {
+    if (lessonStep === "array_intro") {
+      title = "How does an Array work?";
+      bodyLines = [
+        "• Each detected object becomes one slot in the array.",
+        "• The label index[0], index[1], index[2]... is its position.",
+        "• When code uses arr[k], it jumps directly to that position.",
+        "",
+        "In algorithms, this is why array access by index runs in O(1) time.",
+      ];
+      nextLabel = "Start AR Task";
+    } else if (lessonStep === "array_task_1") {
+      title = "AR Task: Access by Index";
+      bodyLines = [
+        `• Find the object labeled index[${targetIndex ?? 0}].`,
+        "• Physically move that object closer to the camera.",
+        "• The system will check if you really focused on the correct index.",
+        "",
+        "This simulates executing arr[" + (targetIndex ?? 0) + "] in code.",
+      ];
+      showNextButton = false; // auto-advance via detection
+    } else if (lessonStep === "array_task_1_done") {
+      title = "Array Task Result";
+      bodyLines = [
+        taskMessage ||
+          "✅ You focused on the correct index. This models how arr[k] directly accesses a fixed position.",
+        "",
+        "Key idea:",
+        "• Arrays store elements in contiguous memory.",
+        "• Given index k, the address is base + k * size.",
+        "• That gives O(1) time access by index in the RAM model.",
+      ];
+      nextLabel = "Close";
+    }
   }
+
+  // ==== QUEUE LESSONS ====
+  if (mode === "Queue") {
+    if (lessonStep === "queue_intro") {
+      title = "How does a Queue work?";
+      bodyLines = [
+        "• A queue is like people waiting in line.",
+        "• There is a FRONT (first to be served) and a BACK (last in line).",
+        "• New elements go to the back (enqueue).",
+        "• The front element leaves first (dequeue).",
+        "",
+        "This behavior is called FIFO: First In, First Out.",
+      ];
+      nextLabel = "Start AR Task";
+    } else if (lessonStep === "queue_task_1") {
+      title = "AR Task: Dequeue the Front";
+      bodyLines = [
+        "• Look at the detected line of people/objects.",
+        "• The one labeled Q[0] is at the front of the queue.",
+        "• Move that front object closer to the camera to simulate serving it.",
+        "",
+        "The system will check if the front element is the one closest to you.",
+      ];
+      showNextButton = false;
+    } else if (lessonStep === "queue_task_1_done") {
+      title = "Queue Task Result";
+      bodyLines = [
+        taskMessage ||
+          "✅ You moved the front element. That is what dequeue(Q) does in a queue.",
+        "",
+        "In algorithms:",
+        "• enqueue(Q, x) inserts x at the back.",
+        "• dequeue(Q) removes the front element.",
+        "• Many real-world systems (ticket lines, print jobs) use queues.",
+      ];
+      nextLabel = "Close";
+    }
+  }
+
+  // ==== STACK LESSONS ====
+  if (mode === "Stack") {
+    if (lessonStep === "stack_intro") {
+      title = "How does a Stack work?";
+      bodyLines = [
+        "• A stack is like a pile of books.",
+        "• You add items on top (push).",
+        "• You remove items from the top (pop).",
+        "",
+        "This behavior is called LIFO: Last In, First Out.",
+      ];
+      nextLabel = "Start AR Task";
+    } else if (lessonStep === "stack_task_1") {
+      title = "AR Task: Push onto the Stack";
+      bodyLines = [
+        "• Create a vertical pile of books in front of the camera.",
+        "• Now place one more book on top of the existing stack.",
+        "",
+        "The system will detect if the number of book(s) in the scene increased.",
+      ];
+      showNextButton = false;
+    } else if (lessonStep === "stack_task_1_done") {
+      title = "Stack Task Result";
+      bodyLines = [
+        taskMessage ||
+          "✅ You added a new book to the pile. That is a push operation on the stack.",
+        "",
+        "In algorithms:",
+        "• push(S, x) puts x on top.",
+        "• pop(S) removes the top element.",
+        "• Function calls, undo/redo, and browser history use stacks.",
+      ];
+      nextLabel = "Close";
+    }
+  }
+
+  // ==== LINKED LIST LESSONS ====
+  if (mode === "Linked List") {
+    if (lessonStep === "linked_intro") {
+      title = "How does a Linked List work?";
+      bodyLines = [
+        "• A linked list is a chain of nodes.",
+        "• Each node stores data and a pointer to the next node.",
+        "• The last node points to null (end of the list).",
+        "",
+        "Unlike arrays, linked lists do not require contiguous memory.",
+      ];
+      nextLabel = "Start AR Task";
+    } else if (lessonStep === "linked_task_1") {
+      title = "AR Task: Append a Node";
+      bodyLines = [
+        "• Place 3 or more cups/toy trains in one row (your nodes).",
+        "• Now append one more node at the right end of the chain.",
+        "",
+        "The system will detect if the number of nodes increased while staying in one row.",
+      ];
+      showNextButton = false;
+    } else if (lessonStep === "linked_task_1_done") {
+      title = "Linked List Task Result";
+      bodyLines = [
+        taskMessage ||
+          "✅ You appended a new node at the tail. This is how insert-at-end works in a singly linked list.",
+        "",
+        "Key ideas:",
+        "• Each node has a next pointer.",
+        "• To append, we find the last node and set its next to the new node.",
+        "• Traversal is O(n), but insertion at head/tail can be O(1) with proper pointers.",
+      ];
+      nextLabel = "Close";
+    }
+  }
+
+  if (!title) return null;
 
   return (
     <div
@@ -468,11 +509,10 @@ const LessonOverlay = ({
             padding: "6px 10px",
             borderRadius: 999,
             border: "none",
-            background:
-              lessonStep === "array_task_1_done"
-                ? "rgba(34,197,94,0.15)"
-                : "rgba(59,130,246,0.18)",
-            color: lessonStep === "array_task_1_done" ? "#4ade80" : "#60a5fa",
+            background: lessonStep.endsWith("_done")
+              ? "rgba(34,197,94,0.15)"
+              : "rgba(59,130,246,0.18)",
+            color: lessonStep.endsWith("_done") ? "#4ade80" : "#60a5fa",
             fontSize: "0.72rem",
             fontWeight: 600,
             cursor: "pointer",
@@ -502,14 +542,25 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
   const [conceptDetail, setConceptDetail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  // 🔥 NEW: lesson state for educational flow
-  const [lessonStep, setLessonStep] = useState(null); // e.g. "array_intro", "array_task_1", ...
-  const [targetIndex, setTargetIndex] = useState(null);
+  // 🔥 lesson states for all DSA
+  const [lessonStep, setLessonStep] = useState(null);
+  const [targetIndex, setTargetIndex] = useState(null); // for Array task
   const [taskMessage, setTaskMessage] = useState("");
 
-  // Refs to avoid stale state inside detection loop
+  // refs for use inside detection loop
+  const selectedDSARef = useRef(selectedDSA);
   const lessonStepRef = useRef(lessonStep);
   const targetIndexRef = useRef(targetIndex);
+  const conceptRef = useRef(concept);
+
+  // base counts for tasks
+  const queueBaseCountRef = useRef(null);
+  const stackBaseBooksRef = useRef(null);
+  const listBaseCountRef = useRef(null);
+
+  useEffect(() => {
+    selectedDSARef.current = selectedDSA;
+  }, [selectedDSA]);
 
   useEffect(() => {
     lessonStepRef.current = lessonStep;
@@ -519,11 +570,9 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
     targetIndexRef.current = targetIndex;
   }, [targetIndex]);
 
-  // 🔥 ref para sa kasalukuyang DSA mode (galing sa parent)
-  const selectedDSARef = useRef(selectedDSA);
   useEffect(() => {
-    selectedDSARef.current = selectedDSA;
-  }, [selectedDSA]);
+    conceptRef.current = concept;
+  }, [concept]);
 
   useEffect(() => {
     let model = null;
@@ -613,6 +662,11 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             setConceptDetail(
               `Detected ${queueCountLocal} side-view item(s) (person/book/cell phone) in a line → behaves like a Queue (First In, First Out).`
             );
+            if (mode === "Queue") {
+              setLessonStep((prev) =>
+                prev && prev.startsWith("queue_") ? prev : "queue_intro"
+              );
+            }
             return true;
           }
         }
@@ -626,6 +680,11 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           setConceptDetail(
             `Detected ${bookCountLocal} book(s) arranged into ${stackCount} stack(s) via vertical edges (spines) → behaves like a Stack (Last In, First Out).`
           );
+          if (mode === "Stack") {
+            setLessonStep((prev) =>
+              prev && prev.startsWith("stack_") ? prev : "stack_intro"
+            );
+          }
           return true;
         }
         return false;
@@ -650,6 +709,11 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             setConceptDetail(
               `Detected ${nodeCount} node(s) (${usedClasses}) aligned in a row → can be modeled as a Singly Linked List (each node points to the next, last points to null).`
             );
+            if (mode === "Linked List") {
+              setLessonStep((prev) =>
+                prev && prev.startsWith("linked_") ? prev : "linked_intro"
+              );
+            }
             return true;
           }
         }
@@ -662,11 +726,14 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           setConceptDetail(
             `Detected ${arrayLikeCount} front-view object(s) (laptop/book/chair/bottle/cell phone) → modeled as an Array (index-based, fixed positions).`
           );
-          // NEW: kick off lesson flow if wala pa
-          setLessonStep((prev) => prev || "array_intro");
-          setTargetIndex((prev) =>
-            prev == null ? Math.floor(arrayLikeCount / 2) : prev
-          );
+          if (mode === "Array") {
+            setLessonStep((prev) =>
+              prev && prev.startsWith("array_") ? prev : "array_intro"
+            );
+            setTargetIndex((prev) =>
+              prev == null ? Math.floor(arrayLikeCount / 2) : prev
+            );
+          }
           return true;
         }
         return false;
@@ -925,17 +992,20 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             setQueueCount(queueItems.length);
             setLinkedListCount(linkedNodes.length);
 
-            // NEW: array task checking logic (for AR learning activity)
-            const arrayObjects = getArrayObjects(predictions);
+            // ===== LESSON TASK CHECKING =====
             const currentLessonStep = lessonStepRef.current;
+            const currentConcept = normalizeConcept(conceptRef.current);
+
+            // Array task: make correct index the largest object
+            const arrayObjects = getArrayObjects(predictions);
             const currentTargetIndex = targetIndexRef.current;
 
             if (
               currentLessonStep === "array_task_1" &&
+              currentConcept === "Array" &&
               currentTargetIndex != null &&
               arrayObjects.length > currentTargetIndex
             ) {
-              // compute area for each detected array object
               const areas = arrayObjects.map((p) => {
                 const [, , w, h] = p.bbox;
                 const safeW = Math.max(0, w);
@@ -953,6 +1023,61 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
                   );
                   setLessonStep("array_task_1_done");
                 }
+              }
+            }
+
+            // Queue task: Q[0] becomes closest (largest area) among queue items
+            if (
+              currentLessonStep === "queue_task_1" &&
+              currentConcept === "Queue" &&
+              queueItems.length >= 2
+            ) {
+              const sortedByX = [...queueItems].sort(
+                (a, b) => a.bbox[0] - b.bbox[0]
+              );
+              const frontItem = sortedByX[0];
+
+              const areas = sortedByX.map((p) => {
+                const [, , w, h] = p.bbox;
+                return Math.max(0, w) * Math.max(0, h);
+              });
+
+              const maxArea = Math.max(...areas);
+              const maxIdx = areas.indexOf(maxArea);
+
+              if (maxIdx === 0) {
+                setTaskMessage(
+                  "✅ Correct! You brought Q[0] (the front of the line) closer. This models a dequeue operation: the front element is served first."
+                );
+                setLessonStep("queue_task_1_done");
+              }
+            }
+
+            // Stack task: number of books increased
+            if (
+              currentLessonStep === "stack_task_1" &&
+              currentConcept === "Stack"
+            ) {
+              const base = stackBaseBooksRef.current;
+              if (base != null && books.length > base) {
+                setTaskMessage(
+                  `✅ You increased the number of books from ${base} to ${books.length}. This models push(S, x) — pushing a new item on top of the stack.`
+                );
+                setLessonStep("stack_task_1_done");
+              }
+            }
+
+            // Linked List task: number of nodes increased
+            if (
+              currentLessonStep === "linked_task_1" &&
+              currentConcept === "Linked List"
+            ) {
+              const base = listBaseCountRef.current;
+              if (base != null && linkedNodes.length > base) {
+                setTaskMessage(
+                  `✅ You increased the number of nodes from ${base} to ${linkedNodes.length}. This models appending a new node at the tail of a linked list.`
+                );
+                setLessonStep("linked_task_1_done");
               }
             }
 
@@ -1028,12 +1153,46 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
 
   // handler for lesson "Next" button
   const handleNextLessonStep = () => {
-    if (lessonStep === "array_intro") {
-      setTaskMessage("");
-      setLessonStep("array_task_1");
-    } else if (lessonStep === "array_task_1_done") {
-      setLessonStep(null);
-      setTaskMessage("");
+    const mode = normalizeConcept(concept);
+
+    if (mode === "Array") {
+      if (lessonStep === "array_intro") {
+        setTaskMessage("");
+        setLessonStep("array_task_1");
+      } else if (lessonStep === "array_task_1_done") {
+        setLessonStep(null);
+        setTaskMessage("");
+      }
+    } else if (mode === "Queue") {
+      if (lessonStep === "queue_intro") {
+        queueBaseCountRef.current = queueCount;
+        setTaskMessage("");
+        setLessonStep("queue_task_1");
+      } else if (lessonStep === "queue_task_1_done") {
+        queueBaseCountRef.current = null;
+        setLessonStep(null);
+        setTaskMessage("");
+      }
+    } else if (mode === "Stack") {
+      if (lessonStep === "stack_intro") {
+        stackBaseBooksRef.current = bookCount;
+        setTaskMessage("");
+        setLessonStep("stack_task_1");
+      } else if (lessonStep === "stack_task_1_done") {
+        stackBaseBooksRef.current = null;
+        setLessonStep(null);
+        setTaskMessage("");
+      }
+    } else if (mode === "Linked List") {
+      if (lessonStep === "linked_intro") {
+        listBaseCountRef.current = linkedListCount;
+        setTaskMessage("");
+        setLessonStep("linked_task_1");
+      } else if (lessonStep === "linked_task_1_done") {
+        listBaseCountRef.current = null;
+        setLessonStep(null);
+        setTaskMessage("");
+      }
     }
   };
 
@@ -1104,27 +1263,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         />
         <span>DSA Concept Detection · {status}</span>
       </div>
-
-      {/* ⭐ AR CANVAS – 3D text nalulutang sa environment kapag may detected concept */}
-      {concept && (
-        <Canvas
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-          }}
-          camera={{ position: [0, 0, 3], fov: 50 }}
-          onCreated={({ gl }) => {
-            gl.xr.enabled = true;
-            startAR(gl);
-          }}
-        >
-          <ambientLight intensity={0.7} />
-          <directionalLight position={[2, 3, 4]} intensity={0.7} />
-          <ConceptARLabel concept={concept} detail={conceptDetail} />
-          <OrbitControls enabled={false} />
-        </Canvas>
-      )}
 
       {/* 🔹 MODE GUIDE – FLOATING CARD, only before any concept is detected */}
       {!isLoading && guide && (
@@ -1273,7 +1411,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         </div>
       )}
 
-      {/* 🔥 LESSON OVERLAY – explanation + AR task for Array */}
+      {/* 🔥 LESSON OVERLAY – explanation + AR tasks for all DSA */}
       <LessonOverlay
         lessonStep={lessonStep}
         concept={concept}
