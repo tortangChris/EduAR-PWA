@@ -1,6 +1,6 @@
 // ../components/ObjectDetection.jsx
 import React, { useRef, useEffect, useState } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text as DreiText } from "@react-three/drei";
 import * as THREE from "three";
 
@@ -211,33 +211,79 @@ const drawArrow = (ctx, x1, y1, x2, y2) => {
   ctx.fill();
 };
 
-// ⭐ THREE.JS TEXT OVERLAY COMPONENT
+/* === 3D Fade-in Text (like your sample) === */
+const FadeInText = ({
+  show,
+  text,
+  position,
+  fontSize,
+  color,
+  maxWidth = 8,
+  align = "center",
+}) => {
+  const ref = useRef();
+  const opacity = useRef(0);
+  const scale = useRef(0.6);
+
+  useFrame(() => {
+    if (show) {
+      opacity.current = Math.min(opacity.current + 0.06, 1);
+      scale.current = Math.min(scale.current + 0.06, 1);
+    } else {
+      opacity.current = Math.max(opacity.current - 0.06, 0);
+      scale.current = 0.6;
+    }
+
+    if (ref.current && ref.current.material) {
+      ref.current.material.opacity = opacity.current;
+      ref.current.scale.set(scale.current, scale.current, scale.current);
+    }
+  });
+
+  return (
+    <DreiText
+      ref={ref}
+      position={position}
+      fontSize={fontSize}
+      color={color}
+      anchorX="center"
+      anchorY="middle"
+      material-transparent
+      maxWidth={maxWidth}
+      textAlign={align}
+    >
+      {text}
+    </DreiText>
+  );
+};
+
+/* === 3D Concept Panel using FadeInText === */
 const FloatingConceptText = ({ title, detail }) => {
   return (
     <>
       <ambientLight intensity={0.7} />
       <directionalLight position={[2, 3, 4]} intensity={0.6} />
 
-      <DreiText
-        position={[0, 0.35, 0]}
-        fontSize={0.28}
+      {/* Title – bold-ish, bigger */}
+      <FadeInText
+        show={true}
+        text={title}
+        position={[0, 0.5, 0]}
+        fontSize={0.35}
         color="#34D399"
-        anchorX="center"
-        anchorY="middle"
-      >
-        {title}
-      </DreiText>
+        maxWidth={2.6}
+      />
 
-      <DreiText
-        position={[0, -0.1, 0]}
-        fontSize={0.12}
-        maxWidth={2.4}
+      {/* Detail – multi-line explanation */}
+      <FadeInText
+        show={true}
+        text={detail}
+        position={[0, -0.2, 0]}
+        fontSize={0.15}
         color="#e5e7eb"
-        anchorX="center"
-        anchorY="top"
-      >
-        {detail}
-      </DreiText>
+        maxWidth={2.6}
+        align="left"
+      />
 
       <OrbitControls enableZoom={false} />
     </>
