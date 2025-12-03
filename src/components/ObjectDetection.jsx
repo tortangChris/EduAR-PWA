@@ -188,7 +188,7 @@ const drawArrow = (ctx, x1, y1, x2, y2) => {
 
 /* ========= AR HELPERS ========= */
 
-// Start WebXR AR session (similar style sa VisualPageAR)
+// Start WebXR AR session (same style as VisualPageAR)
 const startAR = (gl) => {
   if (navigator.xr) {
     navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
@@ -205,12 +205,10 @@ const startAR = (gl) => {
         console.warn("AR not supported on this device.");
       }
     });
-  } else {
-    console.warn("navigator.xr not available.");
   }
 };
 
-// Floating 3D label for the detected concept (world-space)
+// Floating 3D label for the detected concept
 const ConceptARLabel = ({ concept, detail }) => {
   const groupRef = useRef();
   const tRef = useRef(0);
@@ -218,15 +216,11 @@ const ConceptARLabel = ({ concept, detail }) => {
   useFrame((state, delta) => {
     if (!groupRef.current) return;
     tRef.current += delta;
+    // maliit na floating animation
+    const yBase = 1.5;
+    groupRef.current.position.y = yBase + Math.sin(tRef.current * 1.5) * 0.1;
 
-    const floatY = Math.sin(tRef.current * 1.5) * 0.05;
-    const scale = 1 + Math.sin(tRef.current * 0.8) * 0.03;
-
-    // ⚓ Fixed world-space anchor (0, ~1.5, -3)
-    groupRef.current.position.set(0, 1.5 + floatY, -3);
-    groupRef.current.scale.set(scale, scale, scale);
-
-    // Always face the camera (billboard)
+    // always face camera
     const cam = state.camera;
     groupRef.current.lookAt(cam.position);
   });
@@ -234,7 +228,7 @@ const ConceptARLabel = ({ concept, detail }) => {
   const textDetail =
     detail ||
     (concept === "Array"
-      ? "Array: a row of slots in memory. Each object has a fixed index like 0, 1, 2, 3 for fast O(1) access."
+      ? "Array: a row of slots in memory. Each position has an index like 0, 1, 2, 3 for fast O(1) access by index."
       : concept === "Queue (FIFO)"
       ? "Queue: like a line in a store. The first object that enters is the first one that leaves (First In, First Out)."
       : concept === "Stack (LIFO)"
@@ -244,7 +238,7 @@ const ConceptARLabel = ({ concept, detail }) => {
       : "");
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={[0, 1.5, -3]}>
       {/* Title */}
       <DreiText
         position={[0, 0.4, 0]}
@@ -366,71 +360,129 @@ const getGuideText = (mode) => {
   }
 };
 
-// 🌐 World-space 3D guide text panel (before detection)
-const GuideARPanel = ({ guide }) => {
-  const groupRef = useRef();
-  const tRef = useRef(0);
+/* ========= LESSON OVERLAY (EXPLANATION + TASKS) ========= */
 
-  const bodyText = guide.lines.join("\n");
-  const hintText =
-    "Align the real objects to match this pattern. This guide will change once a structure is detected.";
+const LessonOverlay = ({
+  lessonStep,
+  concept,
+  targetIndex,
+  taskMessage,
+  onNextStep,
+}) => {
+  if (!concept || concept !== "Array" || !lessonStep) return null;
 
-  useFrame((state, delta) => {
-    tRef.current += delta;
-    const floatY = Math.sin(tRef.current * 1.5) * 0.05;
-    const scale = 1 + Math.sin(tRef.current * 0.8) * 0.03;
+  let title = "";
+  let bodyLines = [];
+  let showNextButton = true;
+  let nextLabel = "Next ▶";
 
-    if (groupRef.current) {
-      // ⚓ Fixed anchor in world-space
-      groupRef.current.position.set(0, 1.2 + floatY, -3);
-      groupRef.current.scale.set(scale, scale, scale);
-
-      // Optional: billboard
-      const cam = state.camera;
-      groupRef.current.lookAt(cam.position);
-    }
-  });
+  if (lessonStep === "array_intro") {
+    title = "How does an Array work?";
+    bodyLines = [
+      "• Each detected object becomes one slot in the array.",
+      "• The label index[0], index[1], index[2]... is its position.",
+      "• When code says arr[k], it jumps directly to that position.",
+      "",
+      "In algorithms, this is why array access by index is O(1) time.",
+    ];
+    nextLabel = "Start AR Task";
+  } else if (lessonStep === "array_task_1") {
+    title = "AR Task: Access by Index";
+    bodyLines = [
+      `• Find the object labeled index[${targetIndex ?? 0}].`,
+      "• Physically move that object closer to the camera.",
+      "• The system will check if you really focused on the correct index.",
+      "",
+      "This simulates executing: arr[" + (targetIndex ?? 0) + "] in an array.",
+    ];
+    // Walang next button dito; auto-advance via detection.
+    showNextButton = false;
+  } else if (lessonStep === "array_task_1_done") {
+    title = "Task Result";
+    bodyLines = [
+      taskMessage ||
+        "✅ You focused on the correct index. This models how arr[k] reads data at a fixed position.",
+      "",
+      "Key idea:",
+      "• Arrays store elements in contiguous memory.",
+      "• So given an index k, the address is base + k * size.",
+      "• That is why access by index is O(1) in time complexity.",
+    ];
+    nextLabel = "Close";
+  }
 
   return (
-    <group ref={groupRef}>
-      {/* Title */}
-      <DreiText
-        position={[0, 0.8, 0]}
-        fontSize={0.35}
-        color="#facc15"
-        anchorX="center"
-        anchorY="middle"
-        maxWidth={4}
+    <div
+      style={{
+        position: "absolute",
+        right: 16,
+        bottom: 18,
+        width: "min(340px, 80%)",
+        padding: "10px 12px",
+        borderRadius: 12,
+        background: "rgba(15, 23, 42, 0.94)",
+        border: "1px solid rgba(148, 163, 184, 0.9)",
+        color: "#e5e7eb",
+        fontSize: "0.78rem",
+        lineHeight: 1.4,
+        boxShadow: "0 18px 45px rgba(0,0,0,0.7)",
+        backdropFilter: "blur(4px)",
+        zIndex: 15,
+        pointerEvents: "auto",
+      }}
+    >
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: "0.9rem",
+          marginBottom: 4,
+          color: "#bfdbfe",
+        }}
       >
-        {guide.title}
-      </DreiText>
+        {title}
+      </div>
 
-      {/* Body */}
-      <DreiText
-        position={[0, 0.2, 0]}
-        fontSize={0.18}
-        color="#e5e7eb"
-        anchorX="center"
-        anchorY="top"
-        maxWidth={3.5}
-        textAlign="center"
+      <div
+        style={{
+          maxHeight: 150,
+          overflowY: "auto",
+          paddingRight: 4,
+        }}
       >
-        {bodyText}
-      </DreiText>
+        {bodyLines.map((line, idx) =>
+          line === "" ? (
+            <div key={idx} style={{ height: 4 }} />
+          ) : (
+            <p key={idx} style={{ margin: "0 0 3px" }}>
+              {line}
+            </p>
+          )
+        )}
+      </div>
 
-      {/* Hint */}
-      <DreiText
-        position={[0, -0.9, 0]}
-        fontSize={0.16}
-        color="#9ca3af"
-        anchorX="center"
-        anchorY="top"
-        maxWidth={3.4}
-        textAlign="center"
-      >
-        {hintText}
-      </DreiText>
-    </group>
+      {showNextButton && (
+        <button
+          onClick={onNextStep}
+          style={{
+            marginTop: 8,
+            padding: "6px 10px",
+            borderRadius: 999,
+            border: "none",
+            background:
+              lessonStep === "array_task_1_done"
+                ? "rgba(34,197,94,0.15)"
+                : "rgba(59,130,246,0.18)",
+            color: lessonStep === "array_task_1_done" ? "#4ade80" : "#60a5fa",
+            fontSize: "0.72rem",
+            fontWeight: 600,
+            cursor: "pointer",
+            float: "right",
+          }}
+        >
+          {nextLabel}
+        </button>
+      )}
+    </div>
   );
 };
 
@@ -449,6 +501,23 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
   const [concept, setConcept] = useState("");
   const [conceptDetail, setConceptDetail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+
+  // 🔥 NEW: lesson state for educational flow
+  const [lessonStep, setLessonStep] = useState(null); // e.g. "array_intro", "array_task_1", ...
+  const [targetIndex, setTargetIndex] = useState(null);
+  const [taskMessage, setTaskMessage] = useState("");
+
+  // Refs to avoid stale state inside detection loop
+  const lessonStepRef = useRef(lessonStep);
+  const targetIndexRef = useRef(targetIndex);
+
+  useEffect(() => {
+    lessonStepRef.current = lessonStep;
+  }, [lessonStep]);
+
+  useEffect(() => {
+    targetIndexRef.current = targetIndex;
+  }, [targetIndex]);
 
   // 🔥 ref para sa kasalukuyang DSA mode (galing sa parent)
   const selectedDSARef = useRef(selectedDSA);
@@ -592,6 +661,11 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           setConcept("Array");
           setConceptDetail(
             `Detected ${arrayLikeCount} front-view object(s) (laptop/book/chair/bottle/cell phone) → modeled as an Array (index-based, fixed positions).`
+          );
+          // NEW: kick off lesson flow if wala pa
+          setLessonStep((prev) => prev || "array_intro");
+          setTargetIndex((prev) =>
+            prev == null ? Math.floor(arrayLikeCount / 2) : prev
           );
           return true;
         }
@@ -851,6 +925,37 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             setQueueCount(queueItems.length);
             setLinkedListCount(linkedNodes.length);
 
+            // NEW: array task checking logic (for AR learning activity)
+            const arrayObjects = getArrayObjects(predictions);
+            const currentLessonStep = lessonStepRef.current;
+            const currentTargetIndex = targetIndexRef.current;
+
+            if (
+              currentLessonStep === "array_task_1" &&
+              currentTargetIndex != null &&
+              arrayObjects.length > currentTargetIndex
+            ) {
+              // compute area for each detected array object
+              const areas = arrayObjects.map((p) => {
+                const [, , w, h] = p.bbox;
+                const safeW = Math.max(0, w);
+                const safeH = Math.max(0, h);
+                return safeW * safeH;
+              });
+
+              if (areas.length > 0) {
+                const maxArea = Math.max(...areas);
+                const maxIndex = areas.indexOf(maxArea);
+
+                if (maxIndex === currentTargetIndex) {
+                  setTaskMessage(
+                    `✅ Correct! You focused on the element at index ${currentTargetIndex}. This simulates arr[${currentTargetIndex}] — direct access to a fixed position (O(1) time).`
+                  );
+                  setLessonStep("array_task_1_done");
+                }
+              }
+            }
+
             let stacks = [];
             if (books.length > 0 && window.cv) {
               stacks = detectBookStacksFromEdges(videoRef.current);
@@ -881,6 +986,57 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
 
   const guide = !concept ? getGuideText(selectedDSA) : null;
 
+  // small badge config for guide overlay
+  const getGuideBadge = () => {
+    switch (selectedDSA) {
+      case "Stack":
+        return {
+          label: "LIFO",
+          bg: "rgba(251, 146, 60, 0.18)",
+          color: "#fb923c",
+        };
+      case "Queue":
+        return {
+          label: "FIFO",
+          bg: "rgba(34, 197, 94, 0.18)",
+          color: "#22c55e",
+        };
+      case "Auto":
+        return {
+          label: "Auto-detect",
+          bg: "rgba(168, 85, 247, 0.18)",
+          color: "#a855f7",
+        };
+      case "Linked List":
+        return {
+          label: "Nodes + Pointers",
+          bg: "rgba(250, 204, 21, 0.18)",
+          color: "#facc15",
+        };
+      case "Array":
+        return {
+          label: "Index-based",
+          bg: "rgba(59, 130, 246, 0.18)",
+          color: "#60a5fa",
+        };
+      default:
+        return null;
+    }
+  };
+
+  const guideBadge = getGuideBadge();
+
+  // handler for lesson "Next" button
+  const handleNextLessonStep = () => {
+    if (lessonStep === "array_intro") {
+      setTaskMessage("");
+      setLessonStep("array_task_1");
+    } else if (lessonStep === "array_task_1_done") {
+      setLessonStep(null);
+      setTaskMessage("");
+    }
+  };
+
   return (
     <div
       style={{
@@ -892,7 +1048,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         background: "black",
       }}
     >
-      {/* CAMERA (getUserMedia) */}
+      {/* CAMERA */}
       <video
         ref={videoRef}
         autoPlay
@@ -949,32 +1105,182 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         <span>DSA Concept Detection · {status}</span>
       </div>
 
-      {/* ⭐ AR CANVAS – world-space 3D text (guide before, concept after) */}
-      {!isLoading && (
+      {/* ⭐ AR CANVAS – 3D text nalulutang sa environment kapag may detected concept */}
+      {concept && (
         <Canvas
           style={{
             position: "absolute",
             inset: 0,
-            pointerEvents: "none", // purely visual overlay
+            pointerEvents: "none",
           }}
           camera={{ position: [0, 0, 3], fov: 50 }}
           onCreated={({ gl }) => {
             gl.xr.enabled = true;
-            startAR(gl); // 🔥 start WebXR AR session (camera permission like reference)
+            startAR(gl);
           }}
         >
           <ambientLight intensity={0.7} />
           <directionalLight position={[2, 3, 4]} intensity={0.7} />
-
-          {concept ? (
-            <ConceptARLabel concept={concept} detail={conceptDetail} />
-          ) : (
-            guide && <GuideARPanel guide={guide} />
-          )}
-
+          <ConceptARLabel concept={concept} detail={conceptDetail} />
           <OrbitControls enabled={false} />
         </Canvas>
       )}
+
+      {/* 🔹 MODE GUIDE – FLOATING CARD, only before any concept is detected */}
+      {!isLoading && guide && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            padding: "0 16px 18px",
+            pointerEvents: "none",
+            zIndex: 12,
+          }}
+        >
+          <div
+            style={{
+              pointerEvents: "auto",
+              width: "100%",
+              maxWidth: 420,
+              padding: "12px 14px 10px",
+              borderRadius: 14,
+              background: "rgba(15, 23, 42, 0.9)",
+              border: "1px solid rgba(148, 163, 184, 0.9)",
+              color: "#e5e7eb",
+              fontSize: "0.8rem",
+              lineHeight: 1.35,
+              boxShadow: "0 18px 45px rgba(0,0,0,0.7)",
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            {/* Header row: title + badge */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 6,
+                gap: 8,
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "0.9rem",
+                    color: "#facc15",
+                    marginBottom: 2,
+                  }}
+                >
+                  {guide.title}
+                </div>
+                <div
+                  style={{
+                    fontSize: "0.68rem",
+                    opacity: 0.8,
+                    color: "#cbd5f5",
+                  }}
+                >
+                  Quick setup guide for this mode.
+                </div>
+              </div>
+
+              {guideBadge && (
+                <span
+                  style={{
+                    padding: "3px 8px",
+                    borderRadius: 999,
+                    fontSize: "0.65rem",
+                    fontWeight: 600,
+                    background: guideBadge.bg,
+                    color: guideBadge.color,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {guideBadge.label}
+                </span>
+              )}
+            </div>
+
+            {/* Body lines */}
+            <div
+              style={{
+                maxHeight: 140,
+                overflowY: "auto",
+                paddingRight: 4,
+              }}
+            >
+              {guide.lines.map((line, idx) => {
+                if (line === "") {
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        height: 6,
+                      }}
+                    />
+                  );
+                }
+
+                const isSectionTitle = line.endsWith(":");
+
+                if (isSectionTitle) {
+                  return (
+                    <p
+                      key={idx}
+                      style={{
+                        margin: "6px 0 2px",
+                        fontSize: "0.65rem",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        color: "#9ca3af",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {line.replace(":", "")}
+                    </p>
+                  );
+                }
+
+                return (
+                  <p
+                    key={idx}
+                    style={{
+                      margin: "0 0 2px",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {line}
+                  </p>
+                );
+              })}
+            </div>
+
+            <p
+              style={{
+                marginTop: 8,
+                fontSize: "0.7rem",
+                opacity: 0.75,
+              }}
+            >
+              Hold the camera steady and move slowly until the structure is
+              detected. The overlay will disappear once a concept is recognized.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 🔥 LESSON OVERLAY – explanation + AR task for Array */}
+      <LessonOverlay
+        lessonStep={lessonStep}
+        concept={concept}
+        targetIndex={targetIndex}
+        taskMessage={taskMessage}
+        onNextStep={handleNextLessonStep}
+      />
 
       {/* 🔥 LOADING OVERLAY */}
       {isLoading && (
