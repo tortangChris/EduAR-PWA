@@ -1,6 +1,11 @@
 // ../components/ObjectDetection.jsx
 import React, { useRef, useEffect, useState } from "react";
 
+// 🔥 NEW: Three.js / React-Three-Fiber imports for 3D text overlay
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Text } from "@react-three/drei";
+import * as THREE from "three";
+
 // ✅ CLASSES for "Array" mode
 const ARRAY_CLASSES = ["laptop", "book", "chair", "bottle", "cell phone"];
 
@@ -208,6 +213,68 @@ const drawArrow = (ctx, x1, y1, x2, y2) => {
   ctx.fill();
 };
 
+/* -------------------------------------------------------------------------- */
+/* 🔥 NEW 3D TEXT COMPONENTS (React-Three-Fiber + drei Text)                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * FloatingLabel
+ * - tumatanggap ng normalized (0..1) positions galing sa detection
+ * - kino-convert sa 3D world coords gamit viewport
+ * - may konting bounce sa Z para mukhang 3D sa ibabaw ng real object
+ */
+const FloatingLabel = ({ normX, normY, label, index }) => {
+  const ref = useRef();
+  const { viewport } = useThree();
+
+  // convert from [0..1] (screen) → world coords
+  const x = normX * viewport.width - viewport.width / 2;
+  const y = viewport.height / 2 - normY * viewport.height;
+
+  useFrame((state) => {
+    if (!ref.current) return;
+    const t = state.clock.getElapsedTime();
+    // maliit na animation sa Z para buhay yung text
+    ref.current.position.z = 0.6 + Math.sin(t + index) * 0.1;
+  });
+
+  return (
+    <Text
+      ref={ref}
+      position={[x, y, 0]}
+      fontSize={0.35}
+      color="#ffffff"
+      outlineWidth={0.045}
+      outlineColor="#000000"
+      anchorX="center"
+      anchorY="middle"
+      maxWidth={4}
+    >
+      {label}
+    </Text>
+  );
+};
+
+/**
+ * ArrayLabels3D
+ * - nagre-render ng lahat ng 3D labels para sa Array items
+ */
+const ArrayLabels3D = ({ items }) => {
+  return (
+    <>
+      {items.map((item, idx) => (
+        <FloatingLabel
+          key={item.id}
+          normX={item.normX}
+          normY={item.normY}
+          label={item.label}
+          index={idx}
+        />
+      ))}
+    </>
+  );
+};
+
 const ObjectDection = ({ selectedDSA = "none" }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -221,6 +288,9 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
   const [concept, setConcept] = useState("");
   const [conceptDetail, setConceptDetail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+
+  // 🔥 NEW: data na ipapasa sa 3D Canvas overlay
+  const [array3DItems, setArray3DItems] = useState([]);
 
   // 🔥 ref para sa kasalukuyang DSA mode (galing sa parent)
   const selectedDSARef = useRef(selectedDSA);
@@ -316,7 +386,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           if (maxY - minY < 80) {
             setConcept("Queue (FIFO)");
             setConceptDetail(
-              `Detected ${queueCountLocal} side-view item(s) (person/book/cell phone) almost aligned horizontally → interpreted as a Queue.\n\n📚 How this teaches Queue (First In, First Out):\n• Each real object is one element in the queue.\n• The one at the front of the line will be served/removed first (dequeue).\n• New elements join at the back (enqueue).\n• This models real-world lines (canteen, printer jobs, task scheduling).`
+              `Detected ${queueCountLocal} side-view item(s) (person/book/cell phone) in a line → behaves like a Queue (First In, First Out).`
             );
             return true;
           }
@@ -329,7 +399,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           const stackCount = stacks.length;
           setConcept("Stack (LIFO)");
           setConceptDetail(
-            `Detected ${bookCountLocal} book(s) arranged into ${stackCount} vertical stack(s) based on their spines.\n\n📚 How this teaches Stack (Last In, First Out):\n• Each book is one element on the stack.\n• The last book you place on top will be the first one you can remove (POP).\n• Adding a new book on top is PUSH.\n• This models function call stacks and undo/redo operations in real programs.`
+            `Detected ${bookCountLocal} book(s) arranged into ${stackCount} stack(s) via vertical edges (spines) → behaves like a Stack (Last In, First Out).`
           );
           return true;
         }
@@ -353,7 +423,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             ).join(", ");
             setConcept("Linked List");
             setConceptDetail(
-              `Detected ${nodeCount} node(s) (${usedClasses}) aligned in a row and connected with arrows → modeled as a Singly Linked List.\n\n📚 How this teaches Linked List:\n• Each real object is a node that stores data plus a "next" pointer.\n• The AR arrows represent the next pointer from one node to the next.\n• To insert in the middle, we only change a few arrows (pointers), we don't shift all objects.\n• This demonstrates the difference vs arrays: linked lists are good for frequent inserts/removals in the middle.`
+              `Detected ${nodeCount} node(s) (${usedClasses}) aligned in a row → can be modeled as a Singly Linked List (each node points to the next, last points to null).`
             );
             return true;
           }
@@ -363,13 +433,9 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
 
       const tryArray = () => {
         if (arrayLikeCount >= 2) {
-          const indexMap = arrayLike
-            .map((obj, i) => `index[${i}] = ${obj.class}`)
-            .join(", ");
-
-          setConcept("Array – Index-Based Access");
+          setConcept("Array");
           setConceptDetail(
-            `Detected ${arrayLikeCount} front-view object(s) (laptop/book/chair/bottle/cell phone) arranged from left to right.\n\n📚 How this teaches Arrays:\n• Each real object becomes one array element A[i].\n• The green label "index[i]" under each object shows its exact position in the array.\n• To access A[k], we jump directly to the k-th object in this line instead of counting one-by-one.\n• This models constant-time (O(1)) random access: any index can be reached in a single step using its index.\n\nCurrent mapping in your AR scene:\n${indexMap}`
+            `Detected ${arrayLikeCount} front-view object(s) (laptop/book/chair/bottle/cell phone) → modeled as an Array (index-based, fixed positions).`
           );
           return true;
         }
@@ -437,6 +503,9 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
       const frameWidth = canvas.width;
       const frameHeight = canvas.height;
 
+      // 🔥 3D label data to send to React-Three-Fiber Canvas
+      const nextArray3DItems = [];
+
       // ✅ Unified ARRAY OBJECTS (laptop, book, chair, bottle, cell phone)
       const arrayObjects = getArrayObjects(predictions);
       setArrayCount(arrayObjects.length);
@@ -445,7 +514,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         arrayObjects.forEach((p, index) => {
           const [x, y, width, height] = p.bbox;
 
-          // box
+          // --- 2D BOX (same as before) ---
           ctx.strokeStyle = "#00ff00";
           ctx.lineWidth = 4;
           ctx.strokeRect(x, y, width, height);
@@ -455,7 +524,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           const labelHeight = 26;
           const labelPaddingX = 8;
 
-          ctx.font = "16px Arial";
           const textWidth = ctx.measureText(label).width;
           const bgWidth = Math.max(textWidth + labelPaddingX * 2, width);
 
@@ -463,9 +531,26 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           ctx.fillRect(x, y + height, bgWidth, labelHeight);
 
           ctx.fillStyle = "#00ff00";
+          ctx.font = "16px Arial";
           ctx.fillText(label, x + labelPaddingX, y + height + 18);
+
+          // --- 🔥 NEW: push 3D label data (normalized coords) ---
+          if (frameWidth > 0 && frameHeight > 0) {
+            const cx = x + width / 2;
+            const cy = y + height / 2;
+
+            nextArray3DItems.push({
+              id: `${p.class}-${index}`,
+              label, // same label as 2D
+              normX: cx / frameWidth,
+              normY: cy / frameHeight,
+            });
+          }
         });
       }
+
+      // update state for 3D overlay (kahit empty)
+      setArray3DItems(nextArray3DItems);
 
       // QUEUE (side-view persons / books / cell phones)
       const queueItems = predictions.filter(
@@ -681,7 +766,7 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
         }}
       />
 
-      {/* CANVAS OVERLAY */}
+      {/* CANVAS OVERLAY (2D drawing) */}
       <canvas
         ref={canvasRef}
         style={{
@@ -691,6 +776,27 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
           height: "100%",
         }}
       />
+
+      {/* 🔥 3D AR TEXT OVERLAY (React-Three-Fiber) */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none", // para hindi makaharang sa UI/clicks
+        }}
+      >
+        <Canvas
+          orthographic
+          camera={{ position: [0, 0, 10], zoom: 100 }}
+          gl={{ alpha: true }}
+          onCreated={({ gl }) => {
+            // transparent WebGL background para kita pa rin video
+            gl.setClearColor(new THREE.Color(0x000000), 0);
+          }}
+        >
+          <ArrayLabels3D items={array3DItems} />
+        </Canvas>
+      </div>
 
       {/* STATUS PILL */}
       <div
@@ -728,7 +834,6 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
             backdropFilter: "blur(4px)",
             maxHeight: "35%",
             overflowY: "auto",
-            whiteSpace: "pre-line", // 👈 para gumana line breaks sa conceptDetail
           }}
         >
           <div
