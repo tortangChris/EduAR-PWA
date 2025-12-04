@@ -32,7 +32,6 @@ const TreeAssessment = ({
 
   const controlsRef = useRef();
 
-  // Queue positioned horizontally (left = front, right = rear)
   const originalPositions = useMemo(() => {
     const mid = (queue.length - 1) / 2;
     return queue.map((_, i) => [(i - mid) * spacing, 0, 0]);
@@ -98,7 +97,6 @@ const TreeAssessment = ({
   const nextMode = () =>
     setModeIndex((m) => Math.min(m + 1, modes.length - 1));
 
-  // --- Question generators for Queue ---
   const prepareEnqueueQuestion = () => {
     const newValue = Math.floor(Math.random() * 90) + 10;
     const rearIndex = queue.length - 1;
@@ -264,7 +262,7 @@ const TreeAssessment = ({
       onContextMenu={(e) => e.preventDefault()}
     >
       <Canvas
-        camera={{ position: [0, 4, 14], fov: 50 }}
+        camera={{ position: [0, 6, 12], fov: 50 }}
         style={{ touchAction: "none" }}
       >
         <ambientLight intensity={0.5} />
@@ -324,9 +322,9 @@ const TreeAssessment = ({
             {/* Queue Base */}
             <QueueBase width={queue.length * spacing + 2} />
 
-            {/* Answer Drop Zone */}
-            <AnswerDropZone
-              position={[0, 2, 4]}
+            {/* Answer Drop Zone - FLAT ON FLOOR */}
+            <AnswerDropZoneFloor
+              position={[0, -1.4, 4]}
               isActive={draggedBox !== null}
               draggedBox={draggedBox}
               onDrop={handleDropOnAnswer}
@@ -533,7 +531,6 @@ const IntroScreen = ({ onStart }) => {
 
       {/* 3D Queue Visualization */}
       <group position={[0, 1, 0]}>
-        {/* Queue boxes - horizontal */}
         <mesh position={[-2.5, 0, 0]}>
           <boxGeometry args={[1.5, 0.8, 0.9]} />
           <meshStandardMaterial color="#60a5fa" />
@@ -566,7 +563,6 @@ const IntroScreen = ({ onStart }) => {
           40
         </Text>
 
-        {/* Front indicator */}
         <Text
           position={[-4, 0, 0]}
           fontSize={0.22}
@@ -577,7 +573,6 @@ const IntroScreen = ({ onStart }) => {
           FRONT →
         </Text>
 
-        {/* Rear indicator */}
         <Text
           position={[4.1, 0, 0]}
           fontSize={0.22}
@@ -588,14 +583,12 @@ const IntroScreen = ({ onStart }) => {
           ← REAR
         </Text>
 
-        {/* Base */}
         <mesh position={[0, -0.55, 0]}>
           <boxGeometry args={[8, 0.15, 1.2]} />
           <meshStandardMaterial color="#475569" />
         </mesh>
       </group>
 
-      {/* Arrow showing direction */}
       <group position={[0, 2.2, 0]}>
         <Text
           fontSize={0.25}
@@ -647,8 +640,8 @@ const QueueBase = ({ width }) => {
   );
 };
 
-// === Answer Drop Zone ===
-const AnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
+// === Answer Drop Zone - FLAT ON FLOOR ===
+const AnswerDropZoneFloor = ({ position, isActive, draggedBox, onDrop }) => {
   const [hovered, setHovered] = useState(false);
   const meshRef = useRef();
   const glowRef = useRef(0);
@@ -679,33 +672,58 @@ const AnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
 
   return (
     <group position={position}>
+      {/* Flat floor zone */}
       <mesh
         ref={meshRef}
+        rotation={[-Math.PI / 2, 0, 0]}
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
         onPointerUp={handlePointerUp}
       >
-        <boxGeometry args={[3.5, 2, 0.3]} />
+        <planeGeometry args={[4, 3]} />
         <meshStandardMaterial
           color={hovered && isActive ? "#22c55e" : isActive ? "#ec4899" : "#475569"}
           transparent
           opacity={isActive ? 0.9 : 0.5}
           emissive={isActive ? "#ec4899" : "#000000"}
           emissiveIntensity={0}
+          side={THREE.DoubleSide}
         />
       </mesh>
 
-      <mesh position={[0, 0, 0.01]}>
-        <boxGeometry args={[3.6, 2.1, 0.32]} />
+      {/* Border - flat */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+        <planeGeometry args={[4.2, 3.2]} />
         <meshBasicMaterial
           color={hovered && isActive ? "#22c55e" : "#f472b6"}
           wireframe
+          side={THREE.DoubleSide}
         />
       </mesh>
 
+      {/* Corner markers */}
+      <mesh position={[-1.8, 0.05, -1.3]}>
+        <boxGeometry args={[0.3, 0.1, 0.3]} />
+        <meshBasicMaterial color={isActive ? "#22c55e" : "#f472b6"} />
+      </mesh>
+      <mesh position={[1.8, 0.05, -1.3]}>
+        <boxGeometry args={[0.3, 0.1, 0.3]} />
+        <meshBasicMaterial color={isActive ? "#22c55e" : "#f472b6"} />
+      </mesh>
+      <mesh position={[-1.8, 0.05, 1.3]}>
+        <boxGeometry args={[0.3, 0.1, 0.3]} />
+        <meshBasicMaterial color={isActive ? "#22c55e" : "#f472b6"} />
+      </mesh>
+      <mesh position={[1.8, 0.05, 1.3]}>
+        <boxGeometry args={[0.3, 0.1, 0.3]} />
+        <meshBasicMaterial color={isActive ? "#22c55e" : "#f472b6"} />
+      </mesh>
+
+      {/* Label - facing up */}
       <Text
-        position={[0, 0, 0.2]}
-        fontSize={0.28}
+        position={[0, 0.1, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        fontSize={0.35}
         color={isActive ? "#22c55e" : "#94a3b8"}
         anchorX="center"
         anchorY="middle"
@@ -713,10 +731,15 @@ const AnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
         {isActive ? "Drop Here!" : "Answer Zone"}
       </Text>
 
+      {/* Arrow pointing down when active */}
       {isActive && (
-        <group position={[0, 1.3, 0]}>
+        <group position={[0, 1.5, 0]}>
           <mesh rotation={[0, 0, Math.PI]}>
-            <coneGeometry args={[0.2, 0.4, 8]} />
+            <coneGeometry args={[0.25, 0.5, 8]} />
+            <meshBasicMaterial color="#22c55e" />
+          </mesh>
+          <mesh position={[0, 0.5, 0]}>
+            <boxGeometry args={[0.1, 0.5, 0.1]} />
             <meshBasicMaterial color="#22c55e" />
           </mesh>
         </group>
@@ -755,7 +778,7 @@ const DraggableQueueBox = ({
   const isPointerDownRef = useRef(false);
   const pointerStartPosRef = useRef({ x: 0, y: 0 });
   const hasDraggedRef = useRef(false);
-  const dragPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0));
+  const dragPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const offset = useRef(new THREE.Vector3());
   const intersection = useRef(new THREE.Vector3());
 
@@ -779,7 +802,7 @@ const DraggableQueueBox = ({
 
   useFrame(() => {
     if (groupRef.current) {
-      const targetY = isDragging ? 2 : isHolding ? 0.3 : 0;
+      const targetY = isDragging ? 1.5 : isHolding ? 0.3 : 0;
 
       if (isDragging) {
         groupRef.current.position.x = position[0];
@@ -847,10 +870,8 @@ const DraggableQueueBox = ({
     holdStartTimeRef.current = null;
     setHoldProgress(0);
 
-    dragPlane.current.set(
-      new THREE.Vector3(0, 0, 1),
-      -groupRef.current.position.z
-    );
+    // Use horizontal plane for dragging
+    dragPlane.current.set(new THREE.Vector3(0, 1, 0), 0);
 
     raycaster.setFromCamera(pointer, camera);
     raycaster.ray.intersectPlane(dragPlane.current, intersection.current);
@@ -892,8 +913,8 @@ const DraggableQueueBox = ({
 
     const newPosition = [
       intersection.current.x - offset.current.x,
-      intersection.current.y - offset.current.y,
-      position[2],
+      0,
+      intersection.current.z - offset.current.z,
     ];
 
     onPositionChange(newPosition);
@@ -969,7 +990,7 @@ const DraggableQueueBox = ({
       )}
 
       {isDragging && (
-        <mesh position={[0, -position[1] - 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[0, -0.6, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[0.8, 32]} />
           <meshBasicMaterial color="black" transparent opacity={0.3} />
         </mesh>
@@ -1042,7 +1063,7 @@ const DraggableQueueBox = ({
           anchorX="center"
           anchorY="middle"
         >
-          {isDragging ? "Drag to Answer Zone ↑" : `Value: ${value}`}
+          {isDragging ? "Drop on floor zone ↓" : `Value: ${value}`}
         </Text>
       )}
     </group>
