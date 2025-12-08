@@ -43,12 +43,18 @@ const PageInteractive = ({ onAssessmentPassStatusChange }) => {
             onPassStatusChange={onAssessmentPassStatusChange} // inform parent (Arrays)
           />
 
-          <button
-            onClick={() => setActiveView(null)}
-            className="absolute top-3 right-3 bg-gray-600 px-3 py-1 rounded-md text-black text-sm shadow"
-          >
-            Back
-          </button>
+          {activeView === "real" && (
+            <div className="w-full h-[300px] rounded-xl flex items-center justify-center relative">
+              <ARButtonAssessment />
+
+              <button
+                onClick={() => setActiveView(null)}
+                className="absolute top-3 right-3 bg-white px-3 py-1 rounded-md text-black text-sm shadow"
+              >
+                Back
+              </button>
+            </div>
+          )}
         </div>
       )}
 
