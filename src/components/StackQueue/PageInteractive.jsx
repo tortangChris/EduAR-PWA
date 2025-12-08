@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import StackQueueAssessment from "./StackQueueAssessment";
+import StackQueueAssessmentAR from "./StackQueueAssessmentAR";
 // import ARButtonAssessment from "./ARButtonAssessement";
 
 const PageInteractive = ({ onAssessmentPassStatusChange }) => {
@@ -45,7 +46,7 @@ const PageInteractive = ({ onAssessmentPassStatusChange }) => {
 
           {activeView === "real" && (
             <div className="w-full h-[300px] rounded-xl flex items-center justify-center relative">
-              <ARButtonAssessment />
+              <StackQueueAssessmentAR />
 
               <button
                 onClick={() => setActiveView(null)}
@@ -55,20 +56,6 @@ const PageInteractive = ({ onAssessmentPassStatusChange }) => {
               </button>
             </div>
           )}
-        </div>
-      )}
-
-      {/* If activeView === "real", show ARButtonAssessment component */}
-      {activeView === "real" && (
-        <div className="w-full h-[300px] rounded-xl flex items-center justify-center relative">
-          <ARButtonAssessment />
-
-          <button
-            onClick={() => setActiveView(null)}
-            className="absolute top-3 right-3 bg-white px-3 py-1 rounded-md text-black text-sm shadow"
-          >
-            Back
-          </button>
         </div>
       )}
     </div>
