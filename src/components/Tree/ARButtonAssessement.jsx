@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Lock, Unlock } from "lucide-react";
-import StackQueueAssessmentAR from "./StackQueueAssessmentAR";
-import TreeAssessmentAR from "./TreeAssessmentAR";
+import LinkedListAssessmentAR from "./TreeAssessmentAR";
 
 const ARButtonAssessment = () => {
   const [isSupported, setIsSupported] = useState(null);
