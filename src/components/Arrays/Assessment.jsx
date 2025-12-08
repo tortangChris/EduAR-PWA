@@ -39,7 +39,7 @@ const ArrayAssessment = ({
 
   // Initialize box positions
   useEffect(() => {
-    setBoxPositions(originalPositions.map(pos => [...pos]));
+    setBoxPositions(originalPositions.map((pos) => [...pos]));
   }, [originalPositions]);
 
   // On mount, check localStorage
@@ -64,7 +64,7 @@ const ArrayAssessment = ({
     setDraggedBox(null);
     setHoldingBox(null);
     setDroppedAnswer(null);
-    setBoxPositions(originalPositions.map(pos => [...pos]));
+    setBoxPositions(originalPositions.map((pos) => [...pos]));
 
     if (mode === "access") prepareAccessQuestion();
     if (mode === "search") prepareSearchQuestion();
@@ -97,8 +97,7 @@ const ArrayAssessment = ({
     }
   }, [mode, score, totalAssessments, passingRatio, onPassStatusChange]);
 
-  const nextMode = () =>
-    setModeIndex((m) => Math.min(m + 1, modes.length - 1));
+  const nextMode = () => setModeIndex((m) => Math.min(m + 1, modes.length - 1));
 
   const prepareAccessQuestion = () => {
     const idx = Math.floor(Math.random() * data.length);
@@ -223,7 +222,8 @@ const ArrayAssessment = ({
         }, 600);
       });
     } else if (question.type === "delete") {
-      correct = question.answerIndex !== null && droppedIndex === question.answerIndex;
+      correct =
+        question.answerIndex !== null && droppedIndex === question.answerIndex;
       markScore(correct);
       showFeedback(correct, `Dropped ${data[droppedIndex]}`, () => {
         const newArr = [...data];
@@ -262,21 +262,21 @@ const ArrayAssessment = ({
 
   return (
     <div
-      className="w-full h-[400px]"
+      className="w-full h-[300px]"
       style={{
-        WebkitTouchCallout: 'none',
-        WebkitUserSelect: 'none',
-        KhtmlUserSelect: 'none',
-        MozUserSelect: 'none',
-        msUserSelect: 'none',
-        userSelect: 'none',
-        touchAction: 'none',
+        WebkitTouchCallout: "none",
+        WebkitUserSelect: "none",
+        KhtmlUserSelect: "none",
+        MozUserSelect: "none",
+        msUserSelect: "none",
+        userSelect: "none",
+        touchAction: "none",
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
       <Canvas
         camera={{ position: [0, 5, 14], fov: 50 }}
-        style={{ touchAction: 'none' }}
+        style={{ touchAction: "none" }}
       >
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
@@ -325,7 +325,11 @@ const ArrayAssessment = ({
         )}
 
         {/* Ground Plane */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, -1, 0]}
+          receiveShadow
+        >
           <planeGeometry args={[20, 10]} />
           <meshStandardMaterial color="#1e293b" transparent opacity={0.5} />
         </mesh>
@@ -423,7 +427,13 @@ const ArrayAssessment = ({
 };
 
 // === Answer Drop Zone ===
-const AnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) => {
+const AnswerDropZone = ({
+  position,
+  isActive,
+  draggedBox,
+  onDrop,
+  feedback,
+}) => {
   const [hovered, setHovered] = useState(false);
   const meshRef = useRef();
   const glowRef = useRef(0);
@@ -464,7 +474,9 @@ const AnswerDropZone = ({ position, isActive, draggedBox, onDrop, feedback }) =>
       >
         <boxGeometry args={[4, 0.3, 2.5]} />
         <meshStandardMaterial
-          color={hovered && isActive ? "#22c55e" : isActive ? "#3b82f6" : "#475569"}
+          color={
+            hovered && isActive ? "#22c55e" : isActive ? "#3b82f6" : "#475569"
+          }
           transparent
           opacity={isActive ? 0.9 : 0.5}
           emissive={isActive ? "#3b82f6" : "#000000"}
@@ -579,7 +591,13 @@ const DraggableBox = ({
         );
       }
 
-      const targetScale = isDragging ? 1.2 : isHolding ? 1.1 : isHovered ? 1.05 : 1;
+      const targetScale = isDragging
+        ? 1.2
+        : isHolding
+        ? 1.1
+        : isHovered
+        ? 1.05
+        : 1;
       groupRef.current.scale.lerp(
         new THREE.Vector3(targetScale, targetScale, targetScale),
         0.1
@@ -620,7 +638,10 @@ const DraggableBox = ({
     holdStartTimeRef.current = null;
     setHoldProgress(0);
 
-    dragPlane.current.set(new THREE.Vector3(0, 1, 0), -groupRef.current.position.y);
+    dragPlane.current.set(
+      new THREE.Vector3(0, 1, 0),
+      -groupRef.current.position.y
+    );
 
     raycaster.setFromCamera(pointer, camera);
     raycaster.ray.intersectPlane(dragPlane.current, intersection.current);
@@ -754,9 +775,17 @@ const DraggableBox = ({
         <meshStandardMaterial
           color={getColor()}
           emissive={
-            isDragging ? "#f97316" : isHolding ? "#fb923c" : selected ? "#fbbf24" : "#000000"
+            isDragging
+              ? "#f97316"
+              : isHolding
+              ? "#fb923c"
+              : selected
+              ? "#fbbf24"
+              : "#000000"
           }
-          emissiveIntensity={isDragging ? 0.6 : isHolding ? 0.4 : selected ? 0.4 : 0}
+          emissiveIntensity={
+            isDragging ? 0.6 : isHolding ? 0.4 : selected ? 0.4 : 0
+          }
           metalness={0.1}
           roughness={0.5}
           transparent={opacity < 1}
@@ -775,7 +804,9 @@ const DraggableBox = ({
       {/* Wireframe when holding */}
       {isHolding && !isDragging && (
         <mesh position={[0, size[1] / 2, 0]}>
-          <boxGeometry args={[size[0] + 0.08, size[1] + 0.08, size[2] + 0.08]} />
+          <boxGeometry
+            args={[size[0] + 0.08, size[1] + 0.08, size[2] + 0.08]}
+          />
           <meshBasicMaterial color="#f97316" wireframe />
         </mesh>
       )}
@@ -811,7 +842,9 @@ const DraggableBox = ({
           anchorX="center"
           anchorY="middle"
         >
-          {isDragging ? "Drag to Answer Zone" : `Value ${value} at index ${index}`}
+          {isDragging
+            ? "Drag to Answer Zone"
+            : `Value ${value} at index ${index}`}
         </Text>
       )}
     </group>

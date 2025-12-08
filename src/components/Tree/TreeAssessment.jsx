@@ -95,8 +95,7 @@ const TreeAssessment = ({
     }
   }, [mode, score, totalAssessments, passingRatio, onPassStatusChange]);
 
-  const nextMode = () =>
-    setModeIndex((m) => Math.min(m + 1, modes.length - 1));
+  const nextMode = () => setModeIndex((m) => Math.min(m + 1, modes.length - 1));
 
   // --- Question generators for Queue ---
   const prepareEnqueueQuestion = () => {
@@ -184,29 +183,37 @@ const TreeAssessment = ({
     if (question.type === "enqueue") {
       correct = droppedIndex === question.answerIndex;
       markScore(correct);
-      showFeedback(correct, `Element ${queue[droppedIndex]} is current rear`, () => {
-        const newQueue = [...queue, question.newValue];
-        setAnimState({ new: queue.length });
-        setTimeout(() => {
-          setQueue(newQueue);
-          setAnimState({});
-          nextMode();
-        }, 800);
-      });
+      showFeedback(
+        correct,
+        `Element ${queue[droppedIndex]} is current rear`,
+        () => {
+          const newQueue = [...queue, question.newValue];
+          setAnimState({ new: queue.length });
+          setTimeout(() => {
+            setQueue(newQueue);
+            setAnimState({});
+            nextMode();
+          }, 800);
+        }
+      );
     } else if (question.type === "dequeue") {
       correct = droppedIndex === question.answerIndex;
       markScore(correct);
-      showFeedback(correct, `Dequeued ${queue[droppedIndex]} from front`, () => {
-        const fadeFlags = { [question.answerIndex]: "fade" };
-        setAnimState(fadeFlags);
-        setTimeout(() => {
-          const newQueue = [...queue];
-          newQueue.shift();
-          setQueue(newQueue);
-          setAnimState({});
-          nextMode();
-        }, 800);
-      });
+      showFeedback(
+        correct,
+        `Dequeued ${queue[droppedIndex]} from front`,
+        () => {
+          const fadeFlags = { [question.answerIndex]: "fade" };
+          setAnimState(fadeFlags);
+          setTimeout(() => {
+            const newQueue = [...queue];
+            newQueue.shift();
+            setQueue(newQueue);
+            setAnimState({});
+            nextMode();
+          }, 800);
+        }
+      );
     } else if (question.type === "peek") {
       correct = droppedIndex === question.answerIndex;
       markScore(correct);
@@ -221,10 +228,14 @@ const TreeAssessment = ({
     } else if (question.type === "fifo") {
       correct = droppedIndex === question.answerIndex;
       markScore(correct);
-      showFeedback(correct, `${queue[droppedIndex]} was added first (FIFO)`, () => {
-        resetBoxPosition(droppedIndex);
-        nextMode();
-      });
+      showFeedback(
+        correct,
+        `${queue[droppedIndex]} was added first (FIFO)`,
+        () => {
+          resetBoxPosition(droppedIndex);
+          nextMode();
+        }
+      );
     }
 
     setDraggedBox(null);
@@ -251,7 +262,7 @@ const TreeAssessment = ({
 
   return (
     <div
-      className="w-full h-[500px]"
+      className="w-full h-[450px]"
       style={{
         WebkitTouchCallout: "none",
         WebkitUserSelect: "none",
@@ -272,15 +283,17 @@ const TreeAssessment = ({
         <pointLight position={[-5, 5, 5]} intensity={0.3} />
 
         {/* Ground Plane */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.5, 0]} receiveShadow>
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, -1.5, 0]}
+          receiveShadow
+        >
           <planeGeometry args={[24, 14]} />
           <meshStandardMaterial color="#1e293b" transparent opacity={0.5} />
         </mesh>
 
         {/* ========== INTRO SCREEN ========== */}
-        {mode === "intro" && (
-          <IntroScreen onStart={handleStartClick} />
-        )}
+        {mode === "intro" && <IntroScreen onStart={handleStartClick} />}
 
         {/* ========== ASSESSMENT MODE ========== */}
         {mode !== "intro" && mode !== "done" && (
@@ -370,7 +383,13 @@ const TreeAssessment = ({
                     <meshBasicMaterial color="#60a5fa" />
                   </mesh>
                 </group>
-                <group position={[originalPositions[queue.length - 1][0] + 1.8, 0.5, 0]}>
+                <group
+                  position={[
+                    originalPositions[queue.length - 1][0] + 1.8,
+                    0.5,
+                    0,
+                  ]}
+                >
                   <Text
                     fontSize={0.3}
                     color="#f472b6"
@@ -437,7 +456,11 @@ const TreeAssessment = ({
               color="#facc15"
             />
             <FadeText
-              text={isPassed ? "You passed this assessment!" : "You did not reach the passing score."}
+              text={
+                isPassed
+                  ? "You passed this assessment!"
+                  : "You did not reach the passing score."
+              }
               position={[0, 2.2, 0]}
               fontSize={0.3}
               color="white"
@@ -527,7 +550,8 @@ const IntroScreen = ({ onStart }) => {
           maxWidth={9}
           textAlign="center"
         >
-          First In, First Out — the first element added is the first to be removed.
+          First In, First Out — the first element added is the first to be
+          removed.
         </Text>
       </group>
 
@@ -538,7 +562,13 @@ const IntroScreen = ({ onStart }) => {
           <boxGeometry args={[1.5, 0.8, 0.9]} />
           <meshStandardMaterial color="#60a5fa" />
         </mesh>
-        <Text position={[-2.5, 0, 0.46]} fontSize={0.3} color="white" anchorX="center" anchorY="middle">
+        <Text
+          position={[-2.5, 0, 0.46]}
+          fontSize={0.3}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
           10
         </Text>
 
@@ -546,7 +576,13 @@ const IntroScreen = ({ onStart }) => {
           <boxGeometry args={[1.5, 0.8, 0.9]} />
           <meshStandardMaterial color="#34d399" />
         </mesh>
-        <Text position={[-0.8, 0, 0.46]} fontSize={0.3} color="white" anchorX="center" anchorY="middle">
+        <Text
+          position={[-0.8, 0, 0.46]}
+          fontSize={0.3}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
           20
         </Text>
 
@@ -554,7 +590,13 @@ const IntroScreen = ({ onStart }) => {
           <boxGeometry args={[1.5, 0.8, 0.9]} />
           <meshStandardMaterial color="#34d399" />
         </mesh>
-        <Text position={[0.9, 0, 0.46]} fontSize={0.3} color="white" anchorX="center" anchorY="middle">
+        <Text
+          position={[0.9, 0, 0.46]}
+          fontSize={0.3}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
           30
         </Text>
 
@@ -562,7 +604,13 @@ const IntroScreen = ({ onStart }) => {
           <boxGeometry args={[1.5, 0.8, 0.9]} />
           <meshStandardMaterial color="#f472b6" />
         </mesh>
-        <Text position={[2.6, 0, 0.46]} fontSize={0.3} color="white" anchorX="center" anchorY="middle">
+        <Text
+          position={[2.6, 0, 0.46]}
+          fontSize={0.3}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
           40
         </Text>
 
@@ -597,13 +645,8 @@ const IntroScreen = ({ onStart }) => {
 
       {/* Arrow showing direction */}
       <group position={[0, 2.2, 0]}>
-        <Text
-          fontSize={0.25}
-          color="#f9a8d4"
-          anchorX="center"
-          anchorY="middle"
-        >
-          ← Dequeue                    Enqueue →
+        <Text fontSize={0.25} color="#f9a8d4" anchorX="center" anchorY="middle">
+          ← Dequeue Enqueue →
         </Text>
       </group>
 
@@ -687,7 +730,9 @@ const AnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
       >
         <boxGeometry args={[3.5, 2, 0.3]} />
         <meshStandardMaterial
-          color={hovered && isActive ? "#22c55e" : isActive ? "#ec4899" : "#475569"}
+          color={
+            hovered && isActive ? "#22c55e" : isActive ? "#ec4899" : "#475569"
+          }
           transparent
           opacity={isActive ? 0.9 : 0.5}
           emissive={isActive ? "#ec4899" : "#000000"}
@@ -807,7 +852,13 @@ const DraggableQueueBox = ({
         );
       }
 
-      const targetScale = isDragging ? 1.15 : isHolding ? 1.08 : isHovered ? 1.03 : 1;
+      const targetScale = isDragging
+        ? 1.15
+        : isHolding
+        ? 1.08
+        : isHovered
+        ? 1.03
+        : 1;
       groupRef.current.scale.lerp(
         new THREE.Vector3(targetScale, targetScale, targetScale),
         0.1
@@ -969,7 +1020,10 @@ const DraggableQueueBox = ({
       )}
 
       {isDragging && (
-        <mesh position={[0, -position[1] - 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh
+          position={[0, -position[1] - 0.5, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
           <circleGeometry args={[0.8, 32]} />
           <meshBasicMaterial color="black" transparent opacity={0.3} />
         </mesh>
@@ -991,7 +1045,15 @@ const DraggableQueueBox = ({
               : "#000000"
           }
           emissiveIntensity={
-            isDragging ? 0.5 : isHolding ? 0.4 : isHighlighted ? 0.6 : selected ? 0.4 : 0
+            isDragging
+              ? 0.5
+              : isHolding
+              ? 0.4
+              : isHighlighted
+              ? 0.6
+              : selected
+              ? 0.4
+              : 0
           }
           metalness={0.1}
           roughness={0.5}
@@ -1002,14 +1064,18 @@ const DraggableQueueBox = ({
 
       {isDragging && (
         <mesh position={[0, boxHeight / 2, 0]}>
-          <boxGeometry args={[boxWidth + 0.1, boxHeight + 0.1, boxDepth + 0.1]} />
+          <boxGeometry
+            args={[boxWidth + 0.1, boxHeight + 0.1, boxDepth + 0.1]}
+          />
           <meshBasicMaterial color="#ffffff" wireframe />
         </mesh>
       )}
 
       {isHolding && !isDragging && (
         <mesh position={[0, boxHeight / 2, 0]}>
-          <boxGeometry args={[boxWidth + 0.08, boxHeight + 0.08, boxDepth + 0.08]} />
+          <boxGeometry
+            args={[boxWidth + 0.08, boxHeight + 0.08, boxDepth + 0.08]}
+          />
           <meshBasicMaterial color="#ec4899" wireframe />
         </mesh>
       )}
