@@ -93,8 +93,7 @@ const StackQueueAssessment = ({
     }
   }, [mode, score, totalAssessments, passingRatio, onPassStatusChange]);
 
-  const nextMode = () =>
-    setModeIndex((m) => Math.min(m + 1, modes.length - 1));
+  const nextMode = () => setModeIndex((m) => Math.min(m + 1, modes.length - 1));
 
   const preparePushQuestion = () => {
     const newValue = Math.floor(Math.random() * 90) + 10;
@@ -180,15 +179,19 @@ const StackQueueAssessment = ({
     if (question.type === "push") {
       correct = droppedIndex === question.answerIndex;
       markScore(correct);
-      showFeedback(correct, `Element ${stack[droppedIndex]} is current top`, () => {
-        const newStack = [...stack, question.newValue];
-        setAnimState({ new: stack.length });
-        setTimeout(() => {
-          setStack(newStack);
-          setAnimState({});
-          nextMode();
-        }, 800);
-      });
+      showFeedback(
+        correct,
+        `Element ${stack[droppedIndex]} is current top`,
+        () => {
+          const newStack = [...stack, question.newValue];
+          setAnimState({ new: stack.length });
+          setTimeout(() => {
+            setStack(newStack);
+            setAnimState({});
+            nextMode();
+          }, 800);
+        }
+      );
     } else if (question.type === "pop") {
       correct = droppedIndex === question.answerIndex;
       markScore(correct);
@@ -217,10 +220,14 @@ const StackQueueAssessment = ({
     } else if (question.type === "lifo") {
       correct = droppedIndex === question.answerIndex;
       markScore(correct);
-      showFeedback(correct, `${stack[droppedIndex]} was added last (LIFO)`, () => {
-        resetBoxPosition(droppedIndex);
-        nextMode();
-      });
+      showFeedback(
+        correct,
+        `${stack[droppedIndex]} was added last (LIFO)`,
+        () => {
+          resetBoxPosition(droppedIndex);
+          nextMode();
+        }
+      );
     }
 
     setDraggedBox(null);
@@ -247,7 +254,7 @@ const StackQueueAssessment = ({
 
   return (
     <div
-      className="w-full h-[500px]"
+      className="w-full h-[450px]"
       style={{
         WebkitTouchCallout: "none",
         WebkitUserSelect: "none",
@@ -268,15 +275,17 @@ const StackQueueAssessment = ({
         <pointLight position={[-5, 5, 5]} intensity={0.3} />
 
         {/* Ground Plane */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.5, 0]} receiveShadow>
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, -1.5, 0]}
+          receiveShadow
+        >
           <planeGeometry args={[24, 14]} />
           <meshStandardMaterial color="#1e293b" transparent opacity={0.5} />
         </mesh>
 
         {/* ========== INTRO SCREEN ========== */}
-        {mode === "intro" && (
-          <IntroScreen onStart={handleStartClick} />
-        )}
+        {mode === "intro" && <IntroScreen onStart={handleStartClick} />}
 
         {/* ========== ASSESSMENT MODE ========== */}
         {mode !== "intro" && mode !== "done" && (
@@ -317,8 +326,8 @@ const StackQueueAssessment = ({
               />
             </group>
 
-            <StackBackground 
-              height={stack.length * spacing + 2} 
+            <StackBackground
+              height={stack.length * spacing + 2}
               position={[-4, 0, 0]}
             />
 
@@ -427,7 +436,11 @@ const StackQueueAssessment = ({
               color="#facc15"
             />
             <FadeText
-              text={isPassed ? "You passed this assessment!" : "You did not reach the passing score."}
+              text={
+                isPassed
+                  ? "You passed this assessment!"
+                  : "You did not reach the passing score."
+              }
               position={[0, 2.2, 0]}
               fontSize={0.3}
               color="white"
@@ -517,7 +530,8 @@ const IntroScreen = ({ onStart }) => {
           maxWidth={8}
           textAlign="center"
         >
-          Last In, First Out — the last element added is the first to be removed.
+          Last In, First Out — the last element added is the first to be
+          removed.
         </Text>
       </group>
 
@@ -527,7 +541,13 @@ const IntroScreen = ({ onStart }) => {
           <boxGeometry args={[2.2, 0.55, 0.9]} />
           <meshStandardMaterial color="#34d399" />
         </mesh>
-        <Text position={[0, 0, 0.46]} fontSize={0.25} color="white" anchorX="center" anchorY="middle">
+        <Text
+          position={[0, 0, 0.46]}
+          fontSize={0.25}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
           10
         </Text>
 
@@ -535,7 +555,13 @@ const IntroScreen = ({ onStart }) => {
           <boxGeometry args={[2.2, 0.55, 0.9]} />
           <meshStandardMaterial color="#34d399" />
         </mesh>
-        <Text position={[0, 0.65, 0.46]} fontSize={0.25} color="white" anchorX="center" anchorY="middle">
+        <Text
+          position={[0, 0.65, 0.46]}
+          fontSize={0.25}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
           20
         </Text>
 
@@ -543,7 +569,13 @@ const IntroScreen = ({ onStart }) => {
           <boxGeometry args={[2.2, 0.55, 0.9]} />
           <meshStandardMaterial color="#34d399" />
         </mesh>
-        <Text position={[0, 1.3, 0.46]} fontSize={0.25} color="white" anchorX="center" anchorY="middle">
+        <Text
+          position={[0, 1.3, 0.46]}
+          fontSize={0.25}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
           30
         </Text>
 
@@ -551,7 +583,13 @@ const IntroScreen = ({ onStart }) => {
           <boxGeometry args={[2.2, 0.55, 0.9]} />
           <meshStandardMaterial color="#60a5fa" />
         </mesh>
-        <Text position={[0, 1.95, 0.46]} fontSize={0.25} color="white" anchorX="center" anchorY="middle">
+        <Text
+          position={[0, 1.95, 0.46]}
+          fontSize={0.25}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
           40
         </Text>
 
@@ -609,7 +647,9 @@ const StackBackground = ({ height, position = [0, 0, 0] }) => {
   const edges = useMemo(() => new THREE.EdgesGeometry(geometry), [geometry]);
 
   return (
-    <group position={[position[0], height / 2 - 1 + position[1], position[2] - 0.6]}>
+    <group
+      position={[position[0], height / 2 - 1 + position[1], position[2] - 0.6]}
+    >
       <mesh geometry={geometry}>
         <meshBasicMaterial color="#1e293b" opacity={0.4} transparent />
       </mesh>
@@ -660,7 +700,9 @@ const AnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
       >
         <boxGeometry args={[3, 2.2, 0.3]} />
         <meshStandardMaterial
-          color={hovered && isActive ? "#22c55e" : isActive ? "#f97316" : "#475569"}
+          color={
+            hovered && isActive ? "#22c55e" : isActive ? "#f97316" : "#475569"
+          }
           transparent
           opacity={isActive ? 0.9 : 0.5}
           emissive={isActive ? "#f97316" : "#000000"}
@@ -778,7 +820,13 @@ const DraggableStackBox = ({
         );
       }
 
-      const targetScale = isDragging ? 1.15 : isHolding ? 1.08 : isHovered ? 1.03 : 1;
+      const targetScale = isDragging
+        ? 1.15
+        : isHolding
+        ? 1.08
+        : isHovered
+        ? 1.03
+        : 1;
       groupRef.current.scale.lerp(
         new THREE.Vector3(targetScale, targetScale, targetScale),
         0.1
@@ -940,7 +988,10 @@ const DraggableStackBox = ({
       )}
 
       {isDragging && (
-        <mesh position={[0, -position[1] - 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh
+          position={[0, -position[1] - 0.5, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
           <circleGeometry args={[1, 32]} />
           <meshBasicMaterial color="black" transparent opacity={0.3} />
         </mesh>
@@ -962,7 +1013,15 @@ const DraggableStackBox = ({
               : "#000000"
           }
           emissiveIntensity={
-            isDragging ? 0.5 : isHolding ? 0.4 : isHighlighted ? 0.6 : selected ? 0.4 : 0
+            isDragging
+              ? 0.5
+              : isHolding
+              ? 0.4
+              : isHighlighted
+              ? 0.6
+              : selected
+              ? 0.4
+              : 0
           }
           metalness={0.1}
           roughness={0.5}
@@ -973,14 +1032,18 @@ const DraggableStackBox = ({
 
       {isDragging && (
         <mesh position={[0, boxHeight / 2, 0]}>
-          <boxGeometry args={[boxWidth + 0.1, boxHeight + 0.1, boxDepth + 0.1]} />
+          <boxGeometry
+            args={[boxWidth + 0.1, boxHeight + 0.1, boxDepth + 0.1]}
+          />
           <meshBasicMaterial color="#ffffff" wireframe />
         </mesh>
       )}
 
       {isHolding && !isDragging && (
         <mesh position={[0, boxHeight / 2, 0]}>
-          <boxGeometry args={[boxWidth + 0.08, boxHeight + 0.08, boxDepth + 0.08]} />
+          <boxGeometry
+            args={[boxWidth + 0.08, boxHeight + 0.08, boxDepth + 0.08]}
+          />
           <meshBasicMaterial color="#f97316" wireframe />
         </mesh>
       )}
@@ -1007,12 +1070,7 @@ const DraggableStackBox = ({
 
       {isTop && !isDragging && (
         <group position={[boxWidth / 2 + 0.6, boxHeight / 2, 0]}>
-          <Text
-            fontSize={0.25}
-            color="#fde68a"
-            anchorX="left"
-            anchorY="middle"
-          >
+          <Text fontSize={0.25} color="#fde68a" anchorX="left" anchorY="middle">
             ← TOP
           </Text>
         </group>

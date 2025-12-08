@@ -10,7 +10,7 @@ const ArrayAssessment = ({
   initialData = DEFAULT_DATA,
   spacing = 2.0,
   passingRatio = 0.75, // NEW: generic passing rule
-  onPassStatusChange,   // NEW: to inform parent (Array.jsx)
+  onPassStatusChange, // NEW: to inform parent (Array.jsx)
 }) => {
   const modes = ["intro", "access", "search", "insert", "delete", "done"];
   const [modeIndex, setModeIndex] = useState(0);
@@ -89,8 +89,7 @@ const ArrayAssessment = ({
     }
   }, [mode, score, totalAssessments, passingRatio, onPassStatusChange]);
 
-  const nextMode = () =>
-    setModeIndex((m) => Math.min(m + 1, modes.length - 1));
+  const nextMode = () => setModeIndex((m) => Math.min(m + 1, modes.length - 1));
 
   // --- Question generators ---
   const prepareAccessQuestion = () => {
@@ -208,7 +207,7 @@ const ArrayAssessment = ({
 
   // --- Render ---
   return (
-    <div className="w-full h-[300px]">
+    <div className="w-full h-[450px]">
       <Canvas camera={{ position: [0, 4, 12], fov: 50 }}>
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={0.8} />
