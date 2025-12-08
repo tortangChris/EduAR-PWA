@@ -528,7 +528,7 @@ const LessonOverlay = ({
 
 /* ========= MAIN COMPONENT ========= */
 
-const ObjectDection = ({ selectedDSA = "none" }) => {
+const ObjectDection = ({ selectedDSA = "none", onModuleComplete }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -1111,43 +1111,58 @@ const ObjectDection = ({ selectedDSA = "none" }) => {
   // handler for lesson "Next" button
   const handleNextLessonStep = () => {
     switch (lessonStep) {
+      // ===== ARRAY =====
       case "array_intro":
         setTaskMessage("");
         setLessonStep("array_task_1");
         break;
+
       case "array_task_1_done":
         setLessonStep(null);
         setTaskMessage("");
+        if (onModuleComplete) onModuleComplete("Array");
         break;
 
+      // ===== QUEUE =====
       case "queue_intro":
         setLessonStep("queue_task_1");
         break;
+
       case "queue_task_1":
         setLessonStep("queue_task_1_done");
         break;
+
       case "queue_task_1_done":
         setLessonStep(null);
+        if (onModuleComplete) onModuleComplete("Queue");
         break;
 
+      // ===== STACK =====
       case "stack_intro":
         setLessonStep("stack_task_1");
         break;
+
       case "stack_task_1":
         setLessonStep("stack_task_1_done");
         break;
+
       case "stack_task_1_done":
         setLessonStep(null);
+        if (onModuleComplete) onModuleComplete("Stack");
         break;
 
+      // ===== LINKED LIST =====
       case "list_intro":
         setLessonStep("list_task_1");
         break;
+
       case "list_task_1":
         setLessonStep("list_task_1_done");
         break;
+
       case "list_task_1_done":
         setLessonStep(null);
+        if (onModuleComplete) onModuleComplete("Linked List");
         break;
 
       default:
