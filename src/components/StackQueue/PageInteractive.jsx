@@ -37,7 +37,7 @@ const PageInteractive = ({ onAssessmentPassStatusChange }) => {
 
       {/* If activeView === "assessment", show Assessment component */}
       {activeView === "assessment" && (
-        <div className="w-full h-[300px] bg-gray-900 rounded-xl flex items-center justify-center relative">
+        <div className="w-full h-[450px] bg-gray-900 rounded-xl flex items-center justify-center relative">
           <StackQueueAssessment
             passingRatio={0.75} // generic passing rule
             onPassStatusChange={onAssessmentPassStatusChange} // inform parent (Arrays)

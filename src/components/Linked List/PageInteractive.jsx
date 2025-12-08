@@ -3,16 +3,14 @@ import Assessment from "./Assessment";
 import ARButtonAssessment from "./ARButtonAssessement";
 
 const PageInteractive = ({ onAssessmentPassStatusChange }) => {
-  const [activeView, setActiveView] = useState(null); 
+  const [activeView, setActiveView] = useState(null);
   // null = default buttons screen
 
   return (
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(82vh-6.5rem)] overflow-y-auto p-6 text-left flex flex-col items-center">
-
       {/* If nothing is selected, show the two buttons */}
       {!activeView && (
         <div className="space-y-6 flex flex-col items-center">
-
           {/* TOP BUTTON → Assessment */}
           <button
             onClick={() => setActiveView("assessment")}
@@ -34,13 +32,12 @@ const PageInteractive = ({ onAssessmentPassStatusChange }) => {
               Real-Objects AR Assessment
             </span>
           </button>
-
         </div>
       )}
 
       {/* If activeView === "assessment", show Assessment component */}
       {activeView === "assessment" && (
-        <div className="w-full h-[300px] bg-gray-900 rounded-xl flex items-center justify-center relative">
+        <div className="w-full h-[450px] bg-gray-900 rounded-xl flex items-center justify-center relative">
           <Assessment
             passingRatio={0.75} // generic passing rule
             onPassStatusChange={onAssessmentPassStatusChange} // inform parent (Arrays)
@@ -68,7 +65,6 @@ const PageInteractive = ({ onAssessmentPassStatusChange }) => {
           </button>
         </div>
       )}
-
     </div>
   );
 };
