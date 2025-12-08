@@ -8,6 +8,7 @@ import {
 } from "@react-three/xr";
 import * as THREE from "three";
 
+// Create XR Store for AR
 const xrStore = createXRStore({
   depthSensing: true,
   optionalFeatures: ['hit-test', 'dom-overlay', 'light-estimation']
@@ -17,7 +18,7 @@ const DEFAULT_STACK = [10, 20, 30, 40];
 
 const StackQueueAssessmentAR = ({
   initialData = DEFAULT_STACK,
-  spacing = 1.2,
+  spacing = 1.0,
   passingRatio = 0.75,
   onPassStatusChange,
   onBack,
@@ -25,6 +26,7 @@ const StackQueueAssessmentAR = ({
   const [isARSupported, setIsARSupported] = useState(false);
   const [arStarted, setArStarted] = useState(false);
 
+  // Check AR support
   useEffect(() => {
     const checkAR = async () => {
       if (navigator.xr) {
@@ -47,8 +49,10 @@ const StackQueueAssessmentAR = ({
 
   return (
     <div className="w-full h-screen relative">
+      {/* ========== AR START SCREEN ========== */}
       {!arStarted && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 to-slate-800 z-10">
+          {/* Back Button */}
           {onBack && (
             <button
               onClick={onBack}
@@ -93,6 +97,7 @@ const StackQueueAssessmentAR = ({
         </div>
       )}
 
+      {/* ========== AR CANVAS ========== */}
       <Canvas
         style={{ 
           position: 'absolute',
@@ -116,6 +121,7 @@ const StackQueueAssessmentAR = ({
         </XR>
       </Canvas>
 
+      {/* ========== EXIT AR BUTTON ========== */}
       {arStarted && (
         <button
           onClick={() => {
@@ -131,6 +137,7 @@ const StackQueueAssessmentAR = ({
   );
 };
 
+// ========== AR SCENE ==========
 const ARScene = ({
   initialData,
   spacing,
@@ -156,12 +163,14 @@ const ARScene = ({
   const [holdingBox, setHoldingBox] = useState(null);
   const [boxPositions, setBoxPositions] = useState([]);
   
+  // AR Placement - 8 units away
   const [arPlaced, setArPlaced] = useState(false);
   const [arPosition, setArPosition] = useState([0, 0, -8]);
 
-  const boxSize = [1.2, 0.8, 0.8];
+  // Box size - same as LinkedList
+  const boxSize = [1.2, 0.9, 0.8];
 
-  // Stack positions - vertical (Y axis)
+  // Stack positions - vertical layout
   const originalPositions = useMemo(() => {
     return stack.map((_, i) => [0, i * spacing, 0]);
   }, [stack, spacing]);
@@ -205,7 +214,7 @@ const ARScene = ({
   const preparePushQuestion = () => {
     const newValue = Math.floor(Math.random() * 90) + 10;
     setQuestion({
-      prompt: `PUSH ${newValue}: Which element is currently at TOP? (Push — O(1))`,
+      prompt: `PUSH ${newValue}: Drag the current TOP element. (Push — O(1))`,
       newValue,
       answerIndex: stack.length - 1,
       type: "push",
@@ -215,7 +224,7 @@ const ARScene = ({
   const preparePopQuestion = () => {
     const topIndex = stack.length - 1;
     setQuestion({
-      prompt: `POP: Which element will be REMOVED? (Pop — O(1))`,
+      prompt: `POP: Drag the element that will be REMOVED. (Pop — O(1))`,
       answerIndex: topIndex,
       type: "pop",
     });
@@ -224,7 +233,7 @@ const ARScene = ({
   const preparePeekQuestion = () => {
     const topIndex = stack.length - 1;
     setQuestion({
-      prompt: `PEEK: Which element is at TOP? (Peek — O(1))`,
+      prompt: `PEEK: Drag the TOP element to answer zone. (Peek — O(1))`,
       answerIndex: topIndex,
       type: "peek",
     });
@@ -233,7 +242,7 @@ const ARScene = ({
   const prepareLIFOQuestion = () => {
     const topIndex = stack.length - 1;
     setQuestion({
-      prompt: `LIFO: Which element was added LAST?`,
+      prompt: `LIFO: Drag the element that was added LAST.`,
       answerIndex: topIndex,
       type: "lifo",
     });
@@ -286,7 +295,7 @@ const ARScene = ({
     if (question.type === "push") {
       correct = droppedIndex === question.answerIndex;
       markScore(correct);
-      showFeedback(correct, `Value ${stack[droppedIndex]} is current TOP`, () => {
+      showFeedback(correct, `Value ${stack[droppedIndex]}`, () => {
         const newStack = [...stack, question.newValue];
         setAnimState({ new: stack.length });
         setTimeout(() => {
@@ -357,19 +366,24 @@ const ARScene = ({
 
   return (
     <>
+      {/* Lighting */}
       <ambientLight intensity={0.8} />
       <directionalLight position={[5, 10, 5]} intensity={1} />
       <pointLight position={[-5, 5, 5]} intensity={0.5} />
 
+      {/* AR Origin */}
       <XROrigin position={[0, 0, 0]} />
 
+      {/* Hit Test for placing content */}
       {!arPlaced && arStarted && (
         <ARHitTest onPlace={handlePlaceAR} />
       )}
 
+      {/* Main Content Group */}
       <group position={arPosition}>
+        {/* UI Panel */}
         <ARUIPanel
-          position={[0, stackHeight + 1.5, 0]}
+          position={[0, stackHeight + 2, 0]}
           mode={mode}
           modeIndex={modeIndex}
           question={question}
@@ -381,7 +395,7 @@ const ARScene = ({
         {/* Progress indicator */}
         {mode !== "intro" && mode !== "done" && (
           <Text
-            position={[0, stackHeight + 0.5, 0]}
+            position={[0, stackHeight + 1, 0]}
             fontSize={0.12}
             color="#fdba74"
             anchorX="center"
@@ -400,15 +414,15 @@ const ARScene = ({
           />
         </mesh>
 
-        {/* Stack Base */}
+        {/* Stack Base - BOTTOM */}
         {mode !== "intro" && mode !== "done" && (
-          <group position={[0, -0.2, 0]}>
+          <group position={[0, -0.15, 0]}>
             <mesh>
-              <boxGeometry args={[boxSize[0] + 0.4, 0.15, boxSize[2] + 0.4]} />
+              <boxGeometry args={[boxSize[0] + 0.3, 0.12, boxSize[2] + 0.3]} />
               <meshStandardMaterial color="#475569" />
             </mesh>
             <Text
-              position={[0, 0.15, boxSize[2] / 2 + 0.3]}
+              position={[0, -0.2, 0]}
               fontSize={0.15}
               color="#94a3b8"
               anchorX="center"
@@ -420,33 +434,33 @@ const ARScene = ({
 
         {/* LIFO Indicator */}
         {mode !== "intro" && mode !== "done" && (
-          <group position={[-boxSize[0] / 2 - 1, stackHeight / 2, 0]}>
-            <Text fontSize={0.25} color="#a78bfa" anchorX="center">
+          <group position={[-boxSize[0] - 0.8, stackHeight / 2, 0]}>
+            <Text fontSize={0.2} color="#a78bfa" anchorX="center">
               LIFO
             </Text>
             <Text
-              position={[0, -0.35, 0]}
-              fontSize={0.12}
+              position={[0, -0.3, 0]}
+              fontSize={0.1}
               color="#c4b5fd"
               anchorX="center"
             >
               Last In
             </Text>
             <Text
-              position={[0, -0.55, 0]}
-              fontSize={0.12}
+              position={[0, -0.5, 0]}
+              fontSize={0.1}
               color="#c4b5fd"
               anchorX="center"
             >
               First Out
             </Text>
             {/* Up arrow */}
-            <mesh position={[0, 0.5, 0]}>
-              <coneGeometry args={[0.1, 0.25, 8]} />
+            <mesh position={[0, 0.4, 0]}>
+              <coneGeometry args={[0.08, 0.2, 8]} />
               <meshBasicMaterial color="#a78bfa" />
             </mesh>
-            <mesh position={[0, 0.25, 0]}>
-              <boxGeometry args={[0.05, 0.3, 0.05]} />
+            <mesh position={[0, 0.2, 0]}>
+              <boxGeometry args={[0.04, 0.25, 0.04]} />
               <meshBasicMaterial color="#a78bfa" />
             </mesh>
           </group>
@@ -455,13 +469,14 @@ const ARScene = ({
         {/* Answer Drop Zone */}
         {mode !== "intro" && mode !== "done" && (
           <ARAnswerDropZone
-            position={[boxSize[0] + 1.5, stackHeight / 2, 0]}
+            position={[0, 0, 2.5]}
             isActive={draggedBox !== null}
             draggedBox={draggedBox}
             onDrop={handleDropOnAnswer}
           />
         )}
 
+        {/* Content based on mode */}
         {mode === "intro" ? (
           <ARStartBox 
             position={[0, 0.5, 0]} 
@@ -489,7 +504,7 @@ const ARScene = ({
               const isHighlighted = animState[i] === "highlight";
 
               return (
-                <ARDraggableStackBox
+                <ARDraggableBox
                   key={i}
                   index={i}
                   value={value}
@@ -518,20 +533,23 @@ const ARScene = ({
           </>
         )}
 
+        {/* Feedback */}
         {feedback && (
           <ARFeedback
             text={feedback.text}
             correct={feedback.correct}
-            position={[0, stackHeight + 0.8, 1]}
+            position={[0, 1.5, 2.5]}
           />
         )}
       </group>
 
+      {/* Fallback camera for non-AR */}
       {!arStarted && <FallbackCamera />}
     </>
   );
 };
 
+// ========== AR HIT TEST ==========
 const ARHitTest = ({ onPlace }) => {
   const reticleRef = useRef();
   const [hitPosition, setHitPosition] = useState(null);
@@ -574,6 +592,7 @@ const ARHitTest = ({ onPlace }) => {
   );
 };
 
+// ========== AR UI PANEL ==========
 const ARUIPanel = ({ position, mode, modeIndex, question, score, totalAssessments, isPassed }) => {
   return (
     <group position={position}>
@@ -634,7 +653,8 @@ const ARUIPanel = ({ position, mode, modeIndex, question, score, totalAssessment
   );
 };
 
-const ARDraggableStackBox = ({
+// ========== AR DRAGGABLE BOX (Same as LinkedList) ==========
+const ARDraggableBox = ({
   index,
   value,
   position,
@@ -661,7 +681,7 @@ const ARDraggableStackBox = ({
   const holdStartTimeRef = useRef(null);
   const isPointerDownRef = useRef(false);
   const hasDraggedRef = useRef(false);
-  const dragPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0));
+  const dragPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const offset = useRef(new THREE.Vector3());
   const intersection = useRef(new THREE.Vector3());
 
@@ -679,24 +699,14 @@ const ARDraggableStackBox = ({
 
   useFrame(() => {
     if (groupRef.current) {
-      const targetY = isDragging ? position[1] + 0.5 : position[1];
-      const targetX = isDragging ? position[0] : position[0];
-      const targetZ = isDragging ? position[2] : position[2];
+      const targetY = isDragging ? 1.5 : isHolding ? 0.3 : 0;
 
       if (isDragging) {
-        groupRef.current.position.x = THREE.MathUtils.lerp(
-          groupRef.current.position.x,
-          targetX,
-          0.3
-        );
+        groupRef.current.position.x = position[0];
+        groupRef.current.position.z = position[2];
         groupRef.current.position.y = THREE.MathUtils.lerp(
           groupRef.current.position.y,
-          targetY,
-          0.3
-        );
-        groupRef.current.position.z = THREE.MathUtils.lerp(
-          groupRef.current.position.z,
-          targetZ,
+          position[1] + targetY,
           0.3
         );
       } else {
@@ -707,7 +717,7 @@ const ARDraggableStackBox = ({
         );
         groupRef.current.position.y = THREE.MathUtils.lerp(
           groupRef.current.position.y,
-          position[1] + (isHolding ? 0.2 : 0),
+          position[1] + targetY,
           0.15
         );
         groupRef.current.position.z = THREE.MathUtils.lerp(
@@ -717,7 +727,7 @@ const ARDraggableStackBox = ({
         );
       }
 
-      const targetScale = isDragging ? 1.2 : isHolding ? 1.1 : isHovered ? 1.05 : 1;
+      const targetScale = isDragging ? 1.3 : isHolding ? 1.15 : isHovered ? 1.08 : 1;
       groupRef.current.scale.lerp(
         new THREE.Vector3(targetScale, targetScale, targetScale),
         0.1
@@ -752,8 +762,8 @@ const ARDraggableStackBox = ({
 
     if (groupRef.current) {
       dragPlane.current.set(
-        new THREE.Vector3(0, 0, 1), 
-        -groupRef.current.position.z
+        new THREE.Vector3(0, 1, 0), 
+        -groupRef.current.position.y
       );
     }
 
@@ -789,8 +799,8 @@ const ARDraggableStackBox = ({
 
     const newPosition = [
       intersection.current.x - offset.current.x,
-      intersection.current.y - offset.current.y,
-      position[2],
+      originalPosition[1],
+      intersection.current.z - offset.current.z,
     ];
 
     onPositionChange(newPosition);
@@ -828,14 +838,14 @@ const ARDraggableStackBox = ({
     >
       {/* Hold Progress Ring */}
       {isHolding && !isDragging && (
-        <group position={[0, boxSize[1] / 2 + 0.6, 0]}>
+        <group position={[0, boxSize[1] + 0.8, 0]}>
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[0.2, 0.3, 32]} />
+            <ringGeometry args={[0.25, 0.35, 32]} />
             <meshBasicMaterial color="#374151" transparent opacity={0.5} />
           </mesh>
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry
-              args={[0.2, 0.3, 32, 1, 0, Math.PI * 2 * holdProgress]}
+              args={[0.25, 0.35, 32, 1, 0, Math.PI * 2 * holdProgress]}
             />
             <meshBasicMaterial color="#f97316" />
           </mesh>
@@ -844,9 +854,9 @@ const ARDraggableStackBox = ({
 
       {/* Shadow */}
       {isDragging && (
-        <mesh position={[0, -position[1] - 0.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[0, -1.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[0.6, 32]} />
-          <meshBasicMaterial color="black" transparent opacity={0.3} />
+          <meshBasicMaterial color="black" transparent opacity={0.4} />
         </mesh>
       )}
 
@@ -877,7 +887,7 @@ const ARDraggableStackBox = ({
 
       {/* Value label */}
       <Text
-        position={[0, boxSize[1] / 2, boxSize[2] / 2 + 0.01]}
+        position={[0, boxSize[1] / 2 + 0.1, boxSize[2] / 2 + 0.01]}
         fontSize={0.3}
         color="white"
         anchorX="center"
@@ -888,10 +898,10 @@ const ARDraggableStackBox = ({
 
       {/* Index label */}
       <Text
-        position={[-boxSize[0] / 2 - 0.2, boxSize[1] / 2, 0]}
-        fontSize={0.15}
+        position={[0, -0.15, boxSize[2] / 2 + 0.01]}
+        fontSize={0.18}
         color="yellow"
-        anchorX="right"
+        anchorX="center"
         anchorY="middle"
       >
         [{index}]
@@ -913,18 +923,19 @@ const ARDraggableStackBox = ({
       {/* Status label */}
       {(selected || isDragging) && !isHolding && (
         <Text
-          position={[0, boxSize[1] + 0.4, 0]}
-          fontSize={0.12}
+          position={[0, boxSize[1] + 1, 0]}
+          fontSize={0.15}
           color={isDragging ? "#fb923c" : "#fde68a"}
           anchorX="center"
         >
-          {isDragging ? "Drag to Answer Zone →" : `Value: ${value}`}
+          {isDragging ? "Drag to Answer Zone" : `Stack[${index}] = ${value}`}
         </Text>
       )}
     </group>
   );
 };
 
+// ========== AR ANSWER DROP ZONE (Same as LinkedList) ==========
 const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
   const [hovered, setHovered] = useState(false);
   const meshRef = useRef();
@@ -962,7 +973,7 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
         onPointerOut={() => setHovered(false)}
         onPointerUp={handlePointerUp}
       >
-        <boxGeometry args={[2, 2.5, 0.2]} />
+        <boxGeometry args={[3, 0.2, 1.8]} />
         <meshStandardMaterial
           color={hovered && isActive ? "#22c55e" : isActive ? "#f97316" : "#475569"}
           transparent
@@ -972,8 +983,8 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
         />
       </mesh>
 
-      <mesh position={[0, 0, 0.01]}>
-        <boxGeometry args={[2.1, 2.6, 0.22]} />
+      <mesh position={[0, 0.01, 0]}>
+        <boxGeometry args={[3.1, 0.22, 1.9]} />
         <meshBasicMaterial
           color={hovered && isActive ? "#22c55e" : "#fb923c"}
           wireframe
@@ -981,8 +992,8 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
       </mesh>
 
       <Text
-        position={[0, 0, 0.15]}
-        fontSize={0.18}
+        position={[0, 0.25, 0]}
+        fontSize={0.2}
         color={isActive ? "#22c55e" : "#94a3b8"}
         anchorX="center"
       >
@@ -990,9 +1001,9 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
       </Text>
 
       {isActive && (
-        <group position={[-0.8, 0, 0]}>
-          <mesh rotation={[0, 0, Math.PI / 2]}>
-            <coneGeometry args={[0.15, 0.3, 8]} />
+        <group position={[0, 0.8, 0]}>
+          <mesh rotation={[0, 0, Math.PI]}>
+            <coneGeometry args={[0.2, 0.4, 8]} />
             <meshBasicMaterial color="#22c55e" />
           </mesh>
         </group>
@@ -1001,6 +1012,7 @@ const ARAnswerDropZone = ({ position, isActive, draggedBox, onDrop }) => {
   );
 };
 
+// ========== AR START BOX ==========
 const ARStartBox = ({ position, onClick }) => {
   const [hovered, setHovered] = useState(false);
   const meshRef = useRef();
@@ -1038,11 +1050,12 @@ const ARStartBox = ({ position, onClick }) => {
   );
 };
 
+// ========== AR RESULT PANEL ==========
 const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
   const [hovered, setHovered] = useState(false);
 
   return (
-    <group position={[0, 1, 0]}>
+    <group position={[0, 0.5, 0]}>
       <Text
         position={[0, 1.2, 0]}
         fontSize={0.35}
@@ -1086,6 +1099,7 @@ const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
   );
 };
 
+// ========== AR FEEDBACK ==========
 const ARFeedback = ({ text, correct, position }) => {
   const groupRef = useRef();
 
@@ -1098,7 +1112,7 @@ const ARFeedback = ({ text, correct, position }) => {
   return (
     <group ref={groupRef} position={position} scale={[0, 0, 0]}>
       <mesh position={[0, 0, -0.05]}>
-        <planeGeometry args={[3.5, 0.6]} />
+        <planeGeometry args={[3, 0.6]} />
         <meshBasicMaterial
           color={correct ? "#065f46" : "#7f1d1d"}
           transparent
@@ -1107,7 +1121,7 @@ const ARFeedback = ({ text, correct, position }) => {
         />
       </mesh>
       <Text
-        fontSize={0.18}
+        fontSize={0.2}
         color={correct ? "#34d399" : "#f87171"}
         anchorX="center"
       >
@@ -1117,6 +1131,7 @@ const ARFeedback = ({ text, correct, position }) => {
   );
 };
 
+// ========== FALLBACK CAMERA ==========
 const FallbackCamera = () => {
   const { camera } = useThree();
   
