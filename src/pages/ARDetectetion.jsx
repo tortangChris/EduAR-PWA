@@ -12,7 +12,7 @@ import {
   saveDSAProgress,
   finishDSAMode,
   isDSAModeUnlocked,
-} from "../utils/dsaModeProgress"; // 🔁 adjust path kung iba
+} from "../services/dsaModeProgress"; // adjust path if needed
 
 const ARDetection = () => {
   // 🔹 Progress per DSA mode (Array, Queue, Stack, Linked List, Auto)
@@ -100,11 +100,13 @@ const ARDetection = () => {
                   disabled={!unlocked}
                   className={[
                     "px-3 py-1 rounded-full border text-[0.7rem] transition-colors",
+                    // base styles
                     unlocked
-                      ? "bg-slate-900/60 text-gray-100 border-slate-600 hover:bg-slate-800"
+                      ? "bg-slate-900/20 text-gray-100 border-slate-600 hover:bg-slate-800"
                       : "bg-slate-900/40 text-gray-500 border-slate-700 cursor-not-allowed opacity-60",
+                    // active styles (mas kita, light text)
                     active &&
-                      "bg-emerald-400 text-slate-900 border-emerald-400",
+                      "bg-emerald-400/80 border-emerald-300 text-slate-200 ring-1 ring-emerald-300/40 scale-[1.03] shadow-sm",
                   ].join(" ")}
                 >
                   {m.label}
@@ -113,11 +115,6 @@ const ARDetection = () => {
               );
             })}
           </div>
-        </div>
-
-        {/* Optional: maliit na text to see progress / debug */}
-        <div className="text-[11px] text-gray-400">
-          Progress: {modules.map((m) => `${m.name}:${m.progress}%`).join(" · ")}
         </div>
 
         {/* CAMERA CONTAINER */}
