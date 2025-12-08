@@ -16,6 +16,9 @@ const ProgressCard = () => {
   const [arPercent, setArPercent] = useState(0);
   const [completedDSAModes, setCompletedDSAModes] = useState(0);
 
+  // 🆕 overall percent (Modules + AR combined)
+  const [overallPercent, setOverallPercent] = useState(0);
+
   const navigate = useNavigate();
 
   const totalModules = modulesConfig.length;
@@ -47,26 +50,40 @@ const ProgressCard = () => {
 
     setArPercent(Math.round(averageDsaProgress));
     setCompletedDSAModes(finishedDSA);
+
+    // 🆕 OVERALL PROGRESS = combine modules + AR
+    // Simple equal-weight average; pwede mo palitan to 70/30, etc.
+    let overall = 0;
+
+    if (totalModules > 0 && totalDSAModes > 0) {
+      overall = (averageProgress + averageDsaProgress) / 2;
+    } else if (totalModules > 0) {
+      overall = averageProgress;
+    } else if (totalDSAModes > 0) {
+      overall = averageDsaProgress;
+    }
+
+    setOverallPercent(Math.round(overall));
   }, []);
 
   return (
     <div className="bg-base-200 p-5 rounded-2xl shadow-lg">
-      {/* HEADER: TWO RADIAL PROGRESS (Modules + AR Detect) */}
+      {/* HEADER: TWO RADIAL PROGRESS (Overall) */}
       <div className="flex flex-wrap items-center justify-between gap-6">
-        {/* Modules radial */}
+        {/* Overall radial (Modules + AR) */}
         <div className="flex items-center gap-4">
           <div
             className="radial-progress text-primary shadow-lg shadow-primary/40"
             style={{
-              "--value": modulePercent,
+              "--value": overallPercent, // 🆕 overall percent dito
               "--size": "5rem",
               "--thickness": "6px",
             }}
             role="progressbar"
           >
             <div className="flex flex-col items-center">
-              <span className="text-xl font-bold">{modulePercent}%</span>
-              <span className="text-xs text-gray-400">Modules</span>
+              <span className="text-xl font-bold">{overallPercent}%</span>
+              <span className="text-xs text-gray-400">Overall</span>
             </div>
           </div>
 
@@ -97,7 +114,7 @@ const ProgressCard = () => {
 
         {/* Assessment (can still mirror modules for now) */}
         <div className="flex flex-col items-center hover:scale-105 transition-transform">
-          <CircleCheck className="w-7 h-7 text-primary mb-1" />
+          <CircleCheck className="w-7 h-7 text-secondary mb-1" />
           <span>Assessment</span>
           <span className="text-xs text-gray-500">
             {completedModules} / {totalModules}
@@ -107,9 +124,9 @@ const ProgressCard = () => {
         {/* AR Detect – DSA AR modes + ScanIcon */}
         <div
           className="flex flex-col items-center hover:scale-105 transition-transform cursor-pointer"
-          onClick={() => navigate("/arDetection")} // 🔁 adjust route if needed
+          onClick={() => navigate("/arDetection")}
         >
-          <ScanIcon className="w-7 h-7 text-secondary mb-1" />
+          <ScanIcon className="w-7 h-7 text-primary mb-1" />
           <span>AR Detect</span>
           <span className="text-xs text-gray-500">
             {completedDSAModes} / {totalDSAModes}
