@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import StackQueueAssessment from "./StackQueueAssessment";
-import ARButtonAssessment from "./ARButtonAssessement";
+import ARButtonAssessement from "./ARButtonAssessement";
 
 const PageInteractive = ({ onAssessmentPassStatusChange }) => {
   const [activeView, setActiveView] = useState(null);
