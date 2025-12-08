@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Lock, Unlock } from "lucide-react";
-import StackQueueAssessmentAr from "./StackQueueAssessmentAr";
+import StackQueueAssessmentAR from "./StackQueueAssessmentAR";
 
 const ARButtonAssessment = () => {
   const [isSupported, setIsSupported] = useState(null);
@@ -26,7 +26,7 @@ const ARButtonAssessment = () => {
 
   // kung nag-start na si AR → render ARPage1
   if (startAR) {
-    return <StackQueueAssessmentAr />;
+    return <StackQueueAssessmentAR />;
   }
 
   if (isSupported === null) {
