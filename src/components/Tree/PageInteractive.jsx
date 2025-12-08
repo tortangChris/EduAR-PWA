@@ -1,6 +1,6 @@
 import React, { useState } from "react";
+import ARButtonAssessment from "./ARButtonAssessement";
 import Assessment from "./Assessment";
-// import ARButtonAssessment from "./ARButtonAssessement";
 
 const PageInteractive = ({ onAssessmentPassStatusChange }) => {
   const [activeView, setActiveView] = useState(null);
@@ -43,18 +43,12 @@ const PageInteractive = ({ onAssessmentPassStatusChange }) => {
             onPassStatusChange={onAssessmentPassStatusChange} // inform parent (Arrays)
           />
 
-          {activeView === "real" && (
-            <div className="w-full h-[300px] rounded-xl flex items-center justify-center relative">
-              <ARButtonAssessment />
-
-              <button
-                onClick={() => setActiveView(null)}
-                className="absolute top-3 right-3 bg-white px-3 py-1 rounded-md text-black text-sm shadow"
-              >
-                Back
-              </button>
-            </div>
-          )}
+          <button
+            onClick={() => setActiveView(null)}
+            className="absolute top-3 right-3 bg-gray-600 px-3 py-1 rounded-md text-black text-sm shadow"
+          >
+            Back
+          </button>
         </div>
       )}
 
