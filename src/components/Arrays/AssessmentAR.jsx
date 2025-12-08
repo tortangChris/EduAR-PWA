@@ -1,801 +1,1104 @@
-// ../components/ObjectDetection.jsx
-import React, { useRef, useEffect, useState } from "react";
+import React, { useMemo, useState, useEffect, useRef, Suspense } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Text } from "@react-three/drei";
+import { XR, createXRStore, XROrigin } from "@react-three/xr";
+import * as THREE from "three";
 
-// ✅ CLASSES for "Array" mode
-const ARRAY_CLASSES = ["laptop", "book", "chair", "bottle", "cell phone"];
+// Create XR Store for AR
+const xrStore = createXRStore({
+  depthSensing: true,
+  optionalFeatures: ["hit-test", "dom-overlay", "light-estimation"],
+});
 
-// ✅ CLASSES usable as Linked List "nodes"
-const LINKED_LIST_CLASSES = ["cup", "train"]; // 👈 add/remove classes here
+const DEFAULT_DATA = [10, 20, 30, 40, 50];
 
-const getLinkedListNodes = (predictions) =>
-  predictions.filter(
-    (p) => LINKED_LIST_CLASSES.includes(p.class) && p.score > 0.4
-  );
+const AssessmentAR = ({
+  initialData = DEFAULT_DATA,
+  spacing = 1.5,
+  passingRatio = 0.75,
+  onPassStatusChange,
+  onBack,
+}) => {
+  const [isARSupported, setIsARSupported] = useState(false);
+  const [arStarted, setArStarted] = useState(false);
 
-/**
- * Simple heuristic para i-approx kung front view yung object.
- * Ginagamit lang yung aspect ratio ng bounding box.
- * (di perfect pero enough na pang demo / filtering ng sobrang side view)
- */
-
-// HEllo world
-const isFrontView = (pred) => {
-  const [x, y, w, h] = pred.bbox;
-  if (w <= 0 || h <= 0) return false;
-  const aspect = w / h;
-
-  switch (pred.class) {
-    case "laptop":
-      // usually mas wide pag front (open) vs sobrang thin pag side
-      return aspect > 1.1 && aspect < 3.5;
-    case "book":
-    case "cell phone":
-      // i-allow both medyo vertical at medyo square, skip sobrang pahaba
-      return aspect > 0.35 && aspect < 1.8;
-    case "bottle":
-      // front bottle vs sobrang side → skip sobrang weird ratios
-      return aspect > 0.3 && aspect < 0.9;
-    case "chair":
-      return aspect > 0.6 && aspect < 2.0;
-    default:
-      return true;
-  }
-};
-
-/**
- * Side-view / naka-pila candidate para sa Queue:
- * - person: tall & skinny (side view) at halos buong katawan (height vs frame)
- * - book / cell phone: hindi front view (so side / nakatagilid) at di sobrang liit
- *
- * NOTE:
- *  - Person → may whole-body filter (para walang face/hand boxes).
- *  - Book/phone → mas relaxed, para kahit maliit pero malinaw na side view,
- *    puwedeng isama sa queue.
- */
-const isSideViewQueueItem = (pred, frameWidth, frameHeight) => {
-  const [x, y, w, h] = pred.bbox;
-  if (w <= 0 || h <= 0) return false;
-
-  const aspect = w / h; // width / height
-
-  if (pred.class === "person") {
-    if (!frameWidth || !frameHeight) return false;
-    // 🔒 almost full body
-    const minHeight = frameHeight * 0.45; // ~45% ng frame height
-    const minWidth = frameWidth * 0.05; // ~5% ng frame width
-
-    if (h < minHeight || w < minWidth) return false;
-
-    // tall & skinny → side-view na tao
-    return aspect < 0.6 && aspect > 0.2;
-  }
-
-  if (pred.class === "book" || pred.class === "cell phone") {
-    // skip super tiny na noise
-    if (h < 40 || w < 20) return false;
-
-    // side-view book/phone → hindi pasado sa front-view rules
-    return !isFrontView(pred);
-  }
-
-  return false;
-};
-
-/**
- * Unified array detection:
- * - filter by ARRAY_CLASSES
- * - score > 0.4
- * - front view only (via isFrontView)
- * - sort left-to-right para maging index[0..n]
- *
- * So:
- *  - front-view book/phone → Array
- *  - side-view book/phone → puwedeng Queue (via isSideViewQueueItem)
- */
-const getArrayObjects = (predictions) => {
-  return predictions
-    .filter(
-      (p) => ARRAY_CLASSES.includes(p.class) && p.score > 0.4 && isFrontView(p)
-    )
-    .sort((a, b) => a.bbox[0] - b.bbox[0]); // left → right
-};
-
-// --- OpenCV-based book stack detection (unchanged) ---
-const detectBookStacksFromEdges = (videoEl) => {
-  if (!window.cv || !videoEl.videoWidth || !videoEl.videoHeight) return [];
-
-  const cv = window.cv;
-
-  const capCanvas = document.createElement("canvas");
-  capCanvas.width = videoEl.videoWidth;
-  capCanvas.height = videoEl.videoHeight;
-  const capCtx = capCanvas.getContext("2d");
-  capCtx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
-
-  const frame = cv.imread(capCanvas);
-  const gray = new cv.Mat();
-  const blur = new cv.Mat();
-  const edges = new cv.Mat();
-  const lines = new cv.Mat();
-
-  try {
-    cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
-    cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0, 0);
-    cv.Canny(blur, edges, 50, 150);
-
-    cv.HoughLinesP(edges, lines, 1, Math.PI / 180, 80, 50, 10);
-
-    const verticalLines = [];
-
-    for (let i = 0; i < lines.rows; i++) {
-      const x1 = lines.data32S[i * 4 + 0];
-      const y1 = lines.data32S[i * 4 + 1];
-      const x2 = lines.data32S[i * 4 + 2];
-      const y2 = lines.data32S[i * 4 + 3];
-
-      const dx = Math.abs(x2 - x1);
-      const dy = Math.abs(y2 - y1);
-
-      if (dx < 15 && dy > 40) {
-        const cx = (x1 + x2) / 2;
-        const yTop = Math.min(y1, y2);
-        const yBottom = Math.max(y1, y2);
-        verticalLines.push({ x1, y1, x2, y2, x: cx, yTop, yBottom });
-      }
-    }
-
-    if (verticalLines.length < 2) {
-      return [];
-    }
-
-    verticalLines.sort((a, b) => a.x - b.x);
-
-    const stacks = [];
-    const distanceThreshold = 40;
-
-    verticalLines.forEach((line) => {
-      if (stacks.length === 0) {
-        stacks.push([line]);
-        return;
-      }
-
-      const lastStack = stacks[stacks.length - 1];
-      const lastLine = lastStack[lastStack.length - 1];
-
-      if (Math.abs(line.x - lastLine.x) <= distanceThreshold) {
-        lastStack.push(line);
-      } else {
-        stacks.push([line]);
-      }
-    });
-
-    stacks.forEach((stack) => {
-      stack.sort((a, b) => a.yTop - b.yTop);
-    });
-
-    return stacks;
-  } catch (e) {
-    console.error("OpenCV stack detection error:", e);
-    return [];
-  } finally {
-    frame.delete();
-    gray.delete();
-    blur.delete();
-    edges.delete();
-    lines.delete();
-  }
-};
-
-// Helper to draw arrow (linked list)
-const drawArrow = (ctx, x1, y1, x2, y2) => {
-  const headLen = 10;
-  const angle = Math.atan2(y2 - y1, x2 - x1);
-
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(x2, y2);
-  ctx.lineTo(
-    x2 - headLen * Math.cos(angle - Math.PI / 6),
-    y2 - headLen * Math.sin(angle - Math.PI / 6)
-  );
-  ctx.lineTo(
-    x2 - headLen * Math.cos(angle + Math.PI / 6),
-    y2 - headLen * Math.sin(angle + Math.PI / 6)
-  );
-  ctx.closePath();
-  ctx.fill();
-};
-
-const ObjectDection = ({ selectedDSA = "none" }) => {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-
-  const [status, setStatus] = useState("Loading model...");
-  const [arrayCount, setArrayCount] = useState(0);
-  const [bookCount, setBookCount] = useState(0);
-  const [queueCount, setQueueCount] = useState(0);
-  const [linkedListCount, setLinkedListCount] = useState(0);
-  const [debugLabels, setDebugLabels] = useState([]);
-  const [concept, setConcept] = useState("");
-  const [conceptDetail, setConceptDetail] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-
-  // 🔥 ref para sa kasalukuyang DSA mode (galing sa parent)
-  const selectedDSARef = useRef(selectedDSA);
+  // Check AR support
   useEffect(() => {
-    selectedDSARef.current = selectedDSA;
-  }, [selectedDSA]);
-
-  useEffect(() => {
-    let model = null;
-    let animationFrameId = null;
-    let lastDetection = 0;
-    const DETECT_INTERVAL = 200; // ms
-
-    const start = async () => {
-      try {
-        setIsLoading(true);
-        setStatus("Loading model...");
-
-        const [tf, cocoSsd] = await Promise.all([
-          import("@tensorflow/tfjs"),
-          import("@tensorflow-models/coco-ssd"),
-        ]);
-
-        if (tf && tf.ready) {
-          await tf.ready();
-        }
-
-        model = await cocoSsd.load();
-        setStatus("Model loaded ✔️ – starting camera...");
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-          audio: false,
-        });
-
-        if (!videoRef.current) return;
-
-        videoRef.current.srcObject = stream;
-
-        videoRef.current.onloadeddata = () => {
-          setStatus("Camera running...");
-          setIsLoading(false);
-          detectLoop();
-        };
-      } catch (err) {
-        console.error(err);
-        setStatus("❌ Error loading camera or model.");
-        setIsLoading(false);
+    const checkAR = async () => {
+      if (navigator.xr) {
+        const supported = await navigator.xr.isSessionSupported("immersive-ar");
+        setIsARSupported(supported);
       }
     };
-
-    const analyzeScene = (predictions, stacks) => {
-      const mode = selectedDSARef.current; // "none" | "Auto" | "Array" | "Stack" | "Queue" | "Linked List"
-
-      if (!mode || mode === "none") {
-        setConcept("");
-        setConceptDetail("");
-        return;
-      }
-
-      const video = videoRef.current;
-      const frameWidth = video?.videoWidth || 0;
-      const frameHeight = video?.videoHeight || 0;
-
-      const linkedNodes = getLinkedListNodes(predictions);
-      const books = predictions.filter(
-        (p) => p.class === "book" && p.score > 0.4
-      );
-
-      // 🔥 Queue candidates: person / book / cellphone na side-view / nakatagilid
-      const queueItems = predictions.filter(
-        (p) =>
-          (p.class === "person" ||
-            p.class === "book" ||
-            p.class === "cell phone") &&
-          p.score > 0.4 &&
-          isSideViewQueueItem(p, frameWidth, frameHeight)
-      );
-
-      const arrayLike = getArrayObjects(predictions);
-      const arrayLikeCount = arrayLike.length;
-      const bookCountLocal = books.length;
-      const queueCountLocal = queueItems.length;
-      const linkedListCountLocal = linkedNodes.length;
-
-      const tryQueue = () => {
-        if (queueCountLocal >= 2) {
-          const ys = queueItems.map((p) => p.bbox[1]);
-          const maxY = Math.max(...ys);
-          const minY = Math.min(...ys);
-
-          // halos magkakapantay sa Y → naka-pila sa isang linya
-          if (maxY - minY < 80) {
-            setConcept("Queue (FIFO)");
-            setConceptDetail(
-              `Detected ${queueCountLocal} side-view item(s) (person/book/cell phone) almost aligned horizontally → interpreted as a Queue.\n\n📚 How this teaches Queue (First In, First Out):\n• Each real object is one element in the queue.\n• The one at the front of the line will be served/removed first (dequeue).\n• New elements join at the back (enqueue).\n• This models real-world lines (canteen, printer jobs, task scheduling).`
-            );
-            return true;
-          }
-        }
-        return false;
-      };
-
-      const tryStack = () => {
-        if (bookCountLocal >= 1 && stacks && stacks.length >= 1) {
-          const stackCount = stacks.length;
-          setConcept("Stack (LIFO)");
-          setConceptDetail(
-            `Detected ${bookCountLocal} book(s) arranged into ${stackCount} vertical stack(s) based on their spines.\n\n📚 How this teaches Stack (Last In, First Out):\n• Each book is one element on the stack.\n• The last book you place on top will be the first one you can remove (POP).\n• Adding a new book on top is PUSH.\n• This models function call stacks and undo/redo operations in real programs.`
-          );
-          return true;
-        }
-        return false;
-      };
-
-      const tryLinkedList = () => {
-        const nodeCount = linkedListCountLocal;
-        if (nodeCount >= 3) {
-          const nodesSorted = [...linkedNodes].sort(
-            (a, b) => a.bbox[0] - b.bbox[0]
-          );
-          const ys = nodesSorted.map((c) => c.bbox[1]);
-          const maxY = Math.max(...ys);
-          const minY = Math.min(...ys);
-          const yRange = maxY - minY;
-
-          if (yRange < 80) {
-            const usedClasses = Array.from(
-              new Set(linkedNodes.map((n) => n.class))
-            ).join(", ");
-            setConcept("Linked List");
-            setConceptDetail(
-              `Detected ${nodeCount} node(s) (${usedClasses}) aligned in a row and connected with arrows → modeled as a Singly Linked List.\n\n📚 How this teaches Linked List:\n• Each real object is a node that stores data plus a "next" pointer.\n• The AR arrows represent the next pointer from one node to the next.\n• To insert in the middle, we only change a few arrows (pointers), we don't shift all objects.\n• This demonstrates the difference vs arrays: linked lists are good for frequent inserts/removals in the middle.`
-            );
-            return true;
-          }
-        }
-        return false;
-      };
-
-      const tryArray = () => {
-        if (arrayLikeCount >= 2) {
-          const indexMap = arrayLike
-            .map((obj, i) => `index[${i}] = ${obj.class}`)
-            .join(", ");
-
-          setConcept("Array – Index-Based Access");
-          setConceptDetail(
-            `Detected ${arrayLikeCount} front-view object(s) (laptop/book/chair/bottle/cell phone) arranged from left to right.\n\n📚 How this teaches Arrays:\n• Each real object becomes one array element A[i].\n• The green label "index[i]" under each object shows its exact position in the array.\n• To access A[k], we jump directly to the k-th object in this line instead of counting one-by-one.\n• This models constant-time (O(1)) random access: any index can be reached in a single step using its index.\n\nCurrent mapping in your AR scene:\n${indexMap}`
-          );
-          return true;
-        }
-        return false;
-      };
-
-      if (mode === "Auto") {
-        if (tryQueue()) return;
-        if (tryStack()) return;
-        if (tryLinkedList()) return;
-        if (tryArray()) return;
-        setConcept("");
-        setConceptDetail("");
-        return;
-      }
-
-      if (mode === "Queue") {
-        if (!tryQueue()) {
-          setConcept("");
-          setConceptDetail("");
-        }
-        return;
-      }
-
-      if (mode === "Stack") {
-        if (!tryStack()) {
-          setConcept("");
-          setConceptDetail("");
-        }
-        return;
-      }
-
-      if (mode === "Linked List") {
-        if (!tryLinkedList()) {
-          setConcept("");
-          setConceptDetail("");
-        }
-        return;
-      }
-
-      if (mode === "Array") {
-        if (!tryArray()) {
-          setConcept("");
-          setConceptDetail("");
-        }
-        return;
-      }
-
-      setConcept("");
-      setConceptDetail("");
-    };
-
-    const draw = (predictions, stacks) => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (!video || !canvas) return;
-
-      const ctx = canvas.getContext("2d");
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      const mode = selectedDSARef.current;
-      const frameWidth = canvas.width;
-      const frameHeight = canvas.height;
-
-      // ✅ Unified ARRAY OBJECTS (laptop, book, chair, bottle, cell phone)
-      const arrayObjects = getArrayObjects(predictions);
-      setArrayCount(arrayObjects.length);
-
-      if (arrayObjects.length > 0 && (mode === "Auto" || mode === "Array")) {
-        arrayObjects.forEach((p, index) => {
-          const [x, y, width, height] = p.bbox;
-
-          // box
-          ctx.strokeStyle = "#00ff00";
-          ctx.lineWidth = 4;
-          ctx.strokeRect(x, y, width, height);
-
-          // label sa baba ng box → index + class
-          const label = `index[${index}] ${p.class}`;
-          const labelHeight = 26;
-          const labelPaddingX = 8;
-
-          ctx.font = "16px Arial";
-          const textWidth = ctx.measureText(label).width;
-          const bgWidth = Math.max(textWidth + labelPaddingX * 2, width);
-
-          ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-          ctx.fillRect(x, y + height, bgWidth, labelHeight);
-
-          ctx.fillStyle = "#00ff00";
-          ctx.fillText(label, x + labelPaddingX, y + height + 18);
-        });
-      }
-
-      // QUEUE (side-view persons / books / cell phones)
-      const queueItems = predictions.filter(
-        (p) =>
-          (p.class === "person" ||
-            p.class === "book" ||
-            p.class === "cell phone") &&
-          p.score > 0.4 &&
-          isSideViewQueueItem(p, frameWidth, frameHeight)
-      );
-      setQueueCount(queueItems.length);
-
-      if (queueItems.length > 0 && (mode === "Auto" || mode === "Queue")) {
-        const queueSorted = [...queueItems].sort(
-          (a, b) => a.bbox[0] - b.bbox[0]
-        );
-
-        queueSorted.forEach((p, index) => {
-          const [x, y, width, height] = p.bbox;
-
-          ctx.strokeStyle = "#e5e7eb";
-          ctx.lineWidth = 3;
-          ctx.strokeRect(x, y, width, height);
-
-          // label: Q[index] + class (para kita kung tao / book / phone)
-          const label = `Q[${index}] ${p.class}`;
-          const labelHeight = 22;
-
-          ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
-          ctx.fillRect(x, y - labelHeight, width * 0.9, labelHeight);
-
-          ctx.fillStyle = "#f9fafb";
-          ctx.font = "14px Arial";
-          ctx.fillText(label, x + 4, y - 6);
-        });
-      }
-
-      // LINKED LIST (cups, train, etc.)
-      const linkedNodes = getLinkedListNodes(predictions);
-      setLinkedListCount(linkedNodes.length);
-
-      if (
-        linkedNodes.length >= 1 &&
-        (mode === "Auto" || mode === "Linked List")
-      ) {
-        const nodesSorted = [...linkedNodes].sort(
-          (a, b) => a.bbox[0] - b.bbox[0]
-        );
-
-        ctx.lineWidth = 2;
-
-        nodesSorted.forEach((p, index) => {
-          const [x, y, width, height] = p.bbox;
-          const cx = x + width / 2;
-          const cy = y + height / 2;
-
-          ctx.strokeStyle = "#facc15";
-          ctx.strokeRect(x, y, width, height);
-
-          const label = `node[${index}] ${p.class}`;
-          const labelHeight = 20;
-          ctx.fillStyle = "#facc15";
-          ctx.fillRect(x, y - labelHeight, width, labelHeight);
-
-          ctx.fillStyle = "#0f172a";
-          ctx.font = "14px Arial";
-          ctx.fillText(label, x + 4, y - 4);
-
-          if (index < nodesSorted.length - 1) {
-            const next = nodesSorted[index + 1];
-            const [nx, ny, nWidth, nHeight] = next.bbox;
-            const nCx = nx + nWidth / 2;
-            const nCy = ny + nHeight / 2;
-
-            ctx.strokeStyle = "#facc15";
-            ctx.fillStyle = "#facc15";
-            drawArrow(ctx, cx + width / 2, cy, nCx - nWidth / 2, nCy);
-          } else {
-            ctx.fillStyle = "#facc15";
-            ctx.font = "14px Arial";
-            ctx.fillText("null", cx + width / 2 + 10, cy + 4);
-          }
-        });
-      }
-
-      // STACK (books + OpenCV spine detection)
-      const books = predictions.filter(
-        (p) => p.class === "book" && p.score > 0.4
-      );
-      setBookCount(books.length);
-
-      if (
-        stacks &&
-        stacks.length > 0 &&
-        (mode === "Auto" || mode === "Stack")
-      ) {
-        const stackColors = ["#f97316", "#3b82f6", "#ec4899", "#22c55e"];
-
-        stacks.forEach((stack, sIdx) => {
-          const color = stackColors[sIdx % stackColors.length];
-
-          stack.forEach((line) => {
-            ctx.beginPath();
-            ctx.moveTo(line.x1, line.y1);
-            ctx.lineTo(line.x2, line.y2);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
-            ctx.stroke();
-          });
-
-          const avgX =
-            stack.reduce((sum, l) => sum + l.x, 0) / Math.max(stack.length, 1);
-          const topY = Math.min(...stack.map((l) => l.yTop));
-
-          ctx.fillStyle = color;
-          ctx.font = "16px Arial";
-          ctx.fillText(
-            `Stack ${sIdx + 1} (${stack.length} book/s)`,
-            avgX - 50,
-            Math.max(20, topY - 10)
-          );
-        });
-      }
-    };
-
-    const detectLoop = async () => {
-      const now = performance.now();
-      if (now - lastDetection >= DETECT_INTERVAL) {
-        lastDetection = now;
-
-        if (model && videoRef.current) {
-          try {
-            const predictions = await model.detect(videoRef.current);
-
-            setDebugLabels(
-              predictions.map(
-                (p) => `${p.class} (${Math.round(p.score * 100)}%)`
-              )
-            );
-
-            const video = videoRef.current;
-            const frameWidth = video?.videoWidth || 0;
-            const frameHeight = video?.videoHeight || 0;
-
-            const books = predictions.filter(
-              (p) => p.class === "book" && p.score > 0.4
-            );
-            const linkedNodes = getLinkedListNodes(predictions);
-
-            // queue items = side-view person / book / cellphone
-            const queueItems = predictions.filter(
-              (p) =>
-                (p.class === "person" ||
-                  p.class === "book" ||
-                  p.class === "cell phone") &&
-                p.score > 0.4 &&
-                isSideViewQueueItem(p, frameWidth, frameHeight)
-            );
-
-            setBookCount(books.length);
-            setQueueCount(queueItems.length);
-            setLinkedListCount(linkedNodes.length);
-
-            let stacks = [];
-            if (books.length > 0 && window.cv) {
-              stacks = detectBookStacksFromEdges(videoRef.current);
-            }
-
-            draw(predictions, stacks);
-            analyzeScene(predictions, stacks);
-          } catch (err) {
-            console.error("Detection error:", err);
-          }
-        }
-      }
-
-      animationFrameId = requestAnimationFrame(detectLoop);
-    };
-
-    start();
-
-    return () => {
-      if (videoRef.current?.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach((t) => t.stop());
-      }
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-    };
+    checkAR();
   }, []);
 
+  const startAR = async () => {
+    try {
+      await xrStore.enterAR();
+      setArStarted(true);
+    } catch (error) {
+      console.error("Failed to start AR:", error);
+      alert(
+        "Failed to start AR. Make sure you're using a compatible device and browser."
+      );
+    }
+  };
+
   return (
-    <div
-      style={{
-        position: "relative",
-        width: "100%",
-        height: "100%",
-        borderRadius: 16,
-        overflow: "hidden",
-        background: "black",
-      }}
-    >
-      {/* CAMERA */}
-      <video
-        ref={videoRef}
-        autoPlay
-        muted
-        playsInline
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-        }}
-      />
+    <div className="w-full h-screen relative">
+      {/* AR Start Button */}
+      {!arStarted && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 to-slate-800 z-10">
+          {/* Back Button */}
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="absolute top-4 left-4 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center gap-2"
+            >
+              ← Back
+            </button>
+          )}
 
-      {/* CANVAS OVERLAY */}
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-        }}
-      />
+          <h1 className="text-3xl font-bold text-yellow-400 mb-4">
+            Array Assessment AR
+          </h1>
+          <p className="text-white mb-8 text-center px-4">
+            Experience interactive array operations in Augmented Reality!
+          </p>
 
-      {/* STATUS PILL */}
-      <div
-        style={{
-          position: "absolute",
-          top: 16,
-          left: 16,
-          padding: "6px 10px",
-          borderRadius: 999,
-          background: "rgba(15, 23, 42, 0.8)",
-          color: "#e5e7eb",
-          fontSize: "0.7rem",
-          maxWidth: "100%",
-        }}
-      >
-        DSA Concept Detection · {status}
-      </div>
-
-      {/* DATA STRUCTURE OVERLAY – only when may concept */}
-      {concept && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 12,
-            left: 12,
-            transform: "none",
-            maxWidth: "65%",
-            padding: "8px 10px",
-            borderRadius: 8,
-            background: "rgba(15, 23, 42, 0.85)",
-            border: "1px solid rgba(148, 163, 184, 0.9)",
-            color: "#f9fafb",
-            fontSize: "0.75rem",
-            lineHeight: 1.3,
-            backdropFilter: "blur(4px)",
-            maxHeight: "35%",
-            overflowY: "auto",
-            whiteSpace: "pre-line", // 👈 para gumana line breaks sa conceptDetail
-          }}
-        >
-          <div
-            style={{
-              fontSize: "0.85rem",
-              marginBottom: 2,
-              fontWeight: 600,
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <span>🧠</span>
-            <span>
-              Detected: <span style={{ color: "#34D399" }}>{concept}</span>
-            </span>
-          </div>
-          <div>{conceptDetail}</div>
+          {isARSupported ? (
+            <button
+              onClick={startAR}
+              className="px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white text-xl font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all"
+            >
+              🚀 Start AR Experience
+            </button>
+          ) : (
+            <div className="text-center">
+              <p className="text-red-400 mb-4">
+                AR is not supported on this device/browser
+              </p>
+              <p className="text-gray-400 text-sm">
+                Try using Chrome on Android or Safari on iOS
+              </p>
+              {onBack && (
+                <button
+                  onClick={onBack}
+                  className="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg"
+                >
+                  ← Go Back
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {/* 🔥 LOADING OVERLAY */}
-      {isLoading && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "rgba(0,0,0,0.7)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            color: "#e5e7eb",
-            fontSize: "0.9rem",
-          }}
-        >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: "999px",
-              border: "3px solid rgba(156,163,175,0.6)",
-              borderTopColor: "#34D399",
-              animation: "spin 0.8s linear infinite",
-            }}
-          />
-          <div>Preparing AR scanner...</div>
-          <div style={{ fontSize: "0.75rem", opacity: 0.8 }}>
-            {status} <br />
-            Please allow camera permission.
-          </div>
+      {/* AR Canvas */}
+      <Canvas
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          touchAction: "none",
+        }}
+      >
+        <XR store={xrStore}>
+          <Suspense fallback={null}>
+            <ARScene
+              initialData={initialData}
+              spacing={spacing}
+              passingRatio={passingRatio}
+              onPassStatusChange={onPassStatusChange}
+              arStarted={arStarted}
+            />
+          </Suspense>
+        </XR>
+      </Canvas>
 
-          <style>
-            {`
-              @keyframes spin {
-                from { transform: rotate(0deg); }
-                to { transform: rotate(360deg); }
-              }
-            `}
-          </style>
-        </div>
+      {/* Exit AR Button */}
+      {arStarted && (
+        <button
+          onClick={() => {
+            xrStore.getState().session?.end();
+            setArStarted(false);
+          }}
+          className="absolute top-4 right-4 z-50 px-4 py-2 bg-red-500 text-white rounded-lg shadow-lg"
+        >
+          Exit AR
+        </button>
       )}
     </div>
   );
 };
 
-export default ObjectDection;
+// Main AR Scene Component
+const ARScene = ({
+  initialData,
+  spacing,
+  passingRatio,
+  onPassStatusChange,
+  arStarted,
+}) => {
+  const modes = ["intro", "access", "search", "insert", "delete", "done"];
+  const [modeIndex, setModeIndex] = useState(0);
+  const mode = modes[modeIndex];
+
+  const [data, setData] = useState([...initialData]);
+  const [question, setQuestion] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+  const [animState, setAnimState] = useState({});
+
+  const [score, setScore] = useState(0);
+  const totalAssessments = 4;
+
+  const [isPassed, setIsPassed] = useState(false);
+  const [draggedBox, setDraggedBox] = useState(null);
+  const [holdingBox, setHoldingBox] = useState(null);
+  const [boxPositions, setBoxPositions] = useState([]);
+  const [droppedAnswer, setDroppedAnswer] = useState(null);
+
+  // AR Placement - 6 FEET AWAY (1.8 meters)
+  const [arPlaced, setArPlaced] = useState(false);
+  const [arPosition, setArPosition] = useState([0, 0, -7]);
+
+  const originalPositions = useMemo(() => {
+    const mid = (data.length - 1) / 2;
+    return data.map((_, i) => [(i - mid) * spacing, 0, 0]);
+  }, [data, spacing]);
+
+  // Initialize box positions
+  useEffect(() => {
+    setBoxPositions(originalPositions.map((pos) => [...pos]));
+  }, [originalPositions]);
+
+  useEffect(() => {
+    setSelectedIndex(null);
+    setFeedback(null);
+    setAnimState({});
+    setDraggedBox(null);
+    setHoldingBox(null);
+    setDroppedAnswer(null);
+    setBoxPositions(originalPositions.map((pos) => [...pos]));
+
+    if (mode === "access") prepareAccessQuestion();
+    if (mode === "search") prepareSearchQuestion();
+    if (mode === "insert") prepareInsertQuestion();
+    if (mode === "delete") prepareDeleteQuestion();
+    if (mode === "intro") {
+      setData([...initialData]);
+      setScore(0);
+    }
+    if (mode === "done") setQuestion(null);
+  }, [modeIndex]);
+
+  useEffect(() => {
+    if (mode !== "done") return;
+
+    const ratio = score / totalAssessments;
+    const passed = ratio >= passingRatio;
+
+    setIsPassed(passed);
+    onPassStatusChange && onPassStatusChange(passed);
+  }, [mode, score, totalAssessments, passingRatio, onPassStatusChange]);
+
+  const nextMode = () => setModeIndex((m) => Math.min(m + 1, modes.length - 1));
+
+  const prepareAccessQuestion = () => {
+    const idx = Math.floor(Math.random() * data.length);
+    setQuestion({
+      prompt: `Drag box at index ${idx} to answer zone`,
+      answerIndex: idx,
+      type: "access",
+    });
+  };
+
+  const prepareSearchQuestion = () => {
+    const value = data[Math.floor(Math.random() * data.length)];
+    setQuestion({
+      prompt: `Find and drag value ${value}`,
+      answerValue: value,
+      type: "search",
+    });
+  };
+
+  const prepareInsertQuestion = () => {
+    const insertValue = 99;
+    const k = Math.floor(Math.random() * data.length);
+    const answerIndex = k < data.length ? k : data.length - 1;
+    setQuestion({
+      prompt: `Insert ${insertValue} at index ${k}. Which shifts?`,
+      insertValue,
+      k,
+      answerIndex,
+      type: "insert",
+    });
+  };
+
+  const prepareDeleteQuestion = () => {
+    let k = Math.floor(Math.random() * data.length);
+    if (k === data.length - 1 && data.length > 1) k = data.length - 2;
+    const answerIndex = k + 1 < data.length ? k + 1 : null;
+    setQuestion({
+      prompt: `Delete index ${k}. What fills it?`,
+      k,
+      answerIndex,
+      type: "delete",
+    });
+  };
+
+  const handleHoldStart = (index) => {
+    setHoldingBox(index);
+  };
+
+  const handleHoldComplete = (index) => {
+    setDraggedBox(index);
+    setSelectedIndex(index);
+    setHoldingBox(null);
+  };
+
+  const handleHoldCancel = () => {
+    setHoldingBox(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedBox(null);
+    setHoldingBox(null);
+  };
+
+  const updateBoxPosition = (index, newPosition) => {
+    setBoxPositions((prev) => {
+      const updated = [...prev];
+      updated[index] = newPosition;
+      return updated;
+    });
+  };
+
+  const resetBoxPosition = (index) => {
+    setBoxPositions((prev) => {
+      const updated = [...prev];
+      updated[index] = [...originalPositions[index]];
+      return updated;
+    });
+  };
+
+  const handleDropOnAnswer = (droppedIndex) => {
+    if (!question) return;
+
+    setDroppedAnswer(droppedIndex);
+    const markScore = (correct) => {
+      if (correct) setScore((s) => s + 1);
+    };
+
+    let correct = false;
+
+    if (question.type === "access") {
+      correct = droppedIndex === question.answerIndex;
+      markScore(correct);
+      showFeedback(correct, `Value ${data[droppedIndex]}`, () => {
+        resetBoxPosition(droppedIndex);
+        nextMode();
+      });
+    } else if (question.type === "search") {
+      correct = data[droppedIndex] === question.answerValue;
+      markScore(correct);
+      showFeedback(correct, `Dropped ${data[droppedIndex]}`, () => {
+        resetBoxPosition(droppedIndex);
+        nextMode();
+      });
+    } else if (question.type === "insert") {
+      correct = droppedIndex === question.answerIndex;
+      markScore(correct);
+      showFeedback(correct, `Dropped ${data[droppedIndex]}`, () => {
+        const newArr = [...data];
+        newArr.splice(
+          Math.min(question.k, newArr.length),
+          0,
+          question.insertValue
+        );
+        setData(newArr);
+        nextMode();
+      });
+    } else if (question.type === "delete") {
+      correct =
+        question.answerIndex !== null && droppedIndex === question.answerIndex;
+      markScore(correct);
+      showFeedback(correct, `Dropped ${data[droppedIndex]}`, () => {
+        const newArr = [...data];
+        newArr.splice(question.k, 1);
+        setData(newArr);
+        nextMode();
+      });
+    }
+
+    setDraggedBox(null);
+  };
+
+  const showFeedback = (correct, label, callback) => {
+    setFeedback({
+      text: correct ? `✓ Correct!` : `✗ Wrong`,
+      correct,
+    });
+    setTimeout(() => {
+      setFeedback(null);
+      callback && callback();
+    }, 1200);
+  };
+
+  const handleBoxClick = (i) => {
+    if (mode === "intro") {
+      setModeIndex(1);
+      return;
+    }
+    setSelectedIndex((prev) => (prev === i ? null : i));
+  };
+
+  const handlePlaceAR = (position) => {
+    setArPosition(position);
+    setArPlaced(true);
+  };
+
+  return (
+    <>
+      {/* Lighting */}
+      <ambientLight intensity={0.8} />
+      <directionalLight position={[5, 10, 5]} intensity={1} />
+      <pointLight position={[-5, 5, 5]} intensity={0.5} />
+
+      {/* AR Origin & Placement */}
+      <XROrigin position={[0, 0, 0]} />
+
+      {/* Hit Test for placing content */}
+      {!arPlaced && arStarted && <ARHitTest onPlace={handlePlaceAR} />}
+
+      {/* Main Content Group - positioned in AR space */}
+      <group position={arPosition}>
+        {/* Floating UI Panel */}
+        <ARUIPanel
+          position={[0, 2.5, 0]}
+          mode={mode}
+          modeIndex={modeIndex}
+          question={question}
+          score={score}
+          totalAssessments={totalAssessments}
+          isPassed={isPassed}
+        />
+
+        {/* Ground Indicator */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
+          <circleGeometry args={[4, 32]} />
+          <meshStandardMaterial color="#1e293b" transparent opacity={0.3} />
+        </mesh>
+
+        {/* Answer Drop Zone */}
+        {mode !== "intro" && mode !== "done" && (
+          <ARAnswerDropZone
+            position={[0, 0, 2]}
+            isActive={draggedBox !== null}
+            draggedBox={draggedBox}
+            onDrop={handleDropOnAnswer}
+            feedback={feedback}
+          />
+        )}
+
+        {/* Interactive Boxes */}
+        {mode === "intro" ? (
+          <ARStartBox
+            position={[0, 0.5, 0]}
+            onClick={() => handleBoxClick(0)}
+          />
+        ) : mode === "done" ? (
+          <ARResultPanel
+            score={score}
+            totalAssessments={totalAssessments}
+            isPassed={isPassed}
+            onRestart={() => {
+              setModeIndex(0);
+              setData([...initialData]);
+              setScore(0);
+              setIsPassed(false);
+            }}
+          />
+        ) : (
+          data.map((value, i) => {
+            let extraOpacity = 1;
+            if (animState[i] === "fade") extraOpacity = 0.25;
+            const isSelected = selectedIndex === i;
+
+            return (
+              <ARDraggableBox
+                key={i}
+                index={i}
+                value={value}
+                position={boxPositions[i] || originalPositions[i]}
+                originalPosition={originalPositions[i]}
+                selected={isSelected}
+                isDragging={draggedBox === i}
+                isHolding={holdingBox === i}
+                anyDragging={draggedBox !== null}
+                opacity={extraOpacity}
+                onBoxClick={() => handleBoxClick(i)}
+                onHoldStart={() => handleHoldStart(i)}
+                onHoldComplete={() => handleHoldComplete(i)}
+                onHoldCancel={handleHoldCancel}
+                onDragEnd={() => {
+                  handleDragEnd();
+                  resetBoxPosition(i);
+                }}
+                onPositionChange={(pos) => updateBoxPosition(i, pos)}
+              />
+            );
+          })
+        )}
+
+        {/* Feedback Display */}
+        {feedback && (
+          <ARFeedback
+            text={feedback.text}
+            correct={feedback.correct}
+            position={[0, 1.5, 2]}
+          />
+        )}
+      </group>
+
+      {/* Non-AR fallback camera */}
+      {!arStarted && <FallbackCamera />}
+    </>
+  );
+};
+
+// AR Hit Test Component for placing content - 6 FEET AWAY
+const ARHitTest = ({ onPlace }) => {
+  const reticleRef = useRef();
+  const [hitPosition, setHitPosition] = useState(null);
+
+  useFrame(() => {
+    if (reticleRef.current) {
+      reticleRef.current.rotation.x = -Math.PI / 2;
+    }
+  });
+
+  const handleTap = () => {
+    if (hitPosition) {
+      onPlace(hitPosition);
+    } else {
+      // Default position 6 feet (1.8 meters) in front of camera
+      onPlace([0, 0, -1.8]);
+    }
+  };
+
+  return (
+    <group>
+      {/* Reticle indicator - 6 feet away */}
+      <mesh
+        ref={reticleRef}
+        position={[0, 0, -1.8]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        onClick={handleTap}
+      >
+        <ringGeometry args={[0.15, 0.2, 32]} />
+        <meshBasicMaterial color="#00ff00" side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* Tap instruction */}
+      <Text
+        position={[0, 0.5, -1.8]}
+        fontSize={0.1}
+        color="#00ff00"
+        anchorX="center"
+      >
+        Tap to place assessment
+      </Text>
+    </group>
+  );
+};
+
+// AR UI Panel
+const ARUIPanel = ({
+  position,
+  mode,
+  modeIndex,
+  question,
+  score,
+  totalAssessments,
+  isPassed,
+}) => {
+  return (
+    <group position={position}>
+      {/* Background panel */}
+      <mesh position={[0, 0, -0.05]}>
+        <planeGeometry args={[4, 1.2]} />
+        <meshBasicMaterial
+          color="#0f172a"
+          transparent
+          opacity={0.85}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+
+      {/* Border */}
+      <mesh position={[0, 0, -0.04]}>
+        <planeGeometry args={[4.1, 1.3]} />
+        <meshBasicMaterial color="#3b82f6" wireframe />
+      </mesh>
+
+      {/* Title */}
+      <Text
+        position={[0, 0.35, 0]}
+        fontSize={0.15}
+        color="#facc15"
+        anchorX="center"
+      >
+        {mode === "intro"
+          ? "Arrays — AR Assessment"
+          : mode === "done"
+          ? "Assessment Complete!"
+          : `Step ${modeIndex}: ${mode.toUpperCase()}`}
+      </Text>
+
+      {/* Question/Instruction */}
+      <Text
+        position={[0, 0, 0]}
+        fontSize={0.1}
+        color="white"
+        anchorX="center"
+        maxWidth={3.5}
+        textAlign="center"
+      >
+        {mode === "intro"
+          ? "Tap START to begin"
+          : mode === "done"
+          ? isPassed
+            ? "You passed!"
+            : "Try again!"
+          : question?.prompt || ""}
+      </Text>
+
+      {/* Score */}
+      {mode !== "intro" && (
+        <Text
+          position={[0, -0.35, 0]}
+          fontSize={0.08}
+          color="#fde68a"
+          anchorX="center"
+        >
+          {`Score: ${score} / ${totalAssessments}`}
+        </Text>
+      )}
+    </group>
+  );
+};
+
+// AR Draggable Box
+const ARDraggableBox = ({
+  index,
+  value,
+  position,
+  originalPosition,
+  selected,
+  isDragging,
+  isHolding,
+  anyDragging,
+  opacity = 1,
+  onBoxClick,
+  onHoldStart,
+  onHoldComplete,
+  onHoldCancel,
+  onDragEnd,
+  onPositionChange,
+}) => {
+  const groupRef = useRef();
+  const { camera, raycaster, pointer } = useThree();
+  const [isHovered, setIsHovered] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const holdStartTimeRef = useRef(null);
+  const isPointerDownRef = useRef(false);
+  const hasDraggedRef = useRef(false);
+  const dragPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
+  const offset = useRef(new THREE.Vector3());
+  const intersection = useRef(new THREE.Vector3());
+
+  const HOLD_DURATION = 400;
+  const size = [1.2, 0.9, 0.8];
+
+  const getColor = () => {
+    if (isDragging) return "#f97316";
+    if (isHolding) return "#fb923c";
+    if (selected) return "#facc15";
+    if (isHovered) return "#818cf8";
+    return index % 2 === 0 ? "#60a5fa" : "#34d399";
+  };
+
+  useFrame(() => {
+    if (groupRef.current) {
+      const targetY = isDragging ? 1.5 : isHolding ? 0.3 : 0;
+
+      if (isDragging) {
+        groupRef.current.position.x = position[0];
+        groupRef.current.position.z = position[2];
+        groupRef.current.position.y = THREE.MathUtils.lerp(
+          groupRef.current.position.y,
+          position[1] + targetY,
+          0.3
+        );
+      } else {
+        groupRef.current.position.x = THREE.MathUtils.lerp(
+          groupRef.current.position.x,
+          position[0],
+          0.15
+        );
+        groupRef.current.position.y = THREE.MathUtils.lerp(
+          groupRef.current.position.y,
+          position[1] + targetY,
+          0.15
+        );
+        groupRef.current.position.z = THREE.MathUtils.lerp(
+          groupRef.current.position.z,
+          position[2],
+          0.15
+        );
+      }
+
+      const targetScale = isDragging
+        ? 1.3
+        : isHolding
+        ? 1.15
+        : isHovered
+        ? 1.08
+        : 1;
+      groupRef.current.scale.lerp(
+        new THREE.Vector3(targetScale, targetScale, targetScale),
+        0.1
+      );
+    }
+
+    // Update hold progress
+    if (isHolding && holdStartTimeRef.current && !isDragging) {
+      const elapsed = Date.now() - holdStartTimeRef.current;
+      const progress = Math.min(elapsed / HOLD_DURATION, 1);
+      setHoldProgress(progress);
+
+      if (progress >= 1) {
+        completeHold();
+      }
+    }
+  });
+
+  const startHold = () => {
+    isPointerDownRef.current = true;
+    hasDraggedRef.current = false;
+    holdStartTimeRef.current = Date.now();
+    setHoldProgress(0);
+    onHoldStart();
+  };
+
+  const completeHold = () => {
+    if (!isPointerDownRef.current) return;
+
+    hasDraggedRef.current = true;
+    holdStartTimeRef.current = null;
+    setHoldProgress(0);
+
+    if (groupRef.current) {
+      dragPlane.current.set(
+        new THREE.Vector3(0, 1, 0),
+        -groupRef.current.position.y
+      );
+    }
+
+    raycaster.setFromCamera(pointer, camera);
+    raycaster.ray.intersectPlane(dragPlane.current, intersection.current);
+    if (groupRef.current) {
+      offset.current.copy(intersection.current).sub(groupRef.current.position);
+    }
+
+    onHoldComplete();
+  };
+
+  const cancelHold = () => {
+    holdStartTimeRef.current = null;
+    setHoldProgress(0);
+    isPointerDownRef.current = false;
+    onHoldCancel();
+  };
+
+  const handlePointerDown = (e) => {
+    e.stopPropagation();
+    startHold();
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isPointerDownRef.current) return;
+    e.stopPropagation();
+
+    if (!isDragging) return;
+
+    raycaster.setFromCamera(pointer, camera);
+    raycaster.ray.intersectPlane(dragPlane.current, intersection.current);
+
+    const newPosition = [
+      intersection.current.x - offset.current.x,
+      0,
+      intersection.current.z - offset.current.z,
+    ];
+
+    onPositionChange(newPosition);
+  };
+
+  const handlePointerUp = (e) => {
+    e.stopPropagation();
+
+    if (!hasDraggedRef.current) {
+      onBoxClick();
+    }
+
+    if (isDragging) {
+      onDragEnd();
+    } else {
+      cancelHold();
+    }
+
+    isPointerDownRef.current = false;
+    hasDraggedRef.current = false;
+    holdStartTimeRef.current = null;
+    setHoldProgress(0);
+  };
+
+  return (
+    <group
+      ref={groupRef}
+      position={position}
+      onPointerOver={() => setIsHovered(true)}
+      onPointerOut={() => setIsHovered(false)}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      {/* Hold Progress Ring */}
+      {isHolding && !isDragging && (
+        <group position={[0, size[1] + 0.8, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.25, 0.35, 32]} />
+            <meshBasicMaterial color="#374151" transparent opacity={0.5} />
+          </mesh>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry
+              args={[0.25, 0.35, 32, 1, 0, Math.PI * 2 * holdProgress]}
+            />
+            <meshBasicMaterial color="#f97316" />
+          </mesh>
+        </group>
+      )}
+
+      {/* Shadow */}
+      {isDragging && (
+        <mesh position={[0, -1.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.6, 32]} />
+          <meshBasicMaterial color="black" transparent opacity={0.4} />
+        </mesh>
+      )}
+
+      {/* Main Box */}
+      <mesh castShadow receiveShadow position={[0, size[1] / 2, 0]}>
+        <boxGeometry args={size} />
+        <meshStandardMaterial
+          color={getColor()}
+          emissive={
+            isDragging
+              ? "#f97316"
+              : isHolding
+              ? "#fb923c"
+              : selected
+              ? "#fbbf24"
+              : "#000000"
+          }
+          emissiveIntensity={
+            isDragging ? 0.6 : isHolding ? 0.4 : selected ? 0.4 : 0
+          }
+          metalness={0.1}
+          roughness={0.5}
+          transparent={opacity < 1}
+          opacity={opacity}
+        />
+      </mesh>
+
+      {/* Glow outline when dragging */}
+      {(isDragging || isHolding) && (
+        <mesh position={[0, size[1] / 2, 0]}>
+          <boxGeometry
+            args={[size[0] + 0.08, size[1] + 0.08, size[2] + 0.08]}
+          />
+          <meshBasicMaterial
+            color={isDragging ? "#ffffff" : "#f97316"}
+            wireframe
+          />
+        </mesh>
+      )}
+
+      {/* Value label */}
+      <Text
+        position={[0, size[1] / 2 + 0.1, size[2] / 2 + 0.01]}
+        fontSize={0.3}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {String(value)}
+      </Text>
+
+      {/* Index label */}
+      <Text
+        position={[0, -0.15, size[2] / 2 + 0.01]}
+        fontSize={0.18}
+        color="yellow"
+        anchorX="center"
+        anchorY="middle"
+      >
+        [{index}]
+      </Text>
+
+      {/* Drag instruction */}
+      {isDragging && (
+        <Text
+          position={[0, size[1] + 0.5, 0]}
+          fontSize={0.12}
+          color="#fb923c"
+          anchorX="center"
+        >
+          Drag to Answer Zone ↓
+        </Text>
+      )}
+    </group>
+  );
+};
+
+// AR Answer Drop Zone
+const ARAnswerDropZone = ({
+  position,
+  isActive,
+  draggedBox,
+  onDrop,
+  feedback,
+}) => {
+  const [hovered, setHovered] = useState(false);
+  const meshRef = useRef();
+  const glowRef = useRef(0);
+
+  useFrame(() => {
+    if (meshRef.current) {
+      const targetScale = isActive && hovered ? 1.15 : 1;
+      meshRef.current.scale.lerp(
+        new THREE.Vector3(targetScale, targetScale, targetScale),
+        0.1
+      );
+
+      if (isActive) {
+        glowRef.current += 0.06;
+        const pulse = Math.sin(glowRef.current) * 0.3 + 0.7;
+        meshRef.current.material.emissiveIntensity = pulse * 0.5;
+      } else {
+        meshRef.current.material.emissiveIntensity = 0;
+      }
+    }
+  });
+
+  const handlePointerUp = () => {
+    if (isActive && draggedBox !== null) {
+      onDrop(draggedBox);
+    }
+  };
+
+  return (
+    <group position={position}>
+      {/* Drop zone */}
+      <mesh
+        ref={meshRef}
+        onPointerOver={() => setHovered(true)}
+        onPointerOut={() => setHovered(false)}
+        onPointerUp={handlePointerUp}
+      >
+        <boxGeometry args={[3, 0.2, 1.8]} />
+        <meshStandardMaterial
+          color={
+            hovered && isActive ? "#22c55e" : isActive ? "#3b82f6" : "#475569"
+          }
+          transparent
+          opacity={isActive ? 0.9 : 0.5}
+          emissive={isActive ? "#3b82f6" : "#000000"}
+          emissiveIntensity={0}
+        />
+      </mesh>
+
+      {/* Border */}
+      <mesh position={[0, 0.01, 0]}>
+        <boxGeometry args={[3.1, 0.22, 1.9]} />
+        <meshBasicMaterial
+          color={hovered && isActive ? "#22c55e" : "#60a5fa"}
+          wireframe
+        />
+      </mesh>
+
+      {/* Label */}
+      <Text
+        position={[0, 0.25, 0]}
+        fontSize={0.2}
+        color={isActive ? "#22c55e" : "#94a3b8"}
+        anchorX="center"
+      >
+        {isActive ? "Drop Here!" : "Answer Zone"}
+      </Text>
+
+      {/* Arrow when active */}
+      {isActive && (
+        <group position={[0, 0.8, 0]}>
+          <mesh rotation={[0, 0, Math.PI]}>
+            <coneGeometry args={[0.2, 0.4, 8]} />
+            <meshBasicMaterial color="#22c55e" />
+          </mesh>
+        </group>
+      )}
+    </group>
+  );
+};
+
+// AR Start Box
+const ARStartBox = ({ position, onClick }) => {
+  const [hovered, setHovered] = useState(false);
+  const meshRef = useRef();
+
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.position.y =
+        Math.sin(state.clock.elapsedTime * 2) * 0.1 + 0.5;
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh
+        ref={meshRef}
+        onClick={onClick}
+        onPointerOver={() => setHovered(true)}
+        onPointerOut={() => setHovered(false)}
+      >
+        <boxGeometry args={[2.5, 1, 0.8]} />
+        <meshStandardMaterial
+          color={hovered ? "#3b82f6" : "#60a5fa"}
+          emissive={hovered ? "#3b82f6" : "#1e40af"}
+          emissiveIntensity={hovered ? 0.5 : 0.2}
+        />
+      </mesh>
+      <Text
+        position={[0, 0.5, 0.45]}
+        fontSize={0.25}
+        color="white"
+        anchorX="center"
+      >
+        START
+      </Text>
+    </group>
+  );
+};
+
+// AR Result Panel
+const ARResultPanel = ({ score, totalAssessments, isPassed, onRestart }) => {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <group position={[0, 0.5, 0]}>
+      {/* Score display */}
+      <Text
+        position={[0, 1, 0]}
+        fontSize={0.3}
+        color="#60a5fa"
+        anchorX="center"
+      >
+        {`Score: ${score} / ${totalAssessments}`}
+      </Text>
+
+      {/* Status */}
+      <Text
+        position={[0, 0.5, 0]}
+        fontSize={0.25}
+        color={isPassed ? "#22c55e" : "#ef4444"}
+        anchorX="center"
+      >
+        {isPassed ? "PASSED ✓" : "FAILED ✗"}
+      </Text>
+
+      {/* Restart button */}
+      <mesh
+        position={[0, -0.3, 0]}
+        onClick={onRestart}
+        onPointerOver={() => setHovered(true)}
+        onPointerOut={() => setHovered(false)}
+      >
+        <boxGeometry args={[2, 0.6, 0.5]} />
+        <meshStandardMaterial
+          color={hovered ? "#f97316" : "#fb923c"}
+          emissive={hovered ? "#f97316" : "#000000"}
+          emissiveIntensity={hovered ? 0.4 : 0}
+        />
+      </mesh>
+      <Text
+        position={[0, -0.3, 0.3]}
+        fontSize={0.18}
+        color="white"
+        anchorX="center"
+      >
+        RESTART
+      </Text>
+    </group>
+  );
+};
+
+// AR Feedback Display
+const ARFeedback = ({ text, correct, position }) => {
+  const groupRef = useRef();
+
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.15);
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={position} scale={[0, 0, 0]}>
+      <mesh position={[0, 0, -0.05]}>
+        <planeGeometry args={[2, 0.5]} />
+        <meshBasicMaterial
+          color={correct ? "#065f46" : "#7f1d1d"}
+          transparent
+          opacity={0.9}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      <Text
+        fontSize={0.18}
+        color={correct ? "#34d399" : "#f87171"}
+        anchorX="center"
+      >
+        {text}
+      </Text>
+    </group>
+  );
+};
+
+// Fallback camera for non-AR mode
+const FallbackCamera = () => {
+  const { camera } = useThree();
+
+  useEffect(() => {
+    camera.position.set(0, 3, 6);
+    camera.lookAt(0, 0, 0);
+  }, [camera]);
+
+  return null;
+};
+
+export default AssessmentAR;

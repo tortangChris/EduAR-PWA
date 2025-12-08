@@ -4,7 +4,7 @@ const modules = {
   // "dynamic-and-multi-dimensional-arrays":
   //   "Dynamic and Multi-dimensional arrays",
   "linked-list": "Linked List Variation",
-  "stack-and-queue": "Stack and Queue",
+  "stack-and-queue": "Stack",
   "tree-data-structure-recursion": "Queue",
   // "set-data-structure": "Set Data Structure",
   "graph-data-structure": "Graph Data Structure",

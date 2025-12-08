@@ -9,7 +9,7 @@ const StackQueuePage0 = () => {
       <h2 className="text-xl font-semibold">🔹 Progression Flow</h2>
       <ul className="list-disc list-inside space-y-2">
         <li>
-          <strong>Total Pages:</strong> 6 (5 content + 1 assessment).
+          <strong>Total Pages:</strong> 4 (3 content + 1 assessment).
         </li>
         <li>
           <strong>Progress:</strong> User must finish each page.

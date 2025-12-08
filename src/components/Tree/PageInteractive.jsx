@@ -3,16 +3,14 @@ import Assessment from "./Assessment";
 // import ARButtonAssessment from "./ARButtonAssessement";
 
 const PageInteractive = ({ onAssessmentPassStatusChange }) => {
-  const [activeView, setActiveView] = useState(null); 
+  const [activeView, setActiveView] = useState(null);
   // null = default buttons screen
 
   return (
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(82vh-6.5rem)] overflow-y-auto p-6 text-left flex flex-col items-center">
-
       {/* If nothing is selected, show the two buttons */}
       {!activeView && (
         <div className="space-y-6 flex flex-col items-center">
-
           {/* TOP BUTTON → Assessment */}
           <button
             onClick={() => setActiveView("assessment")}
@@ -34,7 +32,6 @@ const PageInteractive = ({ onAssessmentPassStatusChange }) => {
               Real-Objects AR Assessment
             </span>
           </button>
-
         </div>
       )}
 
@@ -46,12 +43,18 @@ const PageInteractive = ({ onAssessmentPassStatusChange }) => {
             onPassStatusChange={onAssessmentPassStatusChange} // inform parent (Arrays)
           />
 
-          <button
-            onClick={() => setActiveView(null)}
-            className="absolute top-3 right-3 bg-gray-600 px-3 py-1 rounded-md text-black text-sm shadow"
-          >
-            Back
-          </button>
+          {activeView === "real" && (
+            <div className="w-full h-[300px] rounded-xl flex items-center justify-center relative">
+              <ARButtonAssessment />
+
+              <button
+                onClick={() => setActiveView(null)}
+                className="absolute top-3 right-3 bg-white px-3 py-1 rounded-md text-black text-sm shadow"
+              >
+                Back
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -68,7 +71,6 @@ const PageInteractive = ({ onAssessmentPassStatusChange }) => {
           </button>
         </div>
       )}
-
     </div>
   );
 };

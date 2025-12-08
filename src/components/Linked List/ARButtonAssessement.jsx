@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Lock, Unlock } from "lucide-react";
+import LinkedListAssessmentAR from "./LinkedListAssessmentAR";
 
 const ARButtonAssessment = () => {
   const [isSupported, setIsSupported] = useState(null);
@@ -25,7 +26,7 @@ const ARButtonAssessment = () => {
 
   // kung nag-start na si AR → render ARPage1
   if (startAR) {
-    return <ARPageAssessment />;
+    return <LinkedListAssessmentAR />;
   }
 
   if (isSupported === null) {
