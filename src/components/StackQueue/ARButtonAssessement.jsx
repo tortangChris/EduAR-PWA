@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Lock, Unlock } from "lucide-react";
 import StackQueueAssessmentAR from "./StackQueueAssessmentAR";
 
-const ARButtonAssessment = () => {
+const ARButtonAssessement = () => {
   const [isSupported, setIsSupported] = useState(null);
   const [startAR, setStartAR] = useState(false);
 
@@ -58,4 +58,4 @@ const ARButtonAssessment = () => {
   );
 };
 
-export default ARButtonAssessment;
+export default ARButtonAssessement;
