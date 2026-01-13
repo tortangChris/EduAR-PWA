@@ -99,7 +99,7 @@ const ProgressCard = () => {
       <div className="h-px bg-gradient-to-r from-primary/40 to-transparent my-5" />
 
       {/* BOTTOM GRID: MODULES / ASSESSMENT / AR DETECT */}
-      <div className="grid grid-cols-3 gap-6 text-center text-sm font-medium">
+      <div className="grid grid-cols-2 gap-6 text-center text-sm font-medium">
         {/* CLICKABLE MODULES */}
         <div
           className="flex flex-col items-center hover:scale-105 transition-transform cursor-pointer"
@@ -126,11 +126,11 @@ const ProgressCard = () => {
           className="flex flex-col items-center hover:scale-105 transition-transform cursor-pointer"
           onClick={() => navigate("/arDetection")}
         >
-          <ScanIcon className="w-7 h-7 text-primary mb-1" />
+          {/* <ScanIcon className="w-7 h-7 text-primary mb-1" />
           <span>AR Detect</span>
           <span className="text-xs text-gray-500">
             {completedDSAModes} / {totalDSAModes}
-          </span>
+          </span> */}
         </div>
       </div>
     </div>
