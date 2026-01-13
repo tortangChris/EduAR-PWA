@@ -1,31 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { CircleCheck, PlaySquare, ScanIcon } from "lucide-react";
+import { CircleCheck, PlaySquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import modulesConfig from "../config/modulesConfig";
-
-// 🔹 DSA AR helpers
-import {
-  DSA_MODES, // ["Array", "Queue", "Stack", "Linked List", "Auto"]
-  loadDSAProgress, // returns [{ name, progress }]
-} from "../services/dsaModeProgress";
 
 const ProgressCard = () => {
   const [modulePercent, setModulePercent] = useState(0);
   const [completedModules, setCompletedModules] = useState(0);
-
-  const [arPercent, setArPercent] = useState(0);
-  const [completedDSAModes, setCompletedDSAModes] = useState(0);
-
-  // 🆕 overall percent (Modules + AR combined)
   const [overallPercent, setOverallPercent] = useState(0);
 
   const navigate = useNavigate();
 
   const totalModules = modulesConfig.length;
-  const totalDSAModes = DSA_MODES.length;
 
   useEffect(() => {
-    // ---------- MODULE PROGRESS (content modules) ----------
+    // ---------- MODULE PROGRESS ----------
     const storedProgress =
       JSON.parse(localStorage.getItem("moduleProgress")) || {};
 
@@ -37,45 +25,19 @@ const ProgressCard = () => {
     setModulePercent(Math.round(averageProgress));
     setCompletedModules(finishedCount);
 
-    // ---------- DSA AR PROGRESS (Array, Queue, Stack, Linked List, Auto) ----------
-    const dsaModules = loadDSAProgress(); // [{ name, progress }]
-    const totalDsaProgress = dsaModules.reduce(
-      (sum, m) => sum + (m.progress ?? 0),
-      0
-    );
-    const averageDsaProgress = dsaModules.length
-      ? totalDsaProgress / totalDSAModes
-      : 0;
-    const finishedDSA = dsaModules.filter((m) => m.progress === 100).length;
-
-    setArPercent(Math.round(averageDsaProgress));
-    setCompletedDSAModes(finishedDSA);
-
-    // 🆕 OVERALL PROGRESS = combine modules + AR
-    // Simple equal-weight average; pwede mo palitan to 70/30, etc.
-    let overall = 0;
-
-    if (totalModules > 0 && totalDSAModes > 0) {
-      overall = (averageProgress + averageDsaProgress) / 2;
-    } else if (totalModules > 0) {
-      overall = averageProgress;
-    } else if (totalDSAModes > 0) {
-      overall = averageDsaProgress;
-    }
-
-    setOverallPercent(Math.round(overall));
+    // ---------- OVERALL PROGRESS ----------
+    setOverallPercent(Math.round(averageProgress));
   }, []);
 
   return (
     <div className="bg-base-200 p-5 rounded-2xl shadow-lg">
-      {/* HEADER: TWO RADIAL PROGRESS (Overall) */}
+      {/* HEADER: Overall Progress */}
       <div className="flex flex-wrap items-center justify-between gap-6">
-        {/* Overall radial (Modules + AR) */}
         <div className="flex items-center gap-4">
           <div
             className="radial-progress text-primary shadow-lg shadow-primary/40"
             style={{
-              "--value": overallPercent, // 🆕 overall percent dito
+              "--value": overallPercent,
               "--size": "5rem",
               "--thickness": "6px",
             }}
@@ -98,7 +60,7 @@ const ProgressCard = () => {
 
       <div className="h-px bg-gradient-to-r from-primary/40 to-transparent my-5" />
 
-      {/* BOTTOM GRID: MODULES / ASSESSMENT / AR DETECT */}
+      {/* MODULES / ASSESSMENT */}
       <div className="grid grid-cols-2 gap-6 text-center text-sm font-medium">
         {/* CLICKABLE MODULES */}
         <div
@@ -112,25 +74,13 @@ const ProgressCard = () => {
           </span>
         </div>
 
-        {/* Assessment (can still mirror modules for now) */}
+        {/* Assessment (mirrors modules progress for now) */}
         <div className="flex flex-col items-center hover:scale-105 transition-transform">
           <CircleCheck className="w-7 h-7 text-secondary mb-1" />
           <span>Assessment</span>
           <span className="text-xs text-gray-500">
             {completedModules} / {totalModules}
           </span>
-        </div>
-
-        {/* AR Detect – DSA AR modes + ScanIcon */}
-        <div
-          className="flex flex-col items-center hover:scale-105 transition-transform cursor-pointer"
-          onClick={() => navigate("/arDetection")}
-        >
-          {/* <ScanIcon className="w-7 h-7 text-primary mb-1" />
-          <span>AR Detect</span>
-          <span className="text-xs text-gray-500">
-            {completedDSAModes} / {totalDSAModes}
-          </span> */}
         </div>
       </div>
     </div>
