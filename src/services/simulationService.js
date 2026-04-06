@@ -1,7 +1,6 @@
 import simulationsConfig from "../config/simulationsConfig";
 
 const STORAGE_KEY_PROGRESS = "simulationProgress";
-const STORAGE_KEY_POSITION = "simulationPagePositions";
 
 export function loadSimulationProgress() {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_PROGRESS)) || {};
@@ -9,14 +8,6 @@ export function loadSimulationProgress() {
     ...m,
     progress: saved[m.route] ?? 0,
   }));
-}
-
-export function saveSimulationProgress(modules) {
-  const progressObj = {};
-  modules.forEach((m) => {
-    progressObj[m.route] = m.progress;
-  });
-  localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(progressObj));
 }
 
 export function getSimulationProgress(route) {
@@ -28,17 +19,6 @@ export function setSimulationProgress(route, value) {
   const stored = JSON.parse(localStorage.getItem(STORAGE_KEY_PROGRESS)) || {};
   stored[route] = Math.min(100, value);
   localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(stored));
-}
-
-export function getSimulationPosition(route) {
-  const stored = JSON.parse(localStorage.getItem(STORAGE_KEY_POSITION)) || {};
-  return stored[route] ?? 0;
-}
-
-export function setSimulationPosition(route, page) {
-  const stored = JSON.parse(localStorage.getItem(STORAGE_KEY_POSITION)) || {};
-  stored[route] = page;
-  localStorage.setItem(STORAGE_KEY_POSITION, JSON.stringify(stored));
 }
 
 export function finishSimulation(modules, index) {

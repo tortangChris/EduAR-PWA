@@ -1,13 +1,10 @@
-// ==================== SINGLETON: SimulationStorage ====================
-// Reserve ng dati mong singleton pattern - isang instance lang sa buong app
-
 class SimulationStorageClass {
   constructor() {
     if (SimulationStorageClass._instance) {
       return SimulationStorageClass._instance;
     }
     this.STORAGE_KEY_PROGRESS = "simulationProgress";
-    this.STORAGE_KEY_POSITION = "simulationPagePositions";
+    this.STORAGE_KEY_COMPLETED = "simulationCompleted";
     SimulationStorageClass._instance = this;
   }
 
@@ -51,17 +48,19 @@ class SimulationStorageClass {
     localStorage.setItem(this.STORAGE_KEY_PROGRESS, JSON.stringify(stored));
   }
 
-  getSimulationPosition(route) {
+  // Track kung ilang tutorials na na-complete (hindi skip) sa isang route
+  getCompletedCount(route) {
     const stored =
-      JSON.parse(localStorage.getItem(this.STORAGE_KEY_POSITION)) || {};
+      JSON.parse(localStorage.getItem(this.STORAGE_KEY_COMPLETED)) || {};
     return stored[route] ?? 0;
   }
 
-  setSimulationPosition(route, page) {
+  incrementCompletedCount(route) {
     const stored =
-      JSON.parse(localStorage.getItem(this.STORAGE_KEY_POSITION)) || {};
-    stored[route] = page;
-    localStorage.setItem(this.STORAGE_KEY_POSITION, JSON.stringify(stored));
+      JSON.parse(localStorage.getItem(this.STORAGE_KEY_COMPLETED)) || {};
+    stored[route] = (stored[route] ?? 0) + 1;
+    localStorage.setItem(this.STORAGE_KEY_COMPLETED, JSON.stringify(stored));
+    return stored[route];
   }
 
   finishSimulation(modules, index) {
@@ -77,6 +76,5 @@ class SimulationStorageClass {
   }
 }
 
-// Export singleton instance
 const SimulationStorage = SimulationStorageClass.getInstance();
 export default SimulationStorage;

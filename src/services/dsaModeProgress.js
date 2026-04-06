@@ -1,5 +1,3 @@
-// src/utils/dsaModeProgress.js
-
 // Order ng DSA AR modes (walang "Off", pang-learning lang ito)
 export const DSA_MODES = ["Array", "Queue", "Stack", "Linked List", "Auto"];
 
