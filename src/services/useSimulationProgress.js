@@ -1,3 +1,4 @@
+// src/services/useSimulationProgress.js
 import { useEffect, useState, useCallback } from "react";
 import SimulationStorage from "./SimulationStorage";
 import simulationsConfig from "../config/simulationsConfig";
@@ -7,7 +8,6 @@ export function useSimulationProgress(route) {
   const [isFinished, setIsFinished] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
 
-  // Hanapin ang required completions para sa route na ito
   const config = simulationsConfig.find((m) => m.route === route);
   const requiredCompletions = config?.requiredCompletions ?? 1;
 
@@ -16,21 +16,28 @@ export function useSimulationProgress(route) {
     const count = SimulationStorage.getCompletedCount(route);
     setProgress(saved);
     setCompletedCount(count);
-    if (saved === 100) setIsFinished(true);
+    if (saved >= 100) setIsFinished(true);
   }, [route]);
 
-  // Tinatawag kapag nag-complete ng isang tutorial (hindi skip)
   const markProgress = useCallback(() => {
+    // Don't increment past required
+    const currentCount = SimulationStorage.getCompletedCount(route);
+    if (currentCount >= requiredCompletions) {
+      // Already done — just make sure progress is 100
+      SimulationStorage.setSimulationProgress(route, 100);
+      setProgress(100);
+      setIsFinished(true);
+      return;
+    }
+
     const newCount = SimulationStorage.incrementCompletedCount(route);
     setCompletedCount(newCount);
 
-    // I-compute ang bagong progress percentage
     const newProgress = Math.min(
       100,
       Math.round((newCount / requiredCompletions) * 100),
     );
 
-    // Hindi bababa ang progress, palaging tataas
     const currentProgress = SimulationStorage.getSimulationProgress(route);
     const updatedProgress = Math.max(currentProgress, newProgress);
 
