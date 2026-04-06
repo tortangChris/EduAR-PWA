@@ -9,7 +9,6 @@ import {
   createHuman3D,
 } from "./Simulationhelpers";
 
-// ==================== GROCERY BOX ====================
 function createGroceryBox(color, label, isHighlighted) {
   const product = new THREE.Group();
   const boxWidth = 0.28,
@@ -67,7 +66,6 @@ function createGroceryBox(color, label, isHighlighted) {
   return product;
 }
 
-// ==================== CLASSROOM CHAIR ====================
 function createChair() {
   const chair = new THREE.Group();
   const metalMat = new THREE.MeshStandardMaterial({
@@ -99,7 +97,6 @@ function createChair() {
   return chair;
 }
 
-// ==================== CLASSROOM DESK ====================
 function createDesk() {
   const desk = new THREE.Group();
   const woodMat = new THREE.MeshStandardMaterial({
@@ -128,7 +125,6 @@ function createDesk() {
   return desk;
 }
 
-// ==================== CLIPBOARD (TODO) ====================
 function createClipboard(label, color, isHighlighted) {
   const clipboard = new THREE.Group();
   const boardMat = new THREE.MeshStandardMaterial({
@@ -176,7 +172,6 @@ function createClipboard(label, color, isHighlighted) {
   return clipboard;
 }
 
-// ==================== BUILD ARRAY SCENE ====================
 function buildArrayScene(
   group,
   data,
@@ -193,10 +188,7 @@ function buildArrayScene(
     highlightIndex = null;
     highlightIndex2 = null;
   }
-  const maxItems = 5;
-  const renderData = data.length > maxItems ? data.slice(0, maxItems) : data;
   const groundY = 0;
-
   if (tutorialText) {
     let textY = environment === "grocery" ? 1.6 : 1.2;
     group.add(
@@ -208,7 +200,6 @@ function buildArrayScene(
       ),
     );
   }
-
   if (environment === "grocery") {
     const itemsPerRow = 4,
       rowSpacing = 0.55,
@@ -307,16 +298,16 @@ function buildArrayScene(
     const studentsPerRow = 3,
       colSpacing = 0.65;
     data.forEach((item, i) => {
-      const row = Math.floor(i / studentsPerRow);
-      const col = i % studentsPerRow;
+      const row = Math.floor(i / studentsPerRow),
+        col = i % studentsPerRow;
       const isHl = highlightIndex === i || highlightIndex2 === i;
       const rowItemCount = Math.min(
         studentsPerRow,
         data.length - row * studentsPerRow,
       );
       const rowStartX = -((rowItemCount - 1) * colSpacing) / 2;
-      const posX = rowStartX + col * colSpacing;
-      const posZ = -0.5 + row * 0.5;
+      const posX = rowStartX + col * colSpacing,
+        posZ = -0.5 + row * 0.5;
       const chair = createChair();
       chair.position.set(posX, floorY + 0.25, posZ);
       chair.scale.setScalar(0.7);
@@ -397,7 +388,6 @@ function buildArrayScene(
   }
 }
 
-// ==================== ARRAY SIMULATION WITH WEBXR ====================
 export default function ArraySimulation({ onProgress }) {
   const [environment, setEnvironment] = useState("grocery");
   const [highlightIndex, setHighlightIndex] = useState(null);
@@ -415,8 +405,9 @@ export default function ArraySimulation({ onProgress }) {
   const [swapFirstIndex, setSwapFirstIndex] = useState(null);
   const [pendingOperation, setPendingOperation] = useState("");
   const [zoomLevel, setZoomLevel] = useState(1.0);
+  // ✅ NEW: track if at least one tutorial was fully completed
+  const [tutorialCompletedOnce, setTutorialCompletedOnce] = useState(false);
 
-  // WebXR state
   const [webxrSupported, setWebxrSupported] = useState(false);
   const [webxrActive, setWebxrActive] = useState(false);
   const [webxrPlaced, setWebxrPlaced] = useState(false);
@@ -512,7 +503,6 @@ export default function ArraySimulation({ onProgress }) {
         ? setStudents
         : setTasks;
 
-  // ==================== WEBXR CHECK ====================
   useEffect(() => {
     const checkXR = async () => {
       try {
@@ -529,7 +519,6 @@ export default function ArraySimulation({ onProgress }) {
     };
   }, []);
 
-  // ==================== SYNC SCENE WITH WEBXR ====================
   useEffect(() => {
     if (!webxrPlaced || !xrGroupRef.current) return;
     buildArrayScene(
@@ -558,12 +547,10 @@ export default function ArraySimulation({ onProgress }) {
   ]);
 
   useEffect(() => {
-    if (xrGroupRef.current && webxrActive && webxrPlaced) {
+    if (xrGroupRef.current && webxrActive && webxrPlaced)
       xrGroupRef.current.scale.setScalar(0.3 * zoomLevel);
-    }
   }, [zoomLevel, webxrActive, webxrPlaced]);
 
-  // ==================== WEBXR CLEANUP ====================
   const cleanupWebXR = useCallback(() => {
     if (xrRendererRef.current) {
       xrRendererRef.current.setAnimationLoop(null);
@@ -601,7 +588,6 @@ export default function ArraySimulation({ onProgress }) {
     setWebxrPlaced(false);
   }, []);
 
-  // ==================== START WEBXR ====================
   const startWebXR = async () => {
     const xr = navigator.xr;
     if (!xr) {
@@ -617,7 +603,6 @@ export default function ArraySimulation({ onProgress }) {
       if (overlayEl) sessionInit.domOverlay = { root: overlayEl };
       const session = await xr.requestSession("immersive-ar", sessionInit);
       xrSessionRef.current = session;
-
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: true,
@@ -630,14 +615,12 @@ export default function ArraySimulation({ onProgress }) {
       if (xrContainerRef.current)
         xrContainerRef.current.appendChild(renderer.domElement);
       await renderer.xr.setSession(session);
-
       const scene = new THREE.Scene();
       xrSceneRef.current = scene;
       scene.add(new THREE.AmbientLight(0xffffff, 1.5));
       const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
       dirLight.position.set(1, 3, 2);
       scene.add(dirLight);
-
       const camera = new THREE.PerspectiveCamera(
         70,
         window.innerWidth / window.innerHeight,
@@ -645,12 +628,10 @@ export default function ArraySimulation({ onProgress }) {
         100,
       );
       xrCameraRef.current = camera;
-
       const group = new THREE.Group();
       group.visible = false;
       scene.add(group);
       xrGroupRef.current = group;
-
       const reticle = new THREE.Mesh(
         new THREE.RingGeometry(0.08, 0.1, 32).rotateX(-Math.PI / 2),
         new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
@@ -659,13 +640,11 @@ export default function ArraySimulation({ onProgress }) {
       reticle.visible = false;
       scene.add(reticle);
       xrReticleRef.current = reticle;
-
       const viewerSpace = await session.requestReferenceSpace("viewer");
       const hitTestSource = await session.requestHitTestSource({
         space: viewerSpace,
       });
       xrHitTestSourceRef.current = hitTestSource;
-
       session.addEventListener("select", () => {
         if (
           xrReticleRef.current?.visible &&
@@ -692,9 +671,7 @@ export default function ArraySimulation({ onProgress }) {
           );
         }
       });
-
       session.addEventListener("end", () => cleanupWebXR());
-
       renderer.setAnimationLoop((_ts, frame) => {
         if (
           frame &&
@@ -711,14 +688,12 @@ export default function ArraySimulation({ onProgress }) {
                 xrReticleRef.current.visible = true;
                 xrReticleRef.current.matrix.fromArray(pose.transform.matrix);
               }
-            } else if (xrReticleRef.current) {
+            } else if (xrReticleRef.current)
               xrReticleRef.current.visible = false;
-            }
           }
         }
         renderer.render(scene, camera);
       });
-
       setWebxrActive(true);
       setWebxrPlaced(false);
     } catch (err) {
@@ -727,7 +702,6 @@ export default function ArraySimulation({ onProgress }) {
     }
   };
 
-  // ==================== ANIMATION HELPERS ====================
   const smoothAnimate = (duration, phase, data) =>
     new Promise((resolve) => {
       const startTime = Date.now();
@@ -792,7 +766,6 @@ export default function ArraySimulation({ onProgress }) {
     }
   };
 
-  // ==================== TUTORIAL ENGINE ====================
   const runTutorialStep = async (step, stepIdx, allSteps) => {
     setStepAnimating(true);
     setTutorialText({
@@ -823,10 +796,14 @@ export default function ArraySimulation({ onProgress }) {
       const nextIdx = currentStepIndex + 1;
       setCurrentStepIndex(nextIdx);
       await runTutorialStep(tutorialSteps[nextIdx], nextIdx, tutorialSteps);
-    } else endTutorial();
+    } else {
+      // ✅ Reached last step via Next — mark as completed
+      completeTutorial();
+    }
   };
 
-  const endTutorial = () => {
+  // ✅ Skip — hindi nagbi-bigay ng progress
+  const skipTutorial = () => {
     setTutorialActive(false);
     setTutorialSteps([]);
     setCurrentStepIndex(0);
@@ -836,7 +813,22 @@ export default function ArraySimulation({ onProgress }) {
     setAnimPhase("");
     setAnimData({});
     setIsAnimating(false);
-    onProgress?.();
+    // walang onProgress call dito
+  };
+
+  // ✅ Complete — nagbi-bigay ng progress
+  const completeTutorial = () => {
+    setTutorialActive(false);
+    setTutorialSteps([]);
+    setCurrentStepIndex(0);
+    setTutorialText(null);
+    setHighlightIndex(null);
+    setHighlightIndex2(null);
+    setAnimPhase("");
+    setAnimData({});
+    setIsAnimating(false);
+    setTutorialCompletedOnce(true);
+    onProgress?.(); // ✅ progress only on actual completion
   };
 
   const startTutorial = (steps) => {
@@ -848,7 +840,6 @@ export default function ArraySimulation({ onProgress }) {
     runTutorialStep(steps[0], 0, steps);
   };
 
-  // ==================== ARRAY OPERATIONS ====================
   const arrayAppendTutorial = () => {
     const data = getData();
     if (isAnimating || tutorialActive || data.length >= 8) return;
@@ -1070,7 +1061,6 @@ export default function ArraySimulation({ onProgress }) {
         overflow: "hidden",
       }}
     >
-      {/* WebXR Canvas Container */}
       <div
         ref={xrContainerRef}
         style={{
@@ -1081,7 +1071,7 @@ export default function ArraySimulation({ onProgress }) {
         }}
       />
 
-      {/* Top: Environment Tabs */}
+      {/* Environment Tabs */}
       <div
         style={{
           position: "absolute",
@@ -1121,7 +1111,6 @@ export default function ArraySimulation({ onProgress }) {
         ))}
       </div>
 
-      {/* WebXR Controls */}
       {webxrActive && (
         <button
           onClick={stopWebXR}
@@ -1144,7 +1133,6 @@ export default function ArraySimulation({ onProgress }) {
         </button>
       )}
 
-      {/* Zoom Controls (only when placed) */}
       {webxrPlaced && !tutorialActive && (
         <div
           style={{
@@ -1223,7 +1211,6 @@ export default function ArraySimulation({ onProgress }) {
         </div>
       )}
 
-      {/* Reposition Button */}
       {webxrPlaced && (
         <div
           style={{
@@ -1294,8 +1281,9 @@ export default function ArraySimulation({ onProgress }) {
               />
             ))}
           </div>
+          {/* ✅ Skip — walang progress */}
           <button
-            onClick={endTutorial}
+            onClick={skipTutorial}
             style={{
               padding: "10px 20px",
               background: "rgba(255,255,255,0.1)",
@@ -1309,6 +1297,7 @@ export default function ArraySimulation({ onProgress }) {
           >
             Skip
           </button>
+          {/* ✅ Next / Done — may progress kapag Done */}
           <button
             onClick={nextStep}
             disabled={stepAnimating}
@@ -1335,7 +1324,7 @@ export default function ArraySimulation({ onProgress }) {
         </div>
       )}
 
-      {/* Bottom Operation Controls */}
+      {/* Bottom Controls */}
       {!tutorialActive && (webxrPlaced || !webxrActive) && (
         <div
           style={{
@@ -1348,6 +1337,27 @@ export default function ArraySimulation({ onProgress }) {
             zIndex: 100,
           }}
         >
+          {/* ✅ Mark as Complete button — visible after at least 1 tutorial completed */}
+          {tutorialCompletedOnce && (
+            <div style={{ textAlign: "center", marginBottom: 12 }}>
+              <button
+                onClick={() => onProgress?.()}
+                style={{
+                  padding: "12px 28px",
+                  fontSize: 13,
+                  fontWeight: "bold",
+                  border: "2px solid #10b981",
+                  borderRadius: 25,
+                  background: "rgba(16,185,129,0.2)",
+                  color: "#10b981",
+                  cursor: "pointer",
+                }}
+              >
+                ✅ Mark as Complete
+              </button>
+            </div>
+          )}
+
           {selectionMode !== "none" && (
             <div style={{ marginBottom: 10 }}>
               <div
@@ -1435,6 +1445,7 @@ export default function ArraySimulation({ onProgress }) {
               </div>
             </div>
           )}
+
           {selectionMode === "none" && (
             <div
               style={{
@@ -1544,7 +1555,6 @@ export default function ArraySimulation({ onProgress }) {
         </div>
       )}
 
-      {/* AR Launch Screen (when not in AR) */}
       {!webxrActive && webxrSupported && (
         <div
           style={{

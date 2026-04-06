@@ -500,8 +500,8 @@ export default function LinkedListSimulation({ onProgress }) {
   const [stepAnimating, setStepAnimating] = useState(false);
   const [tutorialText, setTutorialText] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(1.0);
+  const [tutorialCompletedOnce, setTutorialCompletedOnce] = useState(false); // ✅ NEW
 
-  // WebXR state
   const [webxrSupported, setWebxrSupported] = useState(false);
   const [webxrActive, setWebxrActive] = useState(false);
   const [webxrPlaced, setWebxrPlaced] = useState(false);
@@ -577,14 +577,12 @@ export default function LinkedListSimulation({ onProgress }) {
         ? peopleLine
         : dominoNodes;
 
-  // ==================== WEBXR CHECK ====================
   useEffect(() => {
     const checkXR = async () => {
       try {
         if (navigator.xr) {
-          const supported =
-            await navigator.xr.isSessionSupported("immersive-ar");
-          setWebxrSupported(supported);
+          const s = await navigator.xr.isSessionSupported("immersive-ar");
+          setWebxrSupported(s);
         }
       } catch {}
     };
@@ -594,7 +592,6 @@ export default function LinkedListSimulation({ onProgress }) {
     };
   }, []);
 
-  // ==================== SYNC SCENE ====================
   useEffect(() => {
     if (!webxrPlaced || !xrGroupRef.current) return;
     buildLinkedListScene(
@@ -621,12 +618,10 @@ export default function LinkedListSimulation({ onProgress }) {
   ]);
 
   useEffect(() => {
-    if (xrGroupRef.current && webxrActive && webxrPlaced) {
+    if (xrGroupRef.current && webxrActive && webxrPlaced)
       xrGroupRef.current.scale.setScalar(0.3 * zoomLevel);
-    }
   }, [zoomLevel, webxrActive, webxrPlaced]);
 
-  // ==================== WEBXR CLEANUP ====================
   const cleanupWebXR = useCallback(() => {
     if (xrRendererRef.current) {
       xrRendererRef.current.setAnimationLoop(null);
@@ -657,14 +652,12 @@ export default function LinkedListSimulation({ onProgress }) {
       }
     } else cleanupWebXR();
   }, [cleanupWebXR]);
-
   const resetWebXRPlacement = useCallback(() => {
     if (xrGroupRef.current) xrGroupRef.current.visible = false;
     if (xrReticleRef.current) xrReticleRef.current.visible = true;
     setWebxrPlaced(false);
   }, []);
 
-  // ==================== START WEBXR ====================
   const startWebXR = async () => {
     const xr = navigator.xr;
     if (!xr) {
@@ -680,7 +673,6 @@ export default function LinkedListSimulation({ onProgress }) {
       if (overlayEl) sessionInit.domOverlay = { root: overlayEl };
       const session = await xr.requestSession("immersive-ar", sessionInit);
       xrSessionRef.current = session;
-
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: true,
@@ -693,14 +685,12 @@ export default function LinkedListSimulation({ onProgress }) {
       if (xrContainerRef.current)
         xrContainerRef.current.appendChild(renderer.domElement);
       await renderer.xr.setSession(session);
-
       const scene = new THREE.Scene();
       xrSceneRef.current = scene;
       scene.add(new THREE.AmbientLight(0xffffff, 1.5));
       const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
       dirLight.position.set(1, 3, 2);
       scene.add(dirLight);
-
       const camera = new THREE.PerspectiveCamera(
         70,
         window.innerWidth / window.innerHeight,
@@ -708,12 +698,10 @@ export default function LinkedListSimulation({ onProgress }) {
         100,
       );
       xrCameraRef.current = camera;
-
       const group = new THREE.Group();
       group.visible = false;
       scene.add(group);
       xrGroupRef.current = group;
-
       const reticle = new THREE.Mesh(
         new THREE.RingGeometry(0.08, 0.1, 32).rotateX(-Math.PI / 2),
         new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
@@ -722,13 +710,11 @@ export default function LinkedListSimulation({ onProgress }) {
       reticle.visible = false;
       scene.add(reticle);
       xrReticleRef.current = reticle;
-
       const viewerSpace = await session.requestReferenceSpace("viewer");
       const hitTestSource = await session.requestHitTestSource({
         space: viewerSpace,
       });
       xrHitTestSourceRef.current = hitTestSource;
-
       session.addEventListener("select", () => {
         if (
           xrReticleRef.current?.visible &&
@@ -754,9 +740,7 @@ export default function LinkedListSimulation({ onProgress }) {
           );
         }
       });
-
       session.addEventListener("end", () => cleanupWebXR());
-
       renderer.setAnimationLoop((_ts, frame) => {
         if (
           frame &&
@@ -773,14 +757,12 @@ export default function LinkedListSimulation({ onProgress }) {
                 xrReticleRef.current.visible = true;
                 xrReticleRef.current.matrix.fromArray(pose.transform.matrix);
               }
-            } else if (xrReticleRef.current) {
+            } else if (xrReticleRef.current)
               xrReticleRef.current.visible = false;
-            }
           }
         }
         renderer.render(scene, camera);
       });
-
       setWebxrActive(true);
       setWebxrPlaced(false);
     } catch (err) {
@@ -789,7 +771,6 @@ export default function LinkedListSimulation({ onProgress }) {
     }
   };
 
-  // ==================== ANIMATION HELPERS ====================
   const smoothAnimate = (duration, phase, data) =>
     new Promise((resolve) => {
       const startTime = Date.now();
@@ -813,11 +794,11 @@ export default function LinkedListSimulation({ onProgress }) {
       step: `${stepIdx + 1}/${allSteps.length}`,
     });
     setHighlightIndex(step.highlightIndex ?? null);
-    if (step.animPhase && step.animDuration) {
+    if (step.animPhase && step.animDuration)
       await smoothAnimate(step.animDuration, step.animPhase, {
         index: step.highlightIndex,
       });
-    } else {
+    else {
       setAnimPhase("");
       setAnimData({});
       setAnimProgress(1);
@@ -832,10 +813,11 @@ export default function LinkedListSimulation({ onProgress }) {
       const nextIdx = currentStepIndex + 1;
       setCurrentStepIndex(nextIdx);
       await runTutorialStep(tutorialSteps[nextIdx], nextIdx, tutorialSteps);
-    } else endTutorial();
+    } else completeTutorial(); // ✅ Done button
   };
 
-  const endTutorial = () => {
+  // ✅ Skip — walang progress
+  const skipTutorial = () => {
     setTutorialActive(false);
     setTutorialSteps([]);
     setCurrentStepIndex(0);
@@ -844,6 +826,19 @@ export default function LinkedListSimulation({ onProgress }) {
     setAnimPhase("");
     setAnimData({});
     setIsAnimating(false);
+  };
+
+  // ✅ Complete — may progress
+  const completeTutorial = () => {
+    setTutorialActive(false);
+    setTutorialSteps([]);
+    setCurrentStepIndex(0);
+    setTutorialText(null);
+    setHighlightIndex(null);
+    setAnimPhase("");
+    setAnimData({});
+    setIsAnimating(false);
+    setTutorialCompletedOnce(true);
     onProgress?.();
   };
 
@@ -856,7 +851,6 @@ export default function LinkedListSimulation({ onProgress }) {
     runTutorialStep(steps[0], 0, steps);
   };
 
-  // ==================== LINKED LIST TRAVERSE TUTORIAL ====================
   const linkedListTraverseTutorial = () => {
     if (isAnimating || tutorialActive) return;
     const data = getData();
@@ -929,7 +923,6 @@ export default function LinkedListSimulation({ onProgress }) {
         }}
       />
 
-      {/* Env Tabs */}
       <div
         style={{
           position: "absolute",
@@ -1139,7 +1132,7 @@ export default function LinkedListSimulation({ onProgress }) {
             ))}
           </div>
           <button
-            onClick={endTutorial}
+            onClick={skipTutorial}
             style={{
               padding: "10px 20px",
               background: "rgba(255,255,255,0.1)",
@@ -1192,6 +1185,26 @@ export default function LinkedListSimulation({ onProgress }) {
             textAlign: "center",
           }}
         >
+          {/* ✅ Mark as Complete */}
+          {tutorialCompletedOnce && (
+            <div style={{ marginBottom: 12 }}>
+              <button
+                onClick={() => onProgress?.()}
+                style={{
+                  padding: "12px 28px",
+                  fontSize: 13,
+                  fontWeight: "bold",
+                  border: "2px solid #10b981",
+                  borderRadius: 25,
+                  background: "rgba(16,185,129,0.2)",
+                  color: "#10b981",
+                  cursor: "pointer",
+                }}
+              >
+                ✅ Mark as Complete
+              </button>
+            </div>
+          )}
           <button
             onClick={linkedListTraverseTutorial}
             disabled={isAnimating}

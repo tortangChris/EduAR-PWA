@@ -486,8 +486,8 @@ export default function StackSimulation({ onProgress }) {
   const [stepAnimating, setStepAnimating] = useState(false);
   const [tutorialText, setTutorialText] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(1.0);
+  const [tutorialCompletedOnce, setTutorialCompletedOnce] = useState(false); // ✅ NEW
 
-  // WebXR state
   const [webxrSupported, setWebxrSupported] = useState(false);
   const [webxrActive, setWebxrActive] = useState(false);
   const [webxrPlaced, setWebxrPlaced] = useState(false);
@@ -502,34 +502,66 @@ export default function StackSimulation({ onProgress }) {
   const xrContainerRef = useRef(null);
   const animFrameRef = useRef(null);
 
-  const [bookStack, setBookStack] = useState([
-    { id: 1, label: "Math", color: "#3498db" },
-    { id: 2, label: "Science", color: "#2ecc71" },
-    { id: 3, label: "History", color: "#e67e22" },
+  const [trainCars, setTrainCars] = useState([
+    { id: 1, label: "Engine", color: "#e74c3c" },
+    { id: 2, label: "Coal", color: "#34495e" },
+    { id: 3, label: "Cargo", color: "#2ecc71" },
+    { id: 4, label: "Pass", color: "#9b59b6" },
   ]);
-  const [plateStack, setPlateStack] = useState([
-    { id: 1, label: "Plate 1", color: "#ecf0f1" },
-    { id: 2, label: "Plate 2", color: "#bdc3c7" },
-    { id: 3, label: "Plate 3", color: "#95a5a6" },
+  const [peopleLine, setPeopleLine] = useState([
+    {
+      id: 1,
+      label: "Alice",
+      color: "#e74c3c",
+      appearance: {
+        skinTone: "#f5c6a0",
+        shirtColor: "#e74c3c",
+        pantsColor: "#2c3e50",
+        hairColor: "#2c1810",
+        hairStyle: "long",
+        gender: "female",
+      },
+    },
+    {
+      id: 2,
+      label: "Bob",
+      color: "#3498db",
+      appearance: {
+        skinTone: "#8d5524",
+        shirtColor: "#3498db",
+        pantsColor: "#2c3e50",
+        hairColor: "#1a1a1a",
+        hairStyle: "short",
+        gender: "male",
+      },
+    },
+    {
+      id: 3,
+      label: "Carol",
+      color: "#2ecc71",
+      appearance: {
+        skinTone: "#c68642",
+        shirtColor: "#2ecc71",
+        pantsColor: "#1a1a2e",
+        hairColor: "#3d2314",
+        hairStyle: "long",
+        gender: "female",
+      },
+    },
   ]);
-  const [boxStack, setBoxStack] = useState([
-    { id: 1, label: "Box A", color: "#e67e22" },
-    { id: 2, label: "Box B", color: "#d35400" },
-    { id: 3, label: "Box C", color: "#c0392b" },
+  const [dominoNodes, setDominoNodes] = useState([
+    { id: 1, label: "1", color: "#ecf0f1" },
+    { id: 2, label: "2", color: "#ecf0f1" },
+    { id: 3, label: "3", color: "#ecf0f1" },
+    { id: 4, label: "4", color: "#ecf0f1" },
   ]);
 
   const getData = () =>
-    environment === "books"
-      ? bookStack
-      : environment === "plates"
-        ? plateStack
-        : boxStack;
-  const setData =
-    environment === "books"
-      ? setBookStack
-      : environment === "plates"
-        ? setPlateStack
-        : setBoxStack;
+    environment === "train"
+      ? trainCars
+      : environment === "people"
+        ? peopleLine
+        : dominoNodes;
 
   useEffect(() => {
     const checkXR = async () => {
@@ -548,7 +580,7 @@ export default function StackSimulation({ onProgress }) {
 
   useEffect(() => {
     if (!webxrPlaced || !xrGroupRef.current) return;
-    buildStackScene(
+    buildLinkedListScene(
       xrGroupRef.current,
       getData(),
       highlightIndex,
@@ -560,9 +592,9 @@ export default function StackSimulation({ onProgress }) {
     );
   }, [
     webxrPlaced,
-    bookStack,
-    plateStack,
-    boxStack,
+    trainCars,
+    peopleLine,
+    dominoNodes,
     highlightIndex,
     environment,
     animPhase,
@@ -606,7 +638,6 @@ export default function StackSimulation({ onProgress }) {
       }
     } else cleanupWebXR();
   }, [cleanupWebXR]);
-
   const resetWebXRPlacement = useCallback(() => {
     if (xrGroupRef.current) xrGroupRef.current.visible = false;
     if (xrReticleRef.current) xrReticleRef.current.visible = true;
@@ -624,7 +655,7 @@ export default function StackSimulation({ onProgress }) {
         requiredFeatures: ["hit-test"],
         optionalFeatures: ["dom-overlay"],
       };
-      const overlayEl = document.getElementById("ar-overlay-stack");
+      const overlayEl = document.getElementById("ar-overlay-linkedlist");
       if (overlayEl) sessionInit.domOverlay = { root: overlayEl };
       const session = await xr.requestSession("immersive-ar", sessionInit);
       xrSessionRef.current = session;
@@ -683,7 +714,7 @@ export default function StackSimulation({ onProgress }) {
           xrGroupRef.current.scale.setScalar(0.3 * zoomLevel);
           xrReticleRef.current.visible = false;
           setWebxrPlaced(true);
-          buildStackScene(
+          buildLinkedListScene(
             xrGroupRef.current,
             getData(),
             null,
@@ -765,13 +796,14 @@ export default function StackSimulation({ onProgress }) {
   const nextStep = async () => {
     if (stepAnimating) return;
     if (currentStepIndex < tutorialSteps.length - 1) {
-      const n = currentStepIndex + 1;
-      setCurrentStepIndex(n);
-      await runTutorialStep(tutorialSteps[n], n, tutorialSteps);
-    } else endTutorial();
+      const nextIdx = currentStepIndex + 1;
+      setCurrentStepIndex(nextIdx);
+      await runTutorialStep(tutorialSteps[nextIdx], nextIdx, tutorialSteps);
+    } else completeTutorial(); // ✅ Done button
   };
 
-  const endTutorial = () => {
+  // ✅ Skip — walang progress
+  const skipTutorial = () => {
     setTutorialActive(false);
     setTutorialSteps([]);
     setCurrentStepIndex(0);
@@ -780,6 +812,19 @@ export default function StackSimulation({ onProgress }) {
     setAnimPhase("");
     setAnimData({});
     setIsAnimating(false);
+  };
+
+  // ✅ Complete — may progress
+  const completeTutorial = () => {
+    setTutorialActive(false);
+    setTutorialSteps([]);
+    setCurrentStepIndex(0);
+    setTutorialText(null);
+    setHighlightIndex(null);
+    setAnimPhase("");
+    setAnimData({});
+    setIsAnimating(false);
+    setTutorialCompletedOnce(true);
     onProgress?.();
   };
 
@@ -1145,7 +1190,7 @@ export default function StackSimulation({ onProgress }) {
             ))}
           </div>
           <button
-            onClick={endTutorial}
+            onClick={skipTutorial}
             style={{
               padding: "10px 20px",
               background: "rgba(255,255,255,0.1)",
@@ -1197,6 +1242,25 @@ export default function StackSimulation({ onProgress }) {
             zIndex: 100,
           }}
         >
+          {tutorialCompletedOnce && (
+            <div style={{ textAlign: "center", marginBottom: 12 }}>
+              <button
+                onClick={() => onProgress?.()}
+                style={{
+                  padding: "12px 28px",
+                  fontSize: 13,
+                  fontWeight: "bold",
+                  border: "2px solid #10b981",
+                  borderRadius: 25,
+                  background: "rgba(16,185,129,0.2)",
+                  color: "#10b981",
+                  cursor: "pointer",
+                }}
+              >
+                ✅ Mark as Complete
+              </button>
+            </div>
+          )}
           <div
             style={{
               display: "flex",

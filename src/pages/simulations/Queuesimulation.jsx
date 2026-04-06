@@ -622,86 +622,82 @@ export default function QueueSimulation({ onProgress }) {
   const [stepAnimating, setStepAnimating] = useState(false);
   const [tutorialText, setTutorialText] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(1.0);
+  const [tutorialCompletedOnce, setTutorialCompletedOnce] = useState(false); // ✅ NEW
 
-  // WebXR state
   const [webxrSupported, setWebxrSupported] = useState(false);
   const [webxrActive, setWebxrActive] = useState(false);
   const [webxrPlaced, setWebxrPlaced] = useState(false);
 
-  const xrSessionRef = useRef(null),
-    xrRendererRef = useRef(null),
-    xrSceneRef = useRef(null);
-  const xrCameraRef = useRef(null),
-    xrGroupRef = useRef(null),
-    xrReticleRef = useRef(null);
-  const xrHitTestSourceRef = useRef(null),
-    xrContainerRef = useRef(null),
-    animFrameRef = useRef(null);
+  const xrSessionRef = useRef(null);
+  const xrRendererRef = useRef(null);
+  const xrSceneRef = useRef(null);
+  const xrCameraRef = useRef(null);
+  const xrGroupRef = useRef(null);
+  const xrReticleRef = useRef(null);
+  const xrHitTestSourceRef = useRef(null);
+  const xrContainerRef = useRef(null);
+  const animFrameRef = useRef(null);
 
-  const [tollGate, setTollGate] = useState([
-    { id: 1, label: "ABC-123", color: "#e74c3c" },
-    { id: 2, label: "XYZ-789", color: "#3498db" },
-    { id: 3, label: "QWE-456", color: "#27ae60" },
+  const [trainCars, setTrainCars] = useState([
+    { id: 1, label: "Engine", color: "#e74c3c" },
+    { id: 2, label: "Coal", color: "#34495e" },
+    { id: 3, label: "Cargo", color: "#2ecc71" },
+    { id: 4, label: "Pass", color: "#9b59b6" },
   ]);
-  const [ticketQueue, setTicketQueue] = useState([
-    { id: 1, label: "T-001", color: "#f39c12" },
-    { id: 2, label: "T-002", color: "#e74c3c" },
-    { id: 3, label: "T-003", color: "#9b59b6" },
-  ]);
-  const [studentQueue, setStudentQueue] = useState([
+  const [peopleLine, setPeopleLine] = useState([
     {
       id: 1,
-      label: "Stu 1",
-      color: "#3498db",
+      label: "Alice",
+      color: "#e74c3c",
       appearance: {
         skinTone: "#f5c6a0",
-        shirtColor: "#3498db",
+        shirtColor: "#e74c3c",
         pantsColor: "#2c3e50",
-        hairColor: "#3d2314",
-        hairStyle: "short",
-        gender: "male",
-      },
-    },
-    {
-      id: 2,
-      label: "Stu 2",
-      color: "#2ecc71",
-      appearance: {
-        skinTone: "#c68642",
-        shirtColor: "#2ecc71",
-        pantsColor: "#1a1a2e",
         hairColor: "#2c1810",
         hairStyle: "long",
         gender: "female",
       },
     },
     {
-      id: 3,
-      label: "Stu 3",
-      color: "#9b59b6",
+      id: 2,
+      label: "Bob",
+      color: "#3498db",
       appearance: {
         skinTone: "#8d5524",
-        shirtColor: "#9b59b6",
+        shirtColor: "#3498db",
         pantsColor: "#2c3e50",
         hairColor: "#1a1a1a",
         hairStyle: "short",
         gender: "male",
       },
     },
+    {
+      id: 3,
+      label: "Carol",
+      color: "#2ecc71",
+      appearance: {
+        skinTone: "#c68642",
+        shirtColor: "#2ecc71",
+        pantsColor: "#1a1a2e",
+        hairColor: "#3d2314",
+        hairStyle: "long",
+        gender: "female",
+      },
+    },
+  ]);
+  const [dominoNodes, setDominoNodes] = useState([
+    { id: 1, label: "1", color: "#ecf0f1" },
+    { id: 2, label: "2", color: "#ecf0f1" },
+    { id: 3, label: "3", color: "#ecf0f1" },
+    { id: 4, label: "4", color: "#ecf0f1" },
   ]);
 
   const getData = () =>
-    environment === "tollgate"
-      ? tollGate
-      : environment === "tickets"
-        ? ticketQueue
-        : studentQueue;
-  const setData =
-    environment === "tollgate"
-      ? setTollGate
-      : environment === "tickets"
-        ? setTicketQueue
-        : setStudentQueue;
+    environment === "train"
+      ? trainCars
+      : environment === "people"
+        ? peopleLine
+        : dominoNodes;
 
   useEffect(() => {
     const checkXR = async () => {
@@ -720,7 +716,7 @@ export default function QueueSimulation({ onProgress }) {
 
   useEffect(() => {
     if (!webxrPlaced || !xrGroupRef.current) return;
-    buildQueueScene(
+    buildLinkedListScene(
       xrGroupRef.current,
       getData(),
       highlightIndex,
@@ -732,9 +728,9 @@ export default function QueueSimulation({ onProgress }) {
     );
   }, [
     webxrPlaced,
-    tollGate,
-    ticketQueue,
-    studentQueue,
+    trainCars,
+    peopleLine,
+    dominoNodes,
     highlightIndex,
     environment,
     animPhase,
@@ -795,7 +791,7 @@ export default function QueueSimulation({ onProgress }) {
         requiredFeatures: ["hit-test"],
         optionalFeatures: ["dom-overlay"],
       };
-      const overlayEl = document.getElementById("ar-overlay-queue");
+      const overlayEl = document.getElementById("ar-overlay-linkedlist");
       if (overlayEl) sessionInit.domOverlay = { root: overlayEl };
       const session = await xr.requestSession("immersive-ar", sessionInit);
       xrSessionRef.current = session;
@@ -854,7 +850,7 @@ export default function QueueSimulation({ onProgress }) {
           xrGroupRef.current.scale.setScalar(0.3 * zoomLevel);
           xrReticleRef.current.visible = false;
           setWebxrPlaced(true);
-          buildQueueScene(
+          buildLinkedListScene(
             xrGroupRef.current,
             getData(),
             null,
@@ -936,13 +932,14 @@ export default function QueueSimulation({ onProgress }) {
   const nextStep = async () => {
     if (stepAnimating) return;
     if (currentStepIndex < tutorialSteps.length - 1) {
-      const n = currentStepIndex + 1;
-      setCurrentStepIndex(n);
-      await runTutorialStep(tutorialSteps[n], n, tutorialSteps);
-    } else endTutorial();
+      const nextIdx = currentStepIndex + 1;
+      setCurrentStepIndex(nextIdx);
+      await runTutorialStep(tutorialSteps[nextIdx], nextIdx, tutorialSteps);
+    } else completeTutorial(); // ✅ Done button
   };
 
-  const endTutorial = () => {
+  // ✅ Skip — walang progress
+  const skipTutorial = () => {
     setTutorialActive(false);
     setTutorialSteps([]);
     setCurrentStepIndex(0);
@@ -951,6 +948,19 @@ export default function QueueSimulation({ onProgress }) {
     setAnimPhase("");
     setAnimData({});
     setIsAnimating(false);
+  };
+
+  // ✅ Complete — may progress
+  const completeTutorial = () => {
+    setTutorialActive(false);
+    setTutorialSteps([]);
+    setCurrentStepIndex(0);
+    setTutorialText(null);
+    setHighlightIndex(null);
+    setAnimPhase("");
+    setAnimData({});
+    setIsAnimating(false);
+    setTutorialCompletedOnce(true);
     onProgress?.();
   };
 
@@ -1401,7 +1411,7 @@ export default function QueueSimulation({ onProgress }) {
             ))}
           </div>
           <button
-            onClick={endTutorial}
+            onClick={skipTutorial}
             style={{
               padding: "10px 20px",
               background: "rgba(255,255,255,0.1)",
@@ -1453,6 +1463,25 @@ export default function QueueSimulation({ onProgress }) {
             zIndex: 100,
           }}
         >
+          {tutorialCompletedOnce && (
+            <div style={{ textAlign: "center", marginBottom: 12 }}>
+              <button
+                onClick={() => onProgress?.()}
+                style={{
+                  padding: "12px 28px",
+                  fontSize: 13,
+                  fontWeight: "bold",
+                  border: "2px solid #10b981",
+                  borderRadius: 25,
+                  background: "rgba(16,185,129,0.2)",
+                  color: "#10b981",
+                  cursor: "pointer",
+                }}
+              >
+                ✅ Mark as Complete
+              </button>
+            </div>
+          )}
           <div
             style={{
               display: "flex",
