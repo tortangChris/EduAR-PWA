@@ -8,7 +8,7 @@ import {
   clearGroup,
   createHuman3D,
 } from "./Simulationhelpers";
-import { useSimulationProgress } from "./../services/useSimulationProgress";
+import { useSimulationProgress } from "../../services/useSimulationProgress";
 
 function createGroceryBox(color, label, isHighlighted) {
   const product = new THREE.Group();
