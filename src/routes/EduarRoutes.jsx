@@ -14,16 +14,16 @@ const Settings = React.lazy(() => import("../pages/Settings"));
 const ARSimulation = React.lazy(() => import("../pages/ARSimulation")); // 👈 new
 
 const ARSimulationArrays = React.lazy(
-  () => import("../pages/simulations/ARSimulationArrays"),
+  () => import("../pages/simulations/Arraysimulation"),
 );
 const ARSimulationLinkedList = React.lazy(
-  () => import("../pages/simulations/ARSimulationLinkedList"),
+  () => import("../pages/simulations/Linkedlistsimulation"),
 );
 const ARSimulationStack = React.lazy(
-  () => import("../pages/simulations/ARSimulationStack"),
+  () => import("../pages/simulations/Stacksimulation"),
 );
 const ARSimulationQueue = React.lazy(
-  () => import("../pages/simulations/ARSimulationQueue"),
+  () => import("../pages/simulations/Queuesimulation"),
 );
 
 const EduarRoutes = {
