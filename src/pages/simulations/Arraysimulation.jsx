@@ -8,6 +8,7 @@ import {
   clearGroup,
   createHuman3D,
 } from "./Simulationhelpers";
+import { useSimulationProgress } from "../../services/useSimulationProgress";
 
 function createGroceryBox(color, label, isHighlighted) {
   const product = new THREE.Group();
@@ -388,7 +389,13 @@ function buildArrayScene(
   }
 }
 
-export default function ArraySimulation({ onProgress }) {
+// ✅ MAIN COMPONENT — now uses useSimulationProgress internally
+// No need for onProgress prop from parent anymore
+export default function ArraySimulation() {
+  // ✅ Wire progress tracking directly inside this component
+  const { markProgress, completedCount, requiredCompletions, isFinished } =
+    useSimulationProgress("ar-simulation/arrays");
+
   const [environment, setEnvironment] = useState("grocery");
   const [highlightIndex, setHighlightIndex] = useState(null);
   const [highlightIndex2, setHighlightIndex2] = useState(null);
@@ -405,7 +412,6 @@ export default function ArraySimulation({ onProgress }) {
   const [swapFirstIndex, setSwapFirstIndex] = useState(null);
   const [pendingOperation, setPendingOperation] = useState("");
   const [zoomLevel, setZoomLevel] = useState(1.0);
-  // ✅ NEW: track if at least one tutorial was fully completed
   const [tutorialCompletedOnce, setTutorialCompletedOnce] = useState(false);
 
   const [webxrSupported, setWebxrSupported] = useState(false);
@@ -502,6 +508,13 @@ export default function ArraySimulation({ onProgress }) {
       : environment === "classroom"
         ? setStudents
         : setTasks;
+
+  // ✅ On mount: restore tutorialCompletedOnce from completedCount
+  useEffect(() => {
+    if (completedCount > 0) {
+      setTutorialCompletedOnce(true);
+    }
+  }, [completedCount]);
 
   useEffect(() => {
     const checkXR = async () => {
@@ -797,12 +810,10 @@ export default function ArraySimulation({ onProgress }) {
       setCurrentStepIndex(nextIdx);
       await runTutorialStep(tutorialSteps[nextIdx], nextIdx, tutorialSteps);
     } else {
-      // ✅ Reached last step via Next — mark as completed
       completeTutorial();
     }
   };
 
-  // ✅ Skip — hindi nagbi-bigay ng progress
   const skipTutorial = () => {
     setTutorialActive(false);
     setTutorialSteps([]);
@@ -813,10 +824,9 @@ export default function ArraySimulation({ onProgress }) {
     setAnimPhase("");
     setAnimData({});
     setIsAnimating(false);
-    // walang onProgress call dito
+    // ✅ Walang markProgress dito — skip = walang progress
   };
 
-  // ✅ Complete — nagbi-bigay ng progress
   const completeTutorial = () => {
     setTutorialActive(false);
     setTutorialSteps([]);
@@ -828,7 +838,8 @@ export default function ArraySimulation({ onProgress }) {
     setAnimData({});
     setIsAnimating(false);
     setTutorialCompletedOnce(true);
-    onProgress?.(); // ✅ progress only on actual completion
+    // ✅ Dito na direktang tinatawag ang markProgress — saves to localStorage
+    markProgress();
   };
 
   const startTutorial = (steps) => {
@@ -1281,7 +1292,6 @@ export default function ArraySimulation({ onProgress }) {
               />
             ))}
           </div>
-          {/* ✅ Skip — walang progress */}
           <button
             onClick={skipTutorial}
             style={{
@@ -1297,7 +1307,6 @@ export default function ArraySimulation({ onProgress }) {
           >
             Skip
           </button>
-          {/* ✅ Next / Done — may progress kapag Done */}
           <button
             onClick={nextStep}
             disabled={stepAnimating}
@@ -1337,24 +1346,42 @@ export default function ArraySimulation({ onProgress }) {
             zIndex: 100,
           }}
         >
-          {/* ✅ Mark as Complete button — visible after at least 1 tutorial completed */}
+          {/* ✅ Progress indicator — shows how many tutorials done vs required */}
           {tutorialCompletedOnce && (
             <div style={{ textAlign: "center", marginBottom: 12 }}>
-              <button
-                onClick={() => onProgress?.()}
+              <div
                 style={{
-                  padding: "12px 28px",
-                  fontSize: 13,
-                  fontWeight: "bold",
-                  border: "2px solid #10b981",
-                  borderRadius: 25,
-                  background: "rgba(16,185,129,0.2)",
-                  color: "#10b981",
-                  cursor: "pointer",
+                  color: isFinished ? "#10b981" : "#f39c12",
+                  fontSize: 12,
+                  marginBottom: 6,
                 }}
               >
-                ✅ Mark as Complete
-              </button>
+                {isFinished
+                  ? "✅ Simulation Complete! Next simulation unlocked."
+                  : `Progress: ${completedCount}/${requiredCompletions} tutorials done`}
+              </div>
+              {!isFinished && (
+                <div
+                  style={{
+                    width: 200,
+                    margin: "0 auto",
+                    height: 6,
+                    background: "rgba(255,255,255,0.2)",
+                    borderRadius: 3,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${Math.min(100, (completedCount / requiredCompletions) * 100)}%`,
+                      height: "100%",
+                      background: "#667eea",
+                      borderRadius: 3,
+                      transition: "width 0.3s ease",
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
 
