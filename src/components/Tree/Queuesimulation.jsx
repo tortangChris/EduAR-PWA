@@ -387,7 +387,6 @@ function buildQueueScene(
   const spacing = 1.0,
     startX = -((data.length - 1) * spacing) / 2,
     groundY = 0;
-
   if (tutorialText)
     group.add(
       create3DTextBox(
@@ -509,7 +508,6 @@ function buildQueueScene(
       t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
     const easeOut = (t) => 1 - Math.pow(1 - t, 3);
     const doorX = startX - 1.0;
-    // Simple school building
     const buildingGroup = new THREE.Group();
     const wallMat = new THREE.MeshStandardMaterial({
       color: "#f5e6d3",
@@ -537,8 +535,8 @@ function buildQueueScene(
       if (item.appearance) {
         let walkPhase = 0,
           studentX = startX + i * spacing + 0.6,
-          studentY = groundY;
-        let shouldRender = true;
+          studentY = groundY,
+          shouldRender = true;
         if (isFront) {
           if (isWalking) {
             const wp = easeOut(progress);
@@ -622,11 +620,13 @@ export default function QueueSimulation({ onFinish }) {
   const [stepAnimating, setStepAnimating] = useState(false);
   const [tutorialText, setTutorialText] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(1.0);
-  const [tutorialCompletedOnce, setTutorialCompletedOnce] = useState(false); // ✅ NEW
+  const [tutorialCompletedOnce, setTutorialCompletedOnce] = useState(false);
 
   const [webxrSupported, setWebxrSupported] = useState(false);
   const [webxrActive, setWebxrActive] = useState(false);
   const [webxrPlaced, setWebxrPlaced] = useState(false);
+  const [arLaunching, setArLaunching] = useState(false);
+  const [arError, setArError] = useState(null);
 
   const xrSessionRef = useRef(null);
   const xrRendererRef = useRef(null);
@@ -637,14 +637,21 @@ export default function QueueSimulation({ onFinish }) {
   const xrHitTestSourceRef = useRef(null);
   const xrContainerRef = useRef(null);
   const animFrameRef = useRef(null);
+  const autoStartAttemptedRef = useRef(false);
 
-  const [trainCars, setTrainCars] = useState([
-    { id: 1, label: "Engine", color: "#e74c3c" },
-    { id: 2, label: "Coal", color: "#34495e" },
-    { id: 3, label: "Cargo", color: "#2ecc71" },
-    { id: 4, label: "Pass", color: "#9b59b6" },
+  const [tollCars, setTollCars] = useState([
+    { id: 1, label: "ABC-123", color: "#e74c3c" },
+    { id: 2, label: "XYZ-456", color: "#3498db" },
+    { id: 3, label: "DEF-789", color: "#2ecc71" },
+    { id: 4, label: "GHI-012", color: "#f39c12" },
   ]);
-  const [peopleLine, setPeopleLine] = useState([
+  const [ticketsData, setTicketsData] = useState([
+    { id: 1, label: "T-001", color: "#e74c3c" },
+    { id: 2, label: "T-002", color: "#3498db" },
+    { id: 3, label: "T-003", color: "#2ecc71" },
+    { id: 4, label: "T-004", color: "#9b59b6" },
+  ]);
+  const [studentsData, setStudentsData] = useState([
     {
       id: 1,
       label: "Alice",
@@ -685,64 +692,19 @@ export default function QueueSimulation({ onFinish }) {
       },
     },
   ]);
-  const [dominoNodes, setDominoNodes] = useState([
-    { id: 1, label: "1", color: "#ecf0f1" },
-    { id: 2, label: "2", color: "#ecf0f1" },
-    { id: 3, label: "3", color: "#ecf0f1" },
-    { id: 4, label: "4", color: "#ecf0f1" },
-  ]);
 
   const getData = () =>
-    environment === "train"
-      ? trainCars
-      : environment === "people"
-        ? peopleLine
-        : dominoNodes;
-
-  useEffect(() => {
-    const checkXR = async () => {
-      try {
-        if (navigator.xr) {
-          const s = await navigator.xr.isSessionSupported("immersive-ar");
-          setWebxrSupported(s);
-        }
-      } catch {}
-    };
-    checkXR();
-    return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!webxrPlaced || !xrGroupRef.current) return;
-    buildLinkedListScene(
-      xrGroupRef.current,
-      getData(),
-      highlightIndex,
-      environment,
-      animPhase,
-      animData,
-      animProgress,
-      tutorialText,
-    );
-  }, [
-    webxrPlaced,
-    trainCars,
-    peopleLine,
-    dominoNodes,
-    highlightIndex,
-    environment,
-    animPhase,
-    animData,
-    animProgress,
-    tutorialText,
-  ]);
-
-  useEffect(() => {
-    if (xrGroupRef.current && webxrActive && webxrPlaced)
-      xrGroupRef.current.scale.setScalar(0.3 * zoomLevel);
-  }, [zoomLevel, webxrActive, webxrPlaced]);
+    environment === "tollgate"
+      ? tollCars
+      : environment === "tickets"
+        ? ticketsData
+        : studentsData;
+  const setData =
+    environment === "tollgate"
+      ? setTollCars
+      : environment === "tickets"
+        ? setTicketsData
+        : setStudentsData;
 
   const cleanupWebXR = useCallback(() => {
     if (xrRendererRef.current) {
@@ -765,33 +727,20 @@ export default function QueueSimulation({ onFinish }) {
     setWebxrPlaced(false);
   }, []);
 
-  const stopWebXR = useCallback(() => {
-    if (xrSessionRef.current) {
-      try {
-        xrSessionRef.current.end();
-      } catch {
-        cleanupWebXR();
-      }
-    } else cleanupWebXR();
-  }, [cleanupWebXR]);
-  const resetWebXRPlacement = useCallback(() => {
-    if (xrGroupRef.current) xrGroupRef.current.visible = false;
-    if (xrReticleRef.current) xrReticleRef.current.visible = true;
-    setWebxrPlaced(false);
-  }, []);
-
-  const startWebXR = async () => {
+  const startWebXR = useCallback(async () => {
     const xr = navigator.xr;
     if (!xr) {
-      alert("WebXR not available.");
+      setArError("WebXR not available on this device/browser.");
       return;
     }
+    setArLaunching(true);
+    setArError(null);
     try {
       const sessionInit = {
         requiredFeatures: ["hit-test"],
         optionalFeatures: ["dom-overlay"],
       };
-      const overlayEl = document.getElementById("ar-overlay-linkedlist");
+      const overlayEl = document.getElementById("ar-overlay-queue");
       if (overlayEl) sessionInit.domOverlay = { root: overlayEl };
       const session = await xr.requestSession("immersive-ar", sessionInit);
       xrSessionRef.current = session;
@@ -837,6 +786,7 @@ export default function QueueSimulation({ onFinish }) {
         space: viewerSpace,
       });
       xrHitTestSourceRef.current = hitTestSource;
+      const zoomRef = { current: zoomLevel };
       session.addEventListener("select", () => {
         if (
           xrReticleRef.current?.visible &&
@@ -847,10 +797,10 @@ export default function QueueSimulation({ onFinish }) {
             xrReticleRef.current.matrix,
           );
           xrGroupRef.current.visible = true;
-          xrGroupRef.current.scale.setScalar(0.3 * zoomLevel);
+          xrGroupRef.current.scale.setScalar(0.3 * zoomRef.current);
           xrReticleRef.current.visible = false;
           setWebxrPlaced(true);
-          buildLinkedListScene(
+          buildQueueScene(
             xrGroupRef.current,
             getData(),
             null,
@@ -887,11 +837,89 @@ export default function QueueSimulation({ onFinish }) {
       });
       setWebxrActive(true);
       setWebxrPlaced(false);
+      setArLaunching(false);
     } catch (err) {
       console.error(err);
-      alert("WebXR failed: " + err.message);
+      setArError("Could not start AR: " + err.message);
+      setArLaunching(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ✅ Auto-start AR on mount
+  useEffect(() => {
+    const checkAndAutoStart = async () => {
+      if (autoStartAttemptedRef.current) return;
+      autoStartAttemptedRef.current = true;
+      try {
+        if (navigator.xr) {
+          const supported =
+            await navigator.xr.isSessionSupported("immersive-ar");
+          setWebxrSupported(supported);
+          if (supported) {
+            await startWebXR();
+          } else {
+            setArError("AR not supported on this device/browser.");
+          }
+        } else {
+          setArError("WebXR not available on this device/browser.");
+        }
+      } catch (e) {
+        setArError("Could not start AR: " + e.message);
+      }
+    };
+    checkAndAutoStart();
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!webxrPlaced || !xrGroupRef.current) return;
+    buildQueueScene(
+      xrGroupRef.current,
+      getData(),
+      highlightIndex,
+      environment,
+      animPhase,
+      animData,
+      animProgress,
+      tutorialText,
+    );
+  }, [
+    webxrPlaced,
+    tollCars,
+    ticketsData,
+    studentsData,
+    highlightIndex,
+    environment,
+    animPhase,
+    animData,
+    animProgress,
+    tutorialText,
+  ]);
+
+  useEffect(() => {
+    if (xrGroupRef.current && webxrActive && webxrPlaced)
+      xrGroupRef.current.scale.setScalar(0.3 * zoomLevel);
+  }, [zoomLevel, webxrActive, webxrPlaced]);
+
+  const stopWebXR = useCallback(() => {
+    if (xrSessionRef.current) {
+      try {
+        xrSessionRef.current.end();
+      } catch {
+        cleanupWebXR();
+      }
+    } else cleanupWebXR();
+  }, [cleanupWebXR]);
+
+  const resetWebXRPlacement = useCallback(() => {
+    if (xrGroupRef.current) xrGroupRef.current.visible = false;
+    if (xrReticleRef.current) xrReticleRef.current.visible = true;
+    setWebxrPlaced(false);
+  }, []);
 
   const smoothAnimate = (duration, phase, data) =>
     new Promise((resolve) => {
@@ -935,10 +963,9 @@ export default function QueueSimulation({ onFinish }) {
       const nextIdx = currentStepIndex + 1;
       setCurrentStepIndex(nextIdx);
       await runTutorialStep(tutorialSteps[nextIdx], nextIdx, tutorialSteps);
-    } else completeTutorial(); // ✅ Done button
+    } else completeTutorial();
   };
 
-  // ✅ Skip — walang progress
   const skipTutorial = () => {
     setTutorialActive(false);
     setTutorialSteps([]);
@@ -950,7 +977,6 @@ export default function QueueSimulation({ onFinish }) {
     setIsAnimating(false);
   };
 
-  // ✅ Complete — may progress
   const completeTutorial = () => {
     setTutorialActive(false);
     setTutorialSteps([]);
@@ -1202,6 +1228,7 @@ export default function QueueSimulation({ onFinish }) {
         }}
       />
 
+      {/* Environment Tabs */}
       <div
         style={{
           position: "absolute",
@@ -1547,7 +1574,28 @@ export default function QueueSimulation({ onFinish }) {
         </div>
       )}
 
-      {!webxrActive && webxrSupported && (
+      {/* AR Launching spinner */}
+      {arLaunching && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%,-50%)",
+            color: "white",
+            textAlign: "center",
+            zIndex: 50,
+          }}
+        >
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📡</div>
+          <div style={{ fontSize: 16, fontWeight: "bold", opacity: 0.85 }}>
+            Starting AR…
+          </div>
+        </div>
+      )}
+
+      {/* Error fallback with retry */}
+      {!arLaunching && !webxrActive && arError && (
         <div
           style={{
             position: "absolute",
@@ -1559,50 +1607,32 @@ export default function QueueSimulation({ onFinish }) {
             padding: "40px 50px",
             borderRadius: 30,
             textAlign: "center",
+            zIndex: 50,
           }}
         >
-          <div style={{ fontSize: 60 }}>🚗</div>
-          <h2 style={{ marginTop: 15 }}>Queue AR</h2>
-          <p style={{ opacity: 0.7, marginTop: 10 }}>
-            Visualize queues in augmented reality
-          </p>
+          <div style={{ fontSize: 52 }}>📷</div>
+          <h2 style={{ marginTop: 15 }}>AR Unavailable</h2>
+          <p style={{ opacity: 0.7, marginTop: 8, maxWidth: 260 }}>{arError}</p>
           <button
-            onClick={startWebXR}
+            onClick={() => {
+              autoStartAttemptedRef.current = false;
+              setArError(null);
+              startWebXR();
+            }}
             style={{
-              marginTop: 25,
-              padding: "15px 40px",
+              marginTop: 20,
+              padding: "12px 32px",
               background: "linear-gradient(135deg,#667eea,#764ba2)",
               border: "none",
-              borderRadius: 30,
+              borderRadius: 25,
               color: "white",
-              fontSize: 18,
+              fontSize: 15,
               fontWeight: "bold",
               cursor: "pointer",
             }}
           >
-            🌐 Start AR
+            🔄 Retry
           </button>
-        </div>
-      )}
-      {!webxrActive && !webxrSupported && (
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%,-50%)",
-            background: "rgba(0,0,0,0.9)",
-            color: "white",
-            padding: "40px 50px",
-            borderRadius: 30,
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: 60 }}>📷</div>
-          <h2 style={{ marginTop: 15 }}>Camera Access Needed</h2>
-          <p style={{ opacity: 0.7 }}>
-            WebXR AR not supported on this device/browser.
-          </p>
         </div>
       )}
     </div>

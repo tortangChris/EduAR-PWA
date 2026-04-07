@@ -500,11 +500,13 @@ export default function LinkedListSimulation({ onExit }) {
   const [stepAnimating, setStepAnimating] = useState(false);
   const [tutorialText, setTutorialText] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(1.0);
-  const [tutorialCompletedOnce, setTutorialCompletedOnce] = useState(false); // ✅ NEW
+  const [tutorialCompletedOnce, setTutorialCompletedOnce] = useState(false);
 
   const [webxrSupported, setWebxrSupported] = useState(false);
   const [webxrActive, setWebxrActive] = useState(false);
   const [webxrPlaced, setWebxrPlaced] = useState(false);
+  const [arLaunching, setArLaunching] = useState(false);
+  const [arError, setArError] = useState(null);
 
   const xrSessionRef = useRef(null);
   const xrRendererRef = useRef(null);
@@ -515,6 +517,7 @@ export default function LinkedListSimulation({ onExit }) {
   const xrHitTestSourceRef = useRef(null);
   const xrContainerRef = useRef(null);
   const animFrameRef = useRef(null);
+  const autoStartAttemptedRef = useRef(false);
 
   const [trainCars, setTrainCars] = useState([
     { id: 1, label: "Engine", color: "#e74c3c" },
@@ -577,51 +580,6 @@ export default function LinkedListSimulation({ onExit }) {
         ? peopleLine
         : dominoNodes;
 
-  useEffect(() => {
-    const checkXR = async () => {
-      try {
-        if (navigator.xr) {
-          const s = await navigator.xr.isSessionSupported("immersive-ar");
-          setWebxrSupported(s);
-        }
-      } catch {}
-    };
-    checkXR();
-    return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!webxrPlaced || !xrGroupRef.current) return;
-    buildLinkedListScene(
-      xrGroupRef.current,
-      getData(),
-      highlightIndex,
-      environment,
-      animPhase,
-      animData,
-      animProgress,
-      tutorialText,
-    );
-  }, [
-    webxrPlaced,
-    trainCars,
-    peopleLine,
-    dominoNodes,
-    highlightIndex,
-    environment,
-    animPhase,
-    animData,
-    animProgress,
-    tutorialText,
-  ]);
-
-  useEffect(() => {
-    if (xrGroupRef.current && webxrActive && webxrPlaced)
-      xrGroupRef.current.scale.setScalar(0.3 * zoomLevel);
-  }, [zoomLevel, webxrActive, webxrPlaced]);
-
   const cleanupWebXR = useCallback(() => {
     if (xrRendererRef.current) {
       xrRendererRef.current.setAnimationLoop(null);
@@ -643,27 +601,14 @@ export default function LinkedListSimulation({ onExit }) {
     setWebxrPlaced(false);
   }, []);
 
-  const stopWebXR = useCallback(() => {
-    if (xrSessionRef.current) {
-      try {
-        xrSessionRef.current.end();
-      } catch {
-        cleanupWebXR();
-      }
-    } else cleanupWebXR();
-  }, [cleanupWebXR]);
-  const resetWebXRPlacement = useCallback(() => {
-    if (xrGroupRef.current) xrGroupRef.current.visible = false;
-    if (xrReticleRef.current) xrReticleRef.current.visible = true;
-    setWebxrPlaced(false);
-  }, []);
-
-  const startWebXR = async () => {
+  const startWebXR = useCallback(async () => {
     const xr = navigator.xr;
     if (!xr) {
-      alert("WebXR not available.");
+      setArError("WebXR not available on this device/browser.");
       return;
     }
+    setArLaunching(true);
+    setArError(null);
     try {
       const sessionInit = {
         requiredFeatures: ["hit-test"],
@@ -715,6 +660,7 @@ export default function LinkedListSimulation({ onExit }) {
         space: viewerSpace,
       });
       xrHitTestSourceRef.current = hitTestSource;
+      const zoomRef = { current: zoomLevel };
       session.addEventListener("select", () => {
         if (
           xrReticleRef.current?.visible &&
@@ -725,7 +671,7 @@ export default function LinkedListSimulation({ onExit }) {
             xrReticleRef.current.matrix,
           );
           xrGroupRef.current.visible = true;
-          xrGroupRef.current.scale.setScalar(0.3 * zoomLevel);
+          xrGroupRef.current.scale.setScalar(0.3 * zoomRef.current);
           xrReticleRef.current.visible = false;
           setWebxrPlaced(true);
           buildLinkedListScene(
@@ -765,11 +711,89 @@ export default function LinkedListSimulation({ onExit }) {
       });
       setWebxrActive(true);
       setWebxrPlaced(false);
+      setArLaunching(false);
     } catch (err) {
       console.error(err);
-      alert("WebXR failed: " + err.message);
+      setArError("Could not start AR: " + err.message);
+      setArLaunching(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ✅ Auto-start AR on mount
+  useEffect(() => {
+    const checkAndAutoStart = async () => {
+      if (autoStartAttemptedRef.current) return;
+      autoStartAttemptedRef.current = true;
+      try {
+        if (navigator.xr) {
+          const supported =
+            await navigator.xr.isSessionSupported("immersive-ar");
+          setWebxrSupported(supported);
+          if (supported) {
+            await startWebXR();
+          } else {
+            setArError("AR not supported on this device/browser.");
+          }
+        } else {
+          setArError("WebXR not available on this device/browser.");
+        }
+      } catch (e) {
+        setArError("Could not start AR: " + e.message);
+      }
+    };
+    checkAndAutoStart();
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!webxrPlaced || !xrGroupRef.current) return;
+    buildLinkedListScene(
+      xrGroupRef.current,
+      getData(),
+      highlightIndex,
+      environment,
+      animPhase,
+      animData,
+      animProgress,
+      tutorialText,
+    );
+  }, [
+    webxrPlaced,
+    trainCars,
+    peopleLine,
+    dominoNodes,
+    highlightIndex,
+    environment,
+    animPhase,
+    animData,
+    animProgress,
+    tutorialText,
+  ]);
+
+  useEffect(() => {
+    if (xrGroupRef.current && webxrActive && webxrPlaced)
+      xrGroupRef.current.scale.setScalar(0.3 * zoomLevel);
+  }, [zoomLevel, webxrActive, webxrPlaced]);
+
+  const stopWebXR = useCallback(() => {
+    if (xrSessionRef.current) {
+      try {
+        xrSessionRef.current.end();
+      } catch {
+        cleanupWebXR();
+      }
+    } else cleanupWebXR();
+  }, [cleanupWebXR]);
+
+  const resetWebXRPlacement = useCallback(() => {
+    if (xrGroupRef.current) xrGroupRef.current.visible = false;
+    if (xrReticleRef.current) xrReticleRef.current.visible = true;
+    setWebxrPlaced(false);
+  }, []);
 
   const smoothAnimate = (duration, phase, data) =>
     new Promise((resolve) => {
@@ -813,10 +837,9 @@ export default function LinkedListSimulation({ onExit }) {
       const nextIdx = currentStepIndex + 1;
       setCurrentStepIndex(nextIdx);
       await runTutorialStep(tutorialSteps[nextIdx], nextIdx, tutorialSteps);
-    } else completeTutorial(); // ✅ Done button
+    } else completeTutorial();
   };
 
-  // ✅ Skip — walang progress
   const skipTutorial = () => {
     setTutorialActive(false);
     setTutorialSteps([]);
@@ -828,7 +851,6 @@ export default function LinkedListSimulation({ onExit }) {
     setIsAnimating(false);
   };
 
-  // ✅ Complete — may progress
   const completeTutorial = () => {
     setTutorialActive(false);
     setTutorialSteps([]);
@@ -923,6 +945,7 @@ export default function LinkedListSimulation({ onExit }) {
         }}
       />
 
+      {/* Environment Tabs */}
       <div
         style={{
           position: "absolute",
@@ -986,6 +1009,7 @@ export default function LinkedListSimulation({ onExit }) {
           ✕ Exit AR
         </button>
       )}
+
       {webxrPlaced && !tutorialActive && (
         <div
           style={{
@@ -1235,7 +1259,28 @@ export default function LinkedListSimulation({ onExit }) {
         </div>
       )}
 
-      {!webxrActive && webxrSupported && (
+      {/* AR Launching spinner */}
+      {arLaunching && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%,-50%)",
+            color: "white",
+            textAlign: "center",
+            zIndex: 50,
+          }}
+        >
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📡</div>
+          <div style={{ fontSize: 16, fontWeight: "bold", opacity: 0.85 }}>
+            Starting AR…
+          </div>
+        </div>
+      )}
+
+      {/* Error fallback with retry */}
+      {!arLaunching && !webxrActive && arError && (
         <div
           style={{
             position: "absolute",
@@ -1247,50 +1292,32 @@ export default function LinkedListSimulation({ onExit }) {
             padding: "40px 50px",
             borderRadius: 30,
             textAlign: "center",
+            zIndex: 50,
           }}
         >
-          <div style={{ fontSize: 60 }}>🔗</div>
-          <h2 style={{ marginTop: 15 }}>Linked List AR</h2>
-          <p style={{ opacity: 0.7, marginTop: 10 }}>
-            Visualize linked lists in augmented reality
-          </p>
+          <div style={{ fontSize: 52 }}>📷</div>
+          <h2 style={{ marginTop: 15 }}>AR Unavailable</h2>
+          <p style={{ opacity: 0.7, marginTop: 8, maxWidth: 260 }}>{arError}</p>
           <button
-            onClick={startWebXR}
+            onClick={() => {
+              autoStartAttemptedRef.current = false;
+              setArError(null);
+              startWebXR();
+            }}
             style={{
-              marginTop: 25,
-              padding: "15px 40px",
+              marginTop: 20,
+              padding: "12px 32px",
               background: "linear-gradient(135deg,#667eea,#764ba2)",
               border: "none",
-              borderRadius: 30,
+              borderRadius: 25,
               color: "white",
-              fontSize: 18,
+              fontSize: 15,
               fontWeight: "bold",
               cursor: "pointer",
             }}
           >
-            🌐 Start AR
+            🔄 Retry
           </button>
-        </div>
-      )}
-      {!webxrActive && !webxrSupported && (
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%,-50%)",
-            background: "rgba(0,0,0,0.9)",
-            color: "white",
-            padding: "40px 50px",
-            borderRadius: 30,
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: 60 }}>📷</div>
-          <h2 style={{ marginTop: 15 }}>Camera Access Needed</h2>
-          <p style={{ opacity: 0.7 }}>
-            WebXR AR not supported on this device/browser.
-          </p>
         </div>
       )}
     </div>
