@@ -1,19 +1,19 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import ArraySimulation from "../components/simulations/ArraySimulation";
 import SimulationStorage from "../services/Simulationstorage";
-import { useNavigate } from "react-router-dom";
 
 const ROUTE = "ar-simulation/arrays";
 
 const ArraySimulationPage = () => {
   const navigate = useNavigate();
 
-  const handleFinish = () => {
-    // Directly force progress to 100 — no counting logic
+  const handleExit = () => {
     SimulationStorage.setSimulationProgress(ROUTE, 100);
     navigate("/ar-simulation");
   };
 
-  return <ArraySimulation onFinish={handleFinish} />;
+  return <ArraySimulation onExit={handleExit} />;
 };
 
 export default ArraySimulationPage;
