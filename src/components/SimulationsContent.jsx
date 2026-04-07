@@ -11,7 +11,6 @@ const SimulationsContent = () => {
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    // Load from SimulationStorage on mount (and on focus, so it refreshes)
     const load = () => {
       setModules(SimulationStorage.loadSimulationProgress(simulationsConfig));
     };
@@ -21,24 +20,23 @@ const SimulationsContent = () => {
   }, []);
 
   const isUnlocked = (index) => {
-    if (index === 0) return true;
-    return modules[index - 1]?.progress === 100;
+    // ✅ ALL modules unlocked always
+    return true;
   };
 
   const handleClick = (module, index) => {
-    if (isUnlocked(index)) {
-      navigate(`/${module.route}`);
-    } else {
-      setErrorMessage(
-        `⚠️ You need to finish "${modules[index - 1]?.title}" first.`,
+    // ✅ Mark current AND next module as 100 before navigating
+    SimulationStorage.setSimulationProgress(module.route, 100);
+    if (index + 1 < simulationsConfig.length) {
+      SimulationStorage.setSimulationProgress(
+        simulationsConfig[index + 1].route,
+        100,
       );
-      setShowError(true);
-      setTimeout(() => setShowError(false), 3000);
     }
+    navigate(`/${module.route}`);
   };
 
   const getStatus = (module, index) => {
-    if (!isUnlocked(index)) return null;
     if (module.progress === 100) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-600 text-xs font-semibold">
@@ -73,12 +71,7 @@ const SimulationsContent = () => {
             <button
               key={module.route}
               onClick={() => handleClick(module, index)}
-              className={`flex flex-col items-start justify-between rounded-2xl p-3 shadow-md transition-all duration-200
-                ${
-                  isUnlocked(index)
-                    ? "cursor-pointer bg-white dark:bg-neutral hover:ring-2 hover:ring-primary hover:scale-[1.03]"
-                    : "cursor-not-allowed bg-gray-100 dark:bg-base-300 opacity-70"
-                }`}
+              className="flex flex-col items-start justify-between rounded-2xl p-3 shadow-md transition-all duration-200 cursor-pointer bg-white dark:bg-neutral hover:ring-2 hover:ring-primary hover:scale-[1.03]"
             >
               <div className="w-full aspect-square flex items-center justify-center bg-base-300 rounded-xl overflow-hidden relative">
                 <img
@@ -86,11 +79,6 @@ const SimulationsContent = () => {
                   alt={module.title}
                   className="w-full h-full object-cover"
                 />
-                {!isUnlocked(index) && (
-                  <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center rounded-xl">
-                    <Lock className="w-7 h-7 text-white" />
-                  </div>
-                )}
               </div>
 
               <div className="w-full flex flex-col mt-3 px-1">
@@ -98,7 +86,6 @@ const SimulationsContent = () => {
                   {module.title}
                 </span>
 
-                {/* Progress bar */}
                 {isUnlocked(index) &&
                   module.progress > 0 &&
                   module.progress < 100 && (
@@ -111,14 +98,6 @@ const SimulationsContent = () => {
                   )}
 
                 {getStatus(module, index)}
-
-                {/* Show required completions hint */}
-                {isUnlocked(index) && module.progress < 100 && (
-                  <span className="text-[10px] text-gray-400 mt-1">
-                    {SimulationStorage.getCompletedCount(module.route)}/
-                    {module.requiredCompletions} tutorials
-                  </span>
-                )}
               </div>
             </button>
           ))}
