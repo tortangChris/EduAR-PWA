@@ -388,7 +388,7 @@ function buildArrayScene(
   }
 }
 
-export default function ArraySimulation({ onFinish }) {
+export default function ArraySimulation({ onExit }) {
   const [environment, setEnvironment] = useState("grocery");
   const [highlightIndex, setHighlightIndex] = useState(null);
   const [highlightIndex2, setHighlightIndex2] = useState(null);
@@ -1113,7 +1113,10 @@ export default function ArraySimulation({ onFinish }) {
 
       {webxrActive && (
         <button
-          onClick={stopWebXR}
+          onClick={() => {
+            stopWebXR();
+            onExit?.();
+          }}
           style={{
             position: "absolute",
             top: 10,
