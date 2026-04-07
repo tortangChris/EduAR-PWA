@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock, CheckCircle, Clock } from "lucide-react";
 import simulationsConfig from "../config/simulationsConfig";
-import SimulationStorage from "../services/Simulationstorage";
+import SimulationStorage from "../services/SimulationStorage";
 
 const SimulationsContent = () => {
   const navigate = useNavigate();
@@ -10,12 +10,13 @@ const SimulationsContent = () => {
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const load = () => {
+    setModules(SimulationStorage.loadSimulationProgress(simulationsConfig));
+  };
+
   useEffect(() => {
-    // Load from SimulationStorage on mount (and on focus, so it refreshes)
-    const load = () => {
-      setModules(SimulationStorage.loadSimulationProgress(simulationsConfig));
-    };
     load();
+    // Re-load kapag bumalik ang user sa tab/page
     window.addEventListener("focus", load);
     return () => window.removeEventListener("focus", load);
   }, []);
@@ -112,7 +113,7 @@ const SimulationsContent = () => {
 
                 {getStatus(module, index)}
 
-                {/* Show required completions hint */}
+                {/* Completed count hint */}
                 {isUnlocked(index) && module.progress < 100 && (
                   <span className="text-[10px] text-gray-400 mt-1">
                     {SimulationStorage.getCompletedCount(module.route)}/
