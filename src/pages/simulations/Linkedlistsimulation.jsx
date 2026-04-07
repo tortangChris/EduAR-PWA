@@ -487,7 +487,7 @@ function buildLinkedListScene(
 }
 
 // ==================== LINKED LIST SIMULATION WITH WEBXR ====================
-export default function LinkedListSimulation({ onProgress }) {
+export default function LinkedListSimulation({ onFinish }) {
   const [environment, setEnvironment] = useState("train");
   const [highlightIndex, setHighlightIndex] = useState(null);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -1185,11 +1185,10 @@ export default function LinkedListSimulation({ onProgress }) {
             textAlign: "center",
           }}
         >
-          {/* ✅ Mark as Complete */}
           {tutorialCompletedOnce && (
-            <div style={{ marginBottom: 12 }}>
+            <div style={{ textAlign: "center", marginBottom: 12 }}>
               <button
-                onClick={() => onProgress?.()}
+                onClick={() => onFinish?.()}
                 style={{
                   padding: "12px 28px",
                   fontSize: 13,
@@ -1201,7 +1200,7 @@ export default function LinkedListSimulation({ onProgress }) {
                   cursor: "pointer",
                 }}
               >
-                ✅ Mark as Complete
+                ✅ Finish & Continue
               </button>
             </div>
           )}

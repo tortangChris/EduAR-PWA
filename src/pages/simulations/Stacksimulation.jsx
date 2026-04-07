@@ -1245,7 +1245,7 @@ export default function StackSimulation({ onProgress }) {
           {tutorialCompletedOnce && (
             <div style={{ textAlign: "center", marginBottom: 12 }}>
               <button
-                onClick={() => onProgress?.()}
+                onClick={() => onFinish?.()}
                 style={{
                   padding: "12px 28px",
                   fontSize: 13,
@@ -1257,7 +1257,7 @@ export default function StackSimulation({ onProgress }) {
                   cursor: "pointer",
                 }}
               >
-                ✅ Mark as Complete
+                ✅ Finish & Continue
               </button>
             </div>
           )}

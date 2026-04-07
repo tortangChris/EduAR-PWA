@@ -609,7 +609,7 @@ function buildQueueScene(
 }
 
 // ==================== QUEUE SIMULATION WITH WEBXR ====================
-export default function QueueSimulation({ onProgress }) {
+export default function QueueSimulation({ onFinish }) {
   const [environment, setEnvironment] = useState("tollgate");
   const [highlightIndex, setHighlightIndex] = useState(null);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -1466,7 +1466,7 @@ export default function QueueSimulation({ onProgress }) {
           {tutorialCompletedOnce && (
             <div style={{ textAlign: "center", marginBottom: 12 }}>
               <button
-                onClick={() => onProgress?.()}
+                onClick={() => onFinish?.()}
                 style={{
                   padding: "12px 28px",
                   fontSize: 13,
@@ -1478,7 +1478,7 @@ export default function QueueSimulation({ onProgress }) {
                   cursor: "pointer",
                 }}
               >
-                ✅ Mark as Complete
+                ✅ Finish & Continue
               </button>
             </div>
           )}
