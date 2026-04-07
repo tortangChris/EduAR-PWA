@@ -1115,7 +1115,7 @@ export default function ArraySimulation({ onExit }) {
         <button
           onClick={() => {
             stopWebXR();
-            onExit?.();
+            window.location.href = "/modules/arrays/1";
           }}
           style={{
             position: "absolute",
