@@ -53,7 +53,7 @@ const ARBtn = () => {
         }`}
     >
       {isSupported ? <Unlock size={18} /> : <Lock size={18} />}
-      {isSupported ? "Start AR Experience" : "AR Not Supported"}
+      {isSupported ? " Start Tutorial AR Simulation" : "AR Not Supported"}
     </button>
   );
 };

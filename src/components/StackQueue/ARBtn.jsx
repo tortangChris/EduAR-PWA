@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Lock, Unlock } from "lucide-react";
-import ARPage1 from "./Arraysimulation";
+import ARPage1 from "./Stacksimulation";
 
 const ARBtn = () => {
   const [isSupported, setIsSupported] = useState(null);
@@ -53,7 +53,7 @@ const ARBtn = () => {
         }`}
     >
       {isSupported ? <Unlock size={18} /> : <Lock size={18} />}
-      {isSupported ? "Start AR Experience" : "AR Not Supported"}
+      {isSupported ? "Start Tutorial AR Simulation" : "AR Not Supported"}
     </button>
   );
 };
