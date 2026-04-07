@@ -1,9 +1,12 @@
 import React from "react";
 import LinkedListPage0 from "./Contents/LinkedListPage0";
+import ARButton from "./ARBtn";
 
 const Page0 = () => {
   return (
     <div className="bg-base-200 rounded-xl shadow-md h-[calc(80vh-6.5rem)] overflow-y-auto p-6 space-y-4 text-left">
+      <ARButton />
+
       <LinkedListPage0 />
     </div>
   );
