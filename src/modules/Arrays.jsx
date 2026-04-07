@@ -30,9 +30,10 @@ const Arrays = () => {
     <Page5 />,
 
     <PageInteractive
-      onAssessmentPassStatusChange={(passed) => setArrayAssessmentPassed(passed)}
+      onAssessmentPassStatusChange={(passed) =>
+        setArrayAssessmentPassed(passed)
+      }
     />,
- 
   ];
   const totalPages = pages.length;
 

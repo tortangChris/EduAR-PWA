@@ -1,9 +1,16 @@
 import QueueSimulation from "../components/simulations/QueueSimulation";
-import { useSimulationProgress } from "../services/useSimulationProgress";
+import SimulationStorage from "../services/Simulationstorage";
+import { useNavigate } from "react-router-dom";
+
+const ROUTE = "ar-simulation/queue";
 
 const QueueSimulationPage = () => {
-  const { markProgress } = useSimulationProgress("ar-simulation/queue");
-  return <QueueSimulation onProgress={markProgress} />;
+  const navigate = useNavigate();
+  const handleFinish = () => {
+    SimulationStorage.setSimulationProgress(ROUTE, 100);
+    navigate("/ar-simulation");
+  };
+  return <QueueSimulation onFinish={handleFinish} />;
 };
 
 export default QueueSimulationPage;

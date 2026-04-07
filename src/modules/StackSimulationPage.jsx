@@ -1,9 +1,16 @@
 import StackSimulation from "../components/simulations/StackSimulation";
-import { useSimulationProgress } from "../services/useSimulationProgress";
+import SimulationStorage from "../services/Simulationstorage";
+import { useNavigate } from "react-router-dom";
+
+const ROUTE = "ar-simulation/stack";
 
 const StackSimulationPage = () => {
-  const { markProgress } = useSimulationProgress("ar-simulation/stack");
-  return <StackSimulation onProgress={markProgress} />;
+  const navigate = useNavigate();
+  const handleFinish = () => {
+    SimulationStorage.setSimulationProgress(ROUTE, 100);
+    navigate("/ar-simulation");
+  };
+  return <StackSimulation onFinish={handleFinish} />;
 };
 
 export default StackSimulationPage;

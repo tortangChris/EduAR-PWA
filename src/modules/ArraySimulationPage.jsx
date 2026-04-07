@@ -1,9 +1,19 @@
 import ArraySimulation from "../components/simulations/ArraySimulation";
-import { useSimulationProgress } from "../services/useSimulationProgress";
+import SimulationStorage from "../services/Simulationstorage";
+import { useNavigate } from "react-router-dom";
+
+const ROUTE = "ar-simulation/arrays";
 
 const ArraySimulationPage = () => {
-  const { markProgress } = useSimulationProgress("ar-simulation/arrays");
-  return <ArraySimulation onProgress={markProgress} />;
+  const navigate = useNavigate();
+
+  const handleFinish = () => {
+    // Directly force progress to 100 — no counting logic
+    SimulationStorage.setSimulationProgress(ROUTE, 100);
+    navigate("/ar-simulation");
+  };
+
+  return <ArraySimulation onFinish={handleFinish} />;
 };
 
 export default ArraySimulationPage;

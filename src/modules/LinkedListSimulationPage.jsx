@@ -1,9 +1,16 @@
 import LinkedListSimulation from "../components/simulations/LinkedListSimulation";
-import { useSimulationProgress } from "../services/useSimulationProgress";
+import SimulationStorage from "../services/Simulationstorage";
+import { useNavigate } from "react-router-dom";
+
+const ROUTE = "ar-simulation/linked-list";
 
 const LinkedListSimulationPage = () => {
-  const { markProgress } = useSimulationProgress("ar-simulation/linked-list");
-  return <LinkedListSimulation onProgress={markProgress} />;
+  const navigate = useNavigate();
+  const handleFinish = () => {
+    SimulationStorage.setSimulationProgress(ROUTE, 100);
+    navigate("/ar-simulation");
+  };
+  return <LinkedListSimulation onFinish={handleFinish} />;
 };
 
 export default LinkedListSimulationPage;
