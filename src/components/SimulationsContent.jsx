@@ -1,42 +1,67 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Lock, CheckCircle, Clock } from "lucide-react";
 import simulationsConfig from "../config/simulationsConfig";
 import SimulationStorage from "../services/Simulationstorage";
 
+function normalizeRouteKey(route) {
+  if (!route) return "";
+  return route.replace(/^\//, "");
+}
+
 const SimulationsContent = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [modules, setModules] = useState([]);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const load = () => {
+    setModules(SimulationStorage.loadSimulationProgress(simulationsConfig));
+  };
+
   useEffect(() => {
-    const load = () => {
-      setModules(SimulationStorage.loadSimulationProgress(simulationsConfig));
-    };
     load();
     window.addEventListener("focus", load);
     return () => window.removeEventListener("focus", load);
   }, []);
 
+  // ✅ Same pattern as ModulesContent — reload when navigating back
+  useEffect(() => {
+    if (location.state?.completedRoute && modules.length > 0) {
+      const key = normalizeRouteKey(location.state.completedRoute);
+      const moduleIndex = modules.findIndex(
+        (m) => normalizeRouteKey(m.route) === key,
+      );
+      if (moduleIndex !== -1) {
+        SimulationStorage.setSimulationProgress(
+          modules[moduleIndex].route,
+          100,
+        );
+        load();
+      }
+    }
+  }, [location.state, modules.length]);
+
   const isUnlocked = (index) => {
-    // ✅ ALL modules unlocked always
-    return true;
+    if (index === 0) return true;
+    return modules[index - 1]?.progress === 100;
   };
 
   const handleClick = (module, index) => {
-    // ✅ Mark current AND next module as 100 before navigating
-    SimulationStorage.setSimulationProgress(module.route, 100);
-    if (index + 1 < simulationsConfig.length) {
-      SimulationStorage.setSimulationProgress(
-        simulationsConfig[index + 1].route,
-        100,
+    if (isUnlocked(index)) {
+      navigate(`/${module.route}`);
+    } else {
+      setErrorMessage(
+        `⚠️ You need to finish "${modules[index - 1]?.title}" first.`,
       );
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
     }
-    navigate(`/${module.route}`);
   };
 
   const getStatus = (module, index) => {
+    if (!isUnlocked(index)) return null;
     if (module.progress === 100) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-600 text-xs font-semibold">
@@ -71,7 +96,12 @@ const SimulationsContent = () => {
             <button
               key={module.route}
               onClick={() => handleClick(module, index)}
-              className="flex flex-col items-start justify-between rounded-2xl p-3 shadow-md transition-all duration-200 cursor-pointer bg-white dark:bg-neutral hover:ring-2 hover:ring-primary hover:scale-[1.03]"
+              className={`flex flex-col items-start justify-between rounded-2xl p-3 shadow-md transition-all duration-200
+                ${
+                  isUnlocked(index)
+                    ? "cursor-pointer bg-white dark:bg-neutral hover:ring-2 hover:ring-primary hover:scale-[1.03]"
+                    : "cursor-not-allowed bg-gray-100 dark:bg-base-300 opacity-70"
+                }`}
             >
               <div className="w-full aspect-square flex items-center justify-center bg-base-300 rounded-xl overflow-hidden relative">
                 <img
@@ -79,13 +109,17 @@ const SimulationsContent = () => {
                   alt={module.title}
                   className="w-full h-full object-cover"
                 />
+                {!isUnlocked(index) && (
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center rounded-xl">
+                    <Lock className="w-7 h-7 text-white" />
+                  </div>
+                )}
               </div>
 
               <div className="w-full flex flex-col mt-3 px-1">
                 <span className="font-semibold text-left text-primary text-sm mb-1 line-clamp-2">
                   {module.title}
                 </span>
-
                 {isUnlocked(index) &&
                   module.progress > 0 &&
                   module.progress < 100 && (
@@ -96,8 +130,13 @@ const SimulationsContent = () => {
                       />
                     </div>
                   )}
-
                 {getStatus(module, index)}
+                {isUnlocked(index) && module.progress < 100 && (
+                  <span className="text-[10px] text-gray-400 mt-1">
+                    {SimulationStorage.getCompletedCount(module.route)}/
+                    {module.requiredCompletions} tutorials
+                  </span>
+                )}
               </div>
             </button>
           ))}

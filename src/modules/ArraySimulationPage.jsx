@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ArraySimulation from "../components/simulations/ArraySimulation";
 import SimulationStorage from "../services/Simulationstorage";
@@ -10,7 +9,7 @@ const ArraySimulationPage = () => {
 
   const handleExit = () => {
     SimulationStorage.setSimulationProgress(ROUTE, 100);
-    navigate("/ar-simulation");
+    navigate("/ar-simulation", { state: { completedRoute: ROUTE } });
   };
 
   return <ArraySimulation onExit={handleExit} />;
