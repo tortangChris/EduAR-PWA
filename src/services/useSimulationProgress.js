@@ -1,6 +1,6 @@
 // src/services/useSimulationProgress.js
 import { useEffect, useState, useCallback } from "react";
-import SimulationStorage from "./SimulationStorage";
+import SimulationStorage from "./Simulationstorage";
 import simulationsConfig from "../config/simulationsConfig";
 
 export function useSimulationProgress(route) {
