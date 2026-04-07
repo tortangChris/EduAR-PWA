@@ -1,5 +1,6 @@
+// src/services/useSimulationProgress.js
 import { useEffect, useState, useCallback } from "react";
-import SimulationStorage from "./SimulationStorage";
+import SimulationStorage from "./Simulationstorage";
 import simulationsConfig from "../config/simulationsConfig";
 
 export function useSimulationProgress(route) {
@@ -19,9 +20,10 @@ export function useSimulationProgress(route) {
   }, [route]);
 
   const markProgress = useCallback(() => {
+    // Don't increment past required
     const currentCount = SimulationStorage.getCompletedCount(route);
-
     if (currentCount >= requiredCompletions) {
+      // Already done — just make sure progress is 100
       SimulationStorage.setSimulationProgress(route, 100);
       setProgress(100);
       setIsFinished(true);
