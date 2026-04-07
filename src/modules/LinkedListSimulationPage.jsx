@@ -2,8 +2,8 @@ import LinkedListSimulation from "../components/simulations/LinkedListSimulation
 import { useSimulationProgress } from "../services/useSimulationProgress";
 
 const LinkedListSimulationPage = () => {
-  const { markFinished } = useSimulationProgress("/simulations/linked-list");
-  return <LinkedListSimulation onProgress={markFinished} />;
+  const { markProgress } = useSimulationProgress("ar-simulation/linked-list");
+  return <LinkedListSimulation onProgress={markProgress} />;
 };
 
 export default LinkedListSimulationPage;

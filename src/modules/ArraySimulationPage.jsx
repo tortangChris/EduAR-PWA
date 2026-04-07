@@ -1,13 +1,9 @@
-import { useLocation } from "react-router-dom";
 import ArraySimulation from "../components/simulations/ArraySimulation";
 import { useSimulationProgress } from "../services/useSimulationProgress";
 
-const ROUTE = "/simulations/array";
-
 const ArraySimulationPage = () => {
-  const { markFinished } = useSimulationProgress(ROUTE);
-
-  return <ArraySimulation onProgress={markFinished} />;
+  const { markProgress } = useSimulationProgress("ar-simulation/arrays");
+  return <ArraySimulation onProgress={markProgress} />;
 };
 
 export default ArraySimulationPage;
